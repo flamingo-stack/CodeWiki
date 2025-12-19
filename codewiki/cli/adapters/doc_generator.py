@@ -209,10 +209,35 @@ class CLIDocumentationGenerator:
             else:
                 module_tree = cluster_modules(leaf_nodes, components, backend_config)
                 file_manager.save_json(module_tree, first_module_tree_path)
-            
+
+            # === SYNTHETIC_MODULE_PATCH: Prevent context overflow ===
+            # If module_tree is empty but we have leaf nodes, create synthetic modules
+            # This prevents the "whole repo" fallback that exceeds API context limits
+            # IMPORTANT: Runs AFTER loading cached file too (fixes cache bypass bug)
+            # See: https://github.com/flamingo-stack/CodeWiki - forked with this fix
+            if len(module_tree) == 0 and len(leaf_nodes) > 0:
+                logging.warning("Module tree is empty - creating synthetic modules to prevent context overflow")
+                max_per_module = int(os.environ.get('CODEWIKI_MAX_FILES_PER_MODULE', '5'))
+                synthetic_modules = {}
+
+                for i in range(0, len(leaf_nodes), max_per_module):
+                    batch = leaf_nodes[i:i + max_per_module]
+                    module_name = f"module_{i // max_per_module + 1}"
+                    synthetic_modules[module_name] = {
+                        "name": module_name,
+                        "components": [node.name for node in batch],
+                        "leaf_nodes": batch
+                    }
+
+                module_tree = synthetic_modules
+                logging.info(f"Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
+                # Update the cached file with synthetic modules
+                file_manager.save_json(module_tree, first_module_tree_path)
+            # === END SYNTHETIC_MODULE_PATCH ===
+
             file_manager.save_json(module_tree, module_tree_path)
             self.job.module_count = len(module_tree)
-            
+
             if self.verbose:
                 self.progress_tracker.update_stage(1.0, f"Created {len(module_tree)} modules")
         except Exception as e:
