@@ -2,8 +2,11 @@
 LLM service factory for creating configured LLM clients.
 """
 import os
+import logging
 
 from pydantic_ai.models.openai import OpenAIModel
+
+logger = logging.getLogger(__name__)
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIModelSettings
 from pydantic_ai.models.fallback import FallbackModel
@@ -29,7 +32,7 @@ def get_max_output_tokens() -> int:
         try:
             return int(env_value)
         except ValueError:
-            print(f"Warning: Invalid MAX_OUTPUT_TOKENS value '{env_value}', using default {default_tokens}")
+            logger.warning(f"Invalid MAX_OUTPUT_TOKENS value '{env_value}', using default {default_tokens}")
     return default_tokens
 
 
