@@ -55,9 +55,9 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ✅ `subgraph data_layer["Data Layer"]`
    - ❌ `subgraph Data Layer` (spaces in ID)
 
-6. **Special Characters**: Avoid these in labels or escape them: `|`, `[`, `]`, `{`, `}`, `<`, `>`
-   - ✅ `A["User<br>Service"]` for line breaks
-   - ❌ `A[User|Service]` (pipe in label breaks parsing)
+6. **Special Characters**: Avoid pipe, brackets, braces in labels
+   - ✅ Use quotes and escape: A["User Service"]
+   - ❌ A[User|Service] - pipe in label breaks parsing
 
 Example of correct flowchart:
 ```mermaid
@@ -123,7 +123,7 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ✅ `A --> B`
    - ❌ `A --> B;` (semicolons can cause issues)
 
-5. **Special Characters**: Avoid `|`, `[`, `]`, `{`, `}` in labels
+5. **Special Characters**: Avoid pipe, brackets, braces in labels
 
 Example:
 ```mermaid
