@@ -47,6 +47,7 @@ async def generate_sub_module_documentation(
 
         num_tokens = count_tokens(format_potential_core_components(core_component_ids, ctx.deps.components)[-1])
         
+        # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
         if is_complex_module(ctx.deps.components, core_component_ids) and ctx.deps.current_depth < ctx.deps.max_depth and num_tokens >= MAX_TOKEN_PER_LEAF_MODULE:
             sub_agent = Agent(
                 model=fallback_models,
@@ -54,6 +55,7 @@ async def generate_sub_module_documentation(
                 deps_type=CodeWikiDeps,
                 system_prompt=SYSTEM_PROMPT.format(module_name=sub_module_name),
                 tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool],
+                retries=3,
             )
         else:
             sub_agent = Agent(
@@ -62,6 +64,7 @@ async def generate_sub_module_documentation(
                 deps_type=CodeWikiDeps,
                 system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=sub_module_name),
                 tools=[read_code_components_tool, str_replace_editor_tool],
+                retries=3,
             )
 
         deps.current_module_name = sub_module_name
