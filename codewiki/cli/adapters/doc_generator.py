@@ -223,9 +223,14 @@ class CLIDocumentationGenerator:
                 for i in range(0, len(leaf_nodes), max_per_module):
                     batch = leaf_nodes[i:i + max_per_module]
                     module_name = f"module_{i // max_per_module + 1}"
+                    # Handle both Node objects and strings (leaf_nodes can be either)
+                    if batch and hasattr(batch[0], 'name'):
+                        component_names = [node.name for node in batch]
+                    else:
+                        component_names = list(batch)  # Already strings
                     synthetic_modules[module_name] = {
                         "name": module_name,
-                        "components": [node.name for node in batch],
+                        "components": component_names,
                         "leaf_nodes": batch
                     }
 
