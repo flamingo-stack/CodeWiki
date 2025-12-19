@@ -56,10 +56,12 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ❌ `subgraph Data Layer` (spaces in ID)
 
 6. **Special Characters**: Avoid pipe, brackets, braces in labels
-   - ✅ Use quotes and escape: A["User Service"]
-   - ❌ A[User|Service] - pipe in label breaks parsing
 
-Example of correct flowchart:
+7. **CRITICAL - Close code blocks**: ALWAYS close mermaid blocks with triple backticks on their own line:
+   - ✅ End with ``` on a new line after diagram content
+   - ❌ Never leave mermaid blocks unclosed
+
+Example of correct flowchart (note the closing backticks):
 ```mermaid
 flowchart TD
     A["User Controller"] -->|handles requests| B["User Service"]
@@ -125,7 +127,9 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
 
 5. **Special Characters**: Avoid pipe, brackets, braces in labels
 
-Example:
+6. **CRITICAL - Close code blocks**: ALWAYS end mermaid blocks with ``` on its own line
+
+Example (note closing backticks):
 ```mermaid
 flowchart TD
     A["Controller"] -->|handles| B["Service"]
