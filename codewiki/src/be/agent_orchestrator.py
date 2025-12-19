@@ -130,35 +130,22 @@ class AgentOrchestrator:
         
         # Run agent
         # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
-        # FLAMINGO_PATCH: Added 10-minute timeout per module to prevent infinite loops
         try:
-            import asyncio
-            module_timeout = int(os.environ.get('CODEWIKI_MODULE_TIMEOUT_SECONDS', '600'))  # 10 min default
-
-            result = await asyncio.wait_for(
-                agent.run(
-                    format_user_prompt(
-                        module_name=module_name,
-                        core_component_ids=core_component_ids,
-                        components=components,
-                        module_tree=deps.module_tree
-                    ),
-                    deps=deps,
-                    usage_limits=UsageLimits(request_limit=50),  # Reduced from 200 to prevent long loops
+            result = await agent.run(
+                format_user_prompt(
+                    module_name=module_name,
+                    core_component_ids=core_component_ids,
+                    components=components,
+                    module_tree=deps.module_tree
                 ),
-                timeout=module_timeout
+                deps=deps,
+                usage_limits=UsageLimits(request_limit=200),
             )
 
             # Save updated module tree
             file_manager.save_json(deps.module_tree, module_tree_path)
             logger.debug(f"Successfully processed module: {module_name}")
 
-            return deps.module_tree
-
-        except asyncio.TimeoutError:
-            logger.warning(f"Module {module_name} timed out after {module_timeout}s - skipping")
-            # Save whatever module tree state we have
-            file_manager.save_json(deps.module_tree, module_tree_path)
             return deps.module_tree
 
         except Exception as e:

@@ -760,8 +760,32 @@ async def str_replace_editor(
     result = "\n".join(tool.logs)
 
     if command != "view" and path.endswith(".md"):
-        mermaid_validation = await validate_mermaid_diagrams(absolute_path, path)
-        result = result + "\n---------- Mermaid validation ----------\n" + mermaid_validation
+        # Track mermaid validation attempts to prevent infinite loops
+        mermaid_attempts_key = f"mermaid_attempts:{path}"
+        mermaid_attempts = ctx.deps.registry.get(mermaid_attempts_key, 0)
+
+        MAX_MERMAID_ATTEMPTS = 3
+
+        if mermaid_attempts >= MAX_MERMAID_ATTEMPTS:
+            logger.warning(f"Mermaid validation skipped for {path} after {MAX_MERMAID_ATTEMPTS} failed attempts")
+            result = result + "\n---------- Mermaid validation ----------\n"
+            result = result + f"SKIPPED: Mermaid validation has failed {MAX_MERMAID_ATTEMPTS} times for this file. "
+            result = result + "Proceeding without further mermaid fixes. Do NOT attempt to fix mermaid syntax again."
+        else:
+            mermaid_validation = await validate_mermaid_diagrams(absolute_path, path)
+
+            # Check if there were errors and increment counter
+            if "syntax errors" in mermaid_validation.lower() or "error" in mermaid_validation.lower():
+                ctx.deps.registry[mermaid_attempts_key] = mermaid_attempts + 1
+                logger.warning(f"Mermaid validation attempt {mermaid_attempts + 1}/{MAX_MERMAID_ATTEMPTS} failed for {path}")
+
+                if mermaid_attempts + 1 >= MAX_MERMAID_ATTEMPTS:
+                    mermaid_validation = mermaid_validation + "\n\nWARNING: This is your last attempt to fix mermaid syntax. If you cannot fix it, proceed without fixing."
+            else:
+                # Reset counter on success
+                ctx.deps.registry[mermaid_attempts_key] = 0
+
+            result = result + "\n---------- Mermaid validation ----------\n" + mermaid_validation
 
     return result
 
