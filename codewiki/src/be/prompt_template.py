@@ -29,6 +29,46 @@ Generate documentation following this structure:
    - Process flow diagrams where relevant
 </DOCUMENTATION_STRUCTURE>
 
+<MERMAID_SYNTAX_RULES>
+CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
+
+1. **Node IDs**: Use simple alphanumeric IDs without spaces (use underscores):
+   - ✅ `UserService` or `user_service`
+   - ❌ `User Service` (spaces break parsing)
+
+2. **Node Labels**: Use square brackets with quotes for labels with spaces:
+   - ✅ `A["User Service"]`
+   - ✅ `B[UserRepository]`
+   - ❌ `A[User Service]` (unquoted spaces may break)
+
+3. **Edge Labels**: Use pipe syntax correctly with NO spaces around pipes:
+   - ✅ `A -->|provides data| B`
+   - ✅ `A -->|"complex label"| B`
+   - ❌ `A -->| provides data | B` (extra spaces)
+   - ❌ `A --> |label| B` (space before pipe)
+
+4. **Line Endings**: Each statement on its own line, no semicolons needed:
+   - ✅ `A --> B`
+   - ❌ `A --> B;` (semicolons can cause issues)
+
+5. **Subgraphs**: Use simple IDs and quoted titles:
+   - ✅ `subgraph data_layer["Data Layer"]`
+   - ❌ `subgraph Data Layer` (spaces in ID)
+
+6. **Special Characters**: Avoid these in labels or escape them: `|`, `[`, `]`, `{`, `}`, `<`, `>`
+   - ✅ `A["User<br>Service"]` for line breaks
+   - ❌ `A[User|Service]` (pipe in label breaks parsing)
+
+Example of correct flowchart:
+```mermaid
+flowchart TD
+    A["User Controller"] -->|handles requests| B["User Service"]
+    B -->|queries| C["User Repository"]
+    C -->|returns data| B
+    B -->|returns response| A
+```
+</MERMAID_SYNTAX_RULES>
+
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
 2. Create the main `{module_name}.md` file with overview and architecture in working directory
@@ -62,6 +102,36 @@ Generate documentation following the following requirements:
 2. Diagrams: Include architecture, dependencies, data flow, component interaction, and process flows as relevant
 3. References: Link to other module documentation instead of duplicating information
 </DOCUMENTATION_REQUIREMENTS>
+
+<MERMAID_SYNTAX_RULES>
+CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
+
+1. **Node IDs**: Use simple alphanumeric IDs without spaces (use underscores):
+   - ✅ `UserService` or `user_service`
+   - ❌ `User Service` (spaces break parsing)
+
+2. **Node Labels**: Use square brackets with quotes for labels with spaces:
+   - ✅ `A["User Service"]`
+   - ❌ `A[User Service]` (unquoted spaces may break)
+
+3. **Edge Labels**: Use pipe syntax correctly with NO spaces around pipes:
+   - ✅ `A -->|provides data| B`
+   - ❌ `A -->| provides data | B` (extra spaces)
+   - ❌ `A --> |label| B` (space before pipe)
+
+4. **Line Endings**: Each statement on its own line, no semicolons needed:
+   - ✅ `A --> B`
+   - ❌ `A --> B;` (semicolons can cause issues)
+
+5. **Special Characters**: Avoid `|`, `[`, `]`, `{`, `}` in labels
+
+Example:
+```mermaid
+flowchart TD
+    A["Controller"] -->|handles| B["Service"]
+    B -->|queries| C["Repository"]
+```
+</MERMAID_SYNTAX_RULES>
 
 <WORKFLOW>
 1. Analyze provided code components and module structure
