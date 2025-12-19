@@ -90,9 +90,12 @@ def generate_command(
     """
     logger = create_logger(verbose=verbose)
     start_time = time.time()
-    
-    # Suppress httpx INFO logs
+
+    # Suppress verbose third-party library logs
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+    logging.getLogger("anthropic").setLevel(logging.WARNING)
     
     try:
         # Pre-generation checks

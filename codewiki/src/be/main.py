@@ -18,6 +18,12 @@ from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_loggi
 # Initialize colored logging
 setup_logging(level=logging.INFO)
 
+# Suppress verbose third-party library logs (OpenAI, Anthropic, httpx)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+logging.getLogger("anthropic").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 # Local imports

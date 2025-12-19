@@ -13,6 +13,11 @@ import os
 import logging
 import sys
 
+# Suppress verbose third-party library logs (OpenAI, Anthropic, httpx)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+logging.getLogger("anthropic").setLevel(logging.WARNING)
 
 from codewiki.cli.utils.progress import ProgressTracker
 from codewiki.cli.models.job import DocumentationJob, LLMConfig
