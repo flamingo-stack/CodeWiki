@@ -90,7 +90,7 @@ async def generate_sub_module_documentation(
                 module_tree=ctx.deps.module_tree,
             ),
             deps=ctx.deps,
-            usage_limits=UsageLimits(request_limit=200),
+            usage_limits=UsageLimits(request_limit=1000),
         )
 
         # remove the sub-module name from the path to current module and the module tree

@@ -3,6 +3,7 @@ LLM service factory for creating configured LLM clients.
 """
 import os
 import logging
+from typing import Any
 
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -13,6 +14,26 @@ from pydantic_ai.models.fallback import FallbackModel
 from openai import OpenAI
 
 from codewiki.src.config import Config
+
+
+# Global request counter for logging progress
+_request_counter = {"count": 0, "module": "unknown"}
+
+
+def reset_request_counter(module_name: str = "unknown"):
+    """Reset the request counter for a new module."""
+    _request_counter["count"] = 0
+    _request_counter["module"] = module_name
+
+
+def increment_request_counter():
+    """Increment request counter and log every 100 requests."""
+    _request_counter["count"] += 1
+    count = _request_counter["count"]
+    module = _request_counter["module"]
+
+    if count % 100 == 0:
+        logger.info(f"📊 Module '{module}': {count} LLM requests completed")
 
 
 def get_max_output_tokens() -> int:
@@ -66,11 +87,20 @@ def create_fallback_model(config: Config) -> OpenAIModel:
     )
 
 
-def create_fallback_models(config: Config) -> FallbackModel:
-    """Create fallback models chain from configuration."""
+class CountingFallbackModel(FallbackModel):
+    """FallbackModel wrapper that counts and logs requests every 100 calls."""
+
+    async def request(self, *args, **kwargs):
+        """Wrap request to count calls."""
+        increment_request_counter()
+        return await super().request(*args, **kwargs)
+
+
+def create_fallback_models(config: Config) -> CountingFallbackModel:
+    """Create fallback models chain from configuration with request counting."""
     main = create_main_model(config)
     fallback = create_fallback_model(config)
-    return FallbackModel(main, fallback)
+    return CountingFallbackModel(main, fallback)
 
 
 def create_openai_client(config: Config) -> OpenAI:

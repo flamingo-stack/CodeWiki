@@ -40,7 +40,7 @@ from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
 from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_tool
 from codewiki.src.be.agent_tools.generate_sub_module_documentations import generate_sub_module_documentation_tool
-from codewiki.src.be.llm_services import create_fallback_models
+from codewiki.src.be.llm_services import create_fallback_models, reset_request_counter
 from codewiki.src.be.prompt_template import (
     SYSTEM_PROMPT,
     LEAF_SYSTEM_PROMPT,
@@ -90,10 +90,13 @@ class AgentOrchestrator:
                 retries=3,
             )
     
-    async def process_module(self, module_name: str, components: Dict[str, Node], 
+    async def process_module(self, module_name: str, components: Dict[str, Node],
                            core_component_ids: List[str], module_path: List[str], working_dir: str) -> Dict[str, Any]:
         """Process a single module and generate its documentation."""
         logger.info(f"Processing module: {module_name}")
+
+        # Reset request counter for this module
+        reset_request_counter(module_name)
         
         # Load or create module tree
         module_tree_path = os.path.join(working_dir, MODULE_TREE_FILENAME)
@@ -139,7 +142,7 @@ class AgentOrchestrator:
                     module_tree=deps.module_tree
                 ),
                 deps=deps,
-                usage_limits=UsageLimits(request_limit=200),
+                usage_limits=UsageLimits(request_limit=1000),
             )
 
             # Save updated module tree
