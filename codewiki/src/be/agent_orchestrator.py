@@ -1,4 +1,5 @@
 from pydantic_ai import Agent
+from pydantic_ai.usage import UsageLimits
 # import logfire
 import logging
 import os
@@ -66,7 +67,6 @@ class AgentOrchestrator:
                     core_component_ids: List[str]) -> Agent:
         """Create an appropriate agent based on module complexity."""
         # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
-        # FLAMINGO_PATCH: Added request_limit=200 to fix "request_limit of 50" exceeded errors
         if is_complex_module(components, core_component_ids):
             return Agent(
                 self.fallback_models,
@@ -79,7 +79,6 @@ class AgentOrchestrator:
                 ],
                 system_prompt=SYSTEM_PROMPT.format(module_name=module_name),
                 retries=3,
-                request_limit=200,
             )
         else:
             return Agent(
@@ -89,7 +88,6 @@ class AgentOrchestrator:
                 tools=[read_code_components_tool, str_replace_editor_tool],
                 system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=module_name),
                 retries=3,
-                request_limit=200,
             )
     
     async def process_module(self, module_name: str, components: Dict[str, Node], 
@@ -131,6 +129,7 @@ class AgentOrchestrator:
             return module_tree
         
         # Run agent
+        # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
         try:
             result = await agent.run(
                 format_user_prompt(
@@ -139,7 +138,8 @@ class AgentOrchestrator:
                     components=components,
                     module_tree=deps.module_tree
                 ),
-                deps=deps
+                deps=deps,
+                usage_limits=UsageLimits(request_limit=200),
             )
             
             # Save updated module tree

@@ -1,4 +1,5 @@
 from pydantic_ai import RunContext, Tool, Agent
+from pydantic_ai.usage import UsageLimits
 
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
@@ -55,7 +56,6 @@ async def generate_sub_module_documentation(
         num_tokens = count_tokens(format_potential_core_components(core_component_ids, ctx.deps.components)[-1])
         
         # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
-        # FLAMINGO_PATCH: Added request_limit=200 to fix "request_limit of 50" exceeded errors
         if is_complex_module(ctx.deps.components, core_component_ids) and ctx.deps.current_depth < ctx.deps.max_depth and num_tokens >= MAX_TOKEN_PER_LEAF_MODULE:
             sub_agent = Agent(
                 model=fallback_models,
@@ -64,7 +64,6 @@ async def generate_sub_module_documentation(
                 system_prompt=SYSTEM_PROMPT.format(module_name=sub_module_name),
                 tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool],
                 retries=3,
-                request_limit=200,
             )
         else:
             sub_agent = Agent(
@@ -74,7 +73,6 @@ async def generate_sub_module_documentation(
                 system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=sub_module_name),
                 tools=[read_code_components_tool, str_replace_editor_tool],
                 retries=3,
-                request_limit=200,
             )
 
         deps.current_module_name = sub_module_name
@@ -83,6 +81,7 @@ async def generate_sub_module_documentation(
         # log the current module tree
         # print(f"Current module tree: {json.dumps(deps.module_tree, indent=4)}")
 
+        # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
         result = await sub_agent.run(
             format_user_prompt(
                 module_name=deps.current_module_name,
@@ -90,7 +89,8 @@ async def generate_sub_module_documentation(
                 components=ctx.deps.components,
                 module_tree=ctx.deps.module_tree,
             ),
-            deps=ctx.deps
+            deps=ctx.deps,
+            usage_limits=UsageLimits(request_limit=200),
         )
 
         # remove the sub-module name from the path to current module and the module tree
