@@ -259,8 +259,8 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
             else:
                 lines.append(f"{'  ' * indent}{key}")
             
-            lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value['components'])}")
-            if isinstance(value["children"], dict) and len(value["children"]) > 0:
+            lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value.get('components', []))}")
+            if ("children" in value) and isinstance(value["children"], dict) and len(value["children"]) > 0:
                 lines.append(f"{'  ' * (indent + 1)} Children:")
                 _format_module_tree(value["children"], indent + 2)
     
@@ -319,11 +319,11 @@ def format_cluster_prompt(potential_core_components: str, module_tree: dict[str,
             else:
                 lines.append(f"{'  ' * indent}{key}")
             
-            lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value['components'])}")
+            lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value.get('components', []))}")
             if ("children" in value) and isinstance(value["children"], dict) and len(value["children"]) > 0:
                 lines.append(f"{'  ' * (indent + 1)} Children:")
                 _format_module_tree(value["children"], indent + 2)
-    
+
     _format_module_tree(module_tree, 0)
     formatted_module_tree = "\n".join(lines)
 
