@@ -284,26 +284,44 @@ class DocumentationGenerator:
             # See: https://github.com/flamingo-stack/CodeWiki - forked with this fix
             if len(module_tree) == 0 and len(leaf_nodes) > 0:
                 logger.warning("Module tree is empty - creating synthetic modules to prevent context overflow")
-                max_per_module = int(os.environ.get('CODEWIKI_MAX_FILES_PER_MODULE', '5'))
                 synthetic_modules = {}
 
-                for i in range(0, len(leaf_nodes), max_per_module):
-                    batch = leaf_nodes[i:i + max_per_module]
-                    module_name = f"module_{i // max_per_module + 1}"
-                    # Handle both Node objects and strings (leaf_nodes can be either)
-                    if batch and hasattr(batch[0], 'name'):
-                        component_names = [node.name for node in batch]
+                # Group leaf nodes by their top-level directory for semantic naming
+                dir_groups: Dict[str, List[str]] = {}
+                for leaf_node in leaf_nodes:
+                    if leaf_node in components:
+                        rel_path = components[leaf_node].relative_path
+                        # Extract top-level directory (e.g., "openframe-api/src/..." -> "openframe-api")
+                        parts = rel_path.split('/')
+                        top_dir = parts[0] if len(parts) > 1 else "root"
+                        # Sanitize directory name for use as module name
+                        top_dir = top_dir.replace('-', '_').replace('.', '_')
+                        if top_dir not in dir_groups:
+                            dir_groups[top_dir] = []
+                        dir_groups[top_dir].append(leaf_node)
                     else:
-                        component_names = list(batch)  # Already strings
+                        # Fallback for components not in dict
+                        if "misc" not in dir_groups:
+                            dir_groups["misc"] = []
+                        dir_groups["misc"].append(leaf_node)
+
+                # Create modules from directory groups
+                for dir_name, dir_leaf_nodes in dir_groups.items():
+                    module_name = dir_name
+                    # Handle both Node objects and strings (leaf_nodes can be either)
+                    if dir_leaf_nodes and dir_leaf_nodes[0] in components:
+                        component_names = list(dir_leaf_nodes)
+                    else:
+                        component_names = list(dir_leaf_nodes)
                     synthetic_modules[module_name] = {
                         "name": module_name,
                         "components": component_names,
-                        "leaf_nodes": batch,
+                        "leaf_nodes": dir_leaf_nodes,
                         "children": {}  # Required for module tree traversal
                     }
 
                 module_tree = synthetic_modules
-                logger.info(f"Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
+                logger.info(f"Created {len(module_tree)} synthetic modules based on directory structure: {list(module_tree.keys())}")
                 # Update the cached file with synthetic modules
                 file_manager.save_json(module_tree, first_module_tree_path)
             # === END SYNTHETIC_MODULE_PATCH ===
