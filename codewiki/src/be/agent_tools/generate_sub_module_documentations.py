@@ -81,17 +81,27 @@ async def generate_sub_module_documentation(
         # log the current module tree
         # print(f"Current module tree: {json.dumps(deps.module_tree, indent=4)}")
 
-        # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
-        result = await sub_agent.run(
-            format_user_prompt(
-                module_name=deps.current_module_name,
-                core_component_ids=core_component_ids,
-                components=ctx.deps.components,
-                module_tree=ctx.deps.module_tree,
-            ),
-            deps=ctx.deps,
-            usage_limits=UsageLimits(request_limit=200),
-        )
+        # FLAMINGO_PATCH: Added usage_limits and timeout to prevent infinite loops
+        import asyncio
+        import os
+        sub_module_timeout = int(os.environ.get('CODEWIKI_MODULE_TIMEOUT_SECONDS', '600'))  # 10 min default
+
+        try:
+            result = await asyncio.wait_for(
+                sub_agent.run(
+                    format_user_prompt(
+                        module_name=deps.current_module_name,
+                        core_component_ids=core_component_ids,
+                        components=ctx.deps.components,
+                        module_tree=ctx.deps.module_tree,
+                    ),
+                    deps=ctx.deps,
+                    usage_limits=UsageLimits(request_limit=50),  # Reduced from 200
+                ),
+                timeout=sub_module_timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"Sub-module {sub_module_name} timed out after {sub_module_timeout}s - skipping")
 
         # remove the sub-module name from the path to current module and the module tree
         deps.path_to_current_module.pop()
