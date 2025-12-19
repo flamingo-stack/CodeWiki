@@ -1,6 +1,8 @@
 """
 LLM service factory for creating configured LLM clients.
 """
+import os
+
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIModelSettings
@@ -8,6 +10,27 @@ from pydantic_ai.models.fallback import FallbackModel
 from openai import OpenAI
 
 from codewiki.src.config import Config
+
+
+def get_max_output_tokens() -> int:
+    """
+    Get max output tokens from environment variable or use default.
+
+    Environment variable: MAX_OUTPUT_TOKENS
+    Default: 16384 (safe for gpt-4o-mini and most models)
+
+    Common values:
+    - 16384: gpt-4o-mini, gpt-3.5-turbo, claude-haiku
+    - 32768: gpt-4o, gpt-4.1, claude-sonnet, claude-opus
+    """
+    default_tokens = 16384  # Safe default for mini models
+    env_value = os.environ.get('MAX_OUTPUT_TOKENS')
+    if env_value:
+        try:
+            return int(env_value)
+        except ValueError:
+            print(f"Warning: Invalid MAX_OUTPUT_TOKENS value '{env_value}', using default {default_tokens}")
+    return default_tokens
 
 
 def create_main_model(config: Config) -> OpenAIModel:
@@ -20,7 +43,7 @@ def create_main_model(config: Config) -> OpenAIModel:
         ),
         settings=OpenAIModelSettings(
             temperature=0.0,
-            max_tokens=32768
+            max_tokens=get_max_output_tokens()
         )
     )
 
@@ -35,7 +58,7 @@ def create_fallback_model(config: Config) -> OpenAIModel:
         ),
         settings=OpenAIModelSettings(
             temperature=0.0,
-            max_tokens=32768
+            max_tokens=get_max_output_tokens()
         )
     )
 
@@ -81,6 +104,6 @@ def call_llm(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
-        max_tokens=32768
+        max_tokens=get_max_output_tokens()
     )
     return response.choices[0].message.content
