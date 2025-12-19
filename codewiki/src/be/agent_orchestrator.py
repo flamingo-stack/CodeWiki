@@ -65,17 +65,19 @@ class AgentOrchestrator:
     def create_agent(self, module_name: str, components: Dict[str, Any], 
                     core_component_ids: List[str]) -> Agent:
         """Create an appropriate agent based on module complexity."""
+        # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
         if is_complex_module(components, core_component_ids):
             return Agent(
                 self.fallback_models,
                 name=module_name,
                 deps_type=CodeWikiDeps,
                 tools=[
-                    read_code_components_tool, 
-                    str_replace_editor_tool, 
+                    read_code_components_tool,
+                    str_replace_editor_tool,
                     generate_sub_module_documentation_tool
                 ],
                 system_prompt=SYSTEM_PROMPT.format(module_name=module_name),
+                retries=3,
             )
         else:
             return Agent(
@@ -84,6 +86,7 @@ class AgentOrchestrator:
                 deps_type=CodeWikiDeps,
                 tools=[read_code_components_tool, str_replace_editor_tool],
                 system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=module_name),
+                retries=3,
             )
     
     async def process_module(self, module_name: str, components: Dict[str, Node], 
