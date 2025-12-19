@@ -298,7 +298,8 @@ class DocumentationGenerator:
                     synthetic_modules[module_name] = {
                         "name": module_name,
                         "components": component_names,
-                        "leaf_nodes": batch
+                        "leaf_nodes": batch,
+                        "children": {}  # Required for module tree traversal
                     }
 
                 module_tree = synthetic_modules

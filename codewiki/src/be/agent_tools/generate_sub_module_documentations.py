@@ -33,6 +33,13 @@ async def generate_sub_module_documentation(
     # add the sub-module to the module tree
     value = deps.module_tree
     for key in deps.path_to_current_module:
+        # Ensure the key exists and has a children dict
+        if key not in value:
+            logger.warning(f"Module '{key}' not found in tree, creating empty entry")
+            value[key] = {"children": {}}
+        if "children" not in value[key]:
+            logger.warning(f"Module '{key}' missing 'children' key, adding empty dict")
+            value[key]["children"] = {}
         value = value[key]["children"]
     for sub_module_name, core_component_ids in sub_module_specs.items():
         value[sub_module_name] = {"components": core_component_ids, "children": {}}

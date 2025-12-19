@@ -87,6 +87,13 @@ def cluster_modules(
     else:
         value = current_module_tree
         for key in current_module_path:
+            # Ensure the key exists and has a children dict
+            if key not in value:
+                logger.warning(f"Module '{key}' not found in tree during clustering")
+                value[key] = {"children": {}}
+            if "children" not in value[key]:
+                logger.warning(f"Module '{key}' missing 'children' key during clustering")
+                value[key]["children"] = {}
             value = value[key]["children"]
         for module_name, module_info in module_tree.items():
             del module_info["path"]
