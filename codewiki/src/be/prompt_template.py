@@ -19,7 +19,7 @@ Create documentation that helps developers and maintainers understand:
 <DOCUMENTATION_STRUCTURE>
 Generate documentation following this structure:
 
-1. **Main Documentation File** (`{module_name}.md`):
+1. **Main Documentation File** (`{{module_name}}.md`):
    - Brief introduction and purpose
    - Architecture overview with diagrams
    - High-level functionality of each sub-module including references to its documentation file
@@ -92,10 +92,10 @@ flowchart TD
 
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
-2. Create the main `{module_name}.md` file with overview and architecture in working directory
+2. Create the main `{{module_name}}.md` file with overview and architecture in working directory
 3. Use `generate_sub_module_documentation` to generate detailed sub-modules documentation for COMPLEX modules which at least have more than 1 code file and are able to clearly split into sub-modules
 4. Include relevant Mermaid diagrams throughout the documentation
-5. After all sub-modules are documented, adjust `{module_name}.md` with ONLY ONE STEP to ensure all generated files including sub-modules documentation are properly cross-refered
+5. After all sub-modules are documented, adjust `{{module_name}}.md` with ONLY ONE STEP to ensure all generated files including sub-modules documentation are properly cross-refered
 </WORKFLOW>
 
 <AVAILABLE_TOOLS>
@@ -172,7 +172,7 @@ flowchart TD
 <WORKFLOW>
 1. Analyze provided code components and module structure
 2. Explore dependencies between components if needed
-3. Generate complete {module_name}.md documentation file
+3. Generate complete {{module_name}}.md documentation file
 </WORKFLOW>
 
 <AVAILABLE_TOOLS>
