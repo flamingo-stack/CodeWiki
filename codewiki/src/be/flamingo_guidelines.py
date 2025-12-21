@@ -51,12 +51,33 @@ def load_flamingo_guidelines() -> str:
 FLAMINGO_MARKDOWN_GUIDELINES = load_flamingo_guidelines()
 
 
+def escape_format_braces(text: str) -> str:
+    """
+    Escape curly braces for use with Python's str.format().
+
+    This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
+    that would be interpreted as format placeholders.
+
+    Args:
+        text: Raw text that may contain curly braces
+
+    Returns:
+        Text with curly braces doubled ({{ and }})
+    """
+    # Double all curly braces to escape them for .format()
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def get_guidelines_section() -> str:
     """
     Get formatted guidelines section for LLM prompts.
 
     Returns:
         Formatted section with header, or empty string if no guidelines.
+
+    Note:
+        Curly braces in guidelines are escaped ({{ }}) to prevent KeyError
+        when the prompt template is used with .format(module_name=...).
 
     Example:
         >>> from codewiki.src.be.flamingo_guidelines import get_guidelines_section
@@ -68,10 +89,15 @@ def get_guidelines_section() -> str:
     if not FLAMINGO_MARKDOWN_GUIDELINES:
         return ""
 
+    # Escape curly braces to prevent KeyError in .format() calls
+    # This is critical because guidelines may contain Mermaid diagrams,
+    # code examples, or other content with {placeholder} patterns
+    escaped_guidelines = escape_format_braces(FLAMINGO_MARKDOWN_GUIDELINES)
+
     return f"""
 ## MARKDOWN FORMATTING GUIDELINES (Flamingo Stack)
 
-{FLAMINGO_MARKDOWN_GUIDELINES}
+{escaped_guidelines}
 
 ---
 """
