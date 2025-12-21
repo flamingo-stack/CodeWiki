@@ -179,7 +179,8 @@ class DocumentationGenerator:
                     
                 except Exception as e:
                     logger.error(f"Failed to process module {module_key}: {str(e)}")
-                    continue
+                    logger.error(f"Full traceback:\n{traceback.format_exc()}")
+                    raise  # Re-raise to fail workflow instead of silently continuing
 
             # Generate repo overview
             logger.info(f"📚 Generating repository overview")
