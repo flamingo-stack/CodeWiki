@@ -90,6 +90,23 @@ flowchart TD
 ```
 </MERMAID_SYNTAX_RULES>
 
+<LATEX_MATH_RULES>
+CRITICAL: Never use bare dollar signs for variables in prose text:
+
+- ✅ CORRECT: `$HOME`, `$PATH`, `$USER`, `$PWD`, `$VARIABLE`
+- ❌ WRONG: $HOME, $PATH, $USER, $PWD (triggers LaTeX math validation warning)
+
+Inside code blocks, bare $VAR is fine:
+```bash
+echo $HOME
+export PATH=$PATH:/usr/local/bin
+```
+
+OUTSIDE code blocks, ALWAYS wrap shell variables in backticks:
+- ✅ "Set the `$KUBECONFIG` variable before running the command"
+- ❌ "Set the $KUBECONFIG variable before running the command"
+</LATEX_MATH_RULES>
+
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
 2. Create the main `{{module_name}}.md` file with overview and architecture in working directory
@@ -169,6 +186,15 @@ flowchart TD
 ```
 </MERMAID_SYNTAX_RULES>
 
+<LATEX_MATH_RULES>
+CRITICAL: Never use bare dollar signs for variables in prose text:
+
+- ✅ CORRECT: `$HOME`, `$PATH`, `$USER`, `$PWD`, `$VARIABLE`
+- ❌ WRONG: $HOME, $PATH, $USER, $PWD (triggers LaTeX math validation warning)
+
+Inside code blocks, bare $VAR is fine. OUTSIDE code blocks, ALWAYS wrap shell variables in backticks.
+</LATEX_MATH_RULES>
+
 <WORKFLOW>
 1. Analyze provided code components and module structure
 2. Explore dependencies between components if needed
@@ -202,6 +228,16 @@ The overview should be a brief documentation of the repository, including:
 - The end-to-end architecture of the repository visualized by mermaid diagrams
 - The references to the core modules documentation
 
+<MARKDOWN_RULES>
+CRITICAL: Follow these rules to avoid validation errors:
+
+1. **Code Blocks**: ALWAYS include language identifier (```bash, ```python, ```text)
+2. **Shell Variables**: In prose text, ALWAYS wrap in backticks (`$HOME`, `$PATH`) - bare $VAR triggers LaTeX warnings
+3. **Mermaid Diagrams**: Only use supported types (graph, flowchart, sequenceDiagram, classDiagram, etc.)
+   - ❌ DO NOT use: pyramid, mindmap, timeline, quadrantChart
+   - Node labels with spaces MUST use brackets: `A["User Service"]`
+</MARKDOWN_RULES>
+
 Provide `{{repo_name}}` repo structure and its core modules documentation:
 <REPO_STRUCTURE>
 {{repo_structure}}
@@ -225,6 +261,16 @@ The overview should be a brief documentation of the module, including:
 - The purpose of the module
 - The architecture of the module visualized by mermaid diagrams
 - The references to the core components documentation
+
+<MARKDOWN_RULES>
+CRITICAL: Follow these rules to avoid validation errors:
+
+1. **Code Blocks**: ALWAYS include language identifier (```bash, ```python, ```text)
+2. **Shell Variables**: In prose text, ALWAYS wrap in backticks (`$HOME`, `$PATH`) - bare $VAR triggers LaTeX warnings
+3. **Mermaid Diagrams**: Only use supported types (graph, flowchart, sequenceDiagram, classDiagram, etc.)
+   - ❌ DO NOT use: pyramid, mindmap, timeline, quadrantChart
+   - Node labels with spaces MUST use brackets: `A["User Service"]`
+</MARKDOWN_RULES>
 
 Provide repo structure and core components documentation of the `{{module_name}}` module:
 <REPO_STRUCTURE>
