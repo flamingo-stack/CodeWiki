@@ -207,9 +207,14 @@ Provide `{{repo_name}}` repo structure and its core modules documentation:
 {{repo_structure}}
 </REPO_STRUCTURE>
 
-Please generate the overview of the `{{repo_name}}` repository in markdown format with the following structure:
+CRITICAL RESPONSE FORMAT REQUIREMENT:
+You MUST wrap your entire response in <OVERVIEW> and </OVERVIEW> tags.
+Do NOT include any text before <OVERVIEW> or after </OVERVIEW>.
+The response format is NON-NEGOTIABLE - failure to use these tags will cause a system error.
+
+Generate the overview of the `{{repo_name}}` repository in markdown format:
 <OVERVIEW>
-overview_content
+[Your markdown overview content here]
 </OVERVIEW>
 """.strip()
 
@@ -226,9 +231,14 @@ Provide repo structure and core components documentation of the `{{module_name}}
 {{repo_structure}}
 </REPO_STRUCTURE>
 
-Please generate the overview of the `{{module_name}}` module in markdown format with the following structure:
+CRITICAL RESPONSE FORMAT REQUIREMENT:
+You MUST wrap your entire response in <OVERVIEW> and </OVERVIEW> tags.
+Do NOT include any text before <OVERVIEW> or after </OVERVIEW>.
+The response format is NON-NEGOTIABLE - failure to use these tags will cause a system error.
+
+Generate the overview of the `{{module_name}}` module in markdown format:
 <OVERVIEW>
-overview_content
+[Your markdown overview content here]
 </OVERVIEW>
 """.strip()
 
