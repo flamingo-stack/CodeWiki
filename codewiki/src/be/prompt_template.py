@@ -1,5 +1,11 @@
-SYSTEM_PROMPT = """
-<ROLE>
+# Import Flamingo markdown guidelines (dynamically loaded from env var)
+from codewiki.src.be.flamingo_guidelines import get_guidelines_section
+
+# Get guidelines section for prompt injection (empty string if not available)
+_GUIDELINES_SECTION = get_guidelines_section()
+
+SYSTEM_PROMPT = f"""
+{_GUIDELINES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -86,8 +92,8 @@ flowchart TD
 </AVAILABLE_TOOLS>
 """.strip()
 
-LEAF_SYSTEM_PROMPT = """
-<ROLE>
+LEAF_SYSTEM_PROMPT = f"""
+{_GUIDELINES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -162,39 +168,39 @@ Generate comprehensive documentation for the {module_name} module using the prov
 </CORE_COMPONENT_CODES>
 """.strip()
 
-REPO_OVERVIEW_PROMPT = """
-You are an AI documentation assistant. Your task is to generate a brief overview of the {repo_name} repository.
+REPO_OVERVIEW_PROMPT = f"""
+{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{repo_name}} repository.
 
 The overview should be a brief documentation of the repository, including:
 - The purpose of the repository
 - The end-to-end architecture of the repository visualized by mermaid diagrams
 - The references to the core modules documentation
 
-Provide `{repo_name}` repo structure and its core modules documentation:
+Provide `{{repo_name}}` repo structure and its core modules documentation:
 <REPO_STRUCTURE>
-{repo_structure}
+{{repo_structure}}
 </REPO_STRUCTURE>
 
-Please generate the overview of the `{repo_name}` repository in markdown format with the following structure:
+Please generate the overview of the `{{repo_name}}` repository in markdown format with the following structure:
 <OVERVIEW>
 overview_content
 </OVERVIEW>
 """.strip()
 
-MODULE_OVERVIEW_PROMPT = """
-You are an AI documentation assistant. Your task is to generate a brief overview of `{module_name}` module.
+MODULE_OVERVIEW_PROMPT = f"""
+{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
 
 The overview should be a brief documentation of the module, including:
 - The purpose of the module
 - The architecture of the module visualized by mermaid diagrams
 - The references to the core components documentation
 
-Provide repo structure and core components documentation of the `{module_name}` module:
+Provide repo structure and core components documentation of the `{{module_name}}` module:
 <REPO_STRUCTURE>
-{repo_structure}
+{{repo_structure}}
 </REPO_STRUCTURE>
 
-Please generate the overview of the `{module_name}` module in markdown format with the following structure:
+Please generate the overview of the `{{module_name}}` module in markdown format with the following structure:
 <OVERVIEW>
 overview_content
 </OVERVIEW>
