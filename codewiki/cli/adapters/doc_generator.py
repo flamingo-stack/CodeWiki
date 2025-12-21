@@ -31,34 +31,37 @@ from codewiki.src.config import Config as BackendConfig, set_cli_context
 class CLIDocumentationGenerator:
     """
     CLI adapter for documentation generation with progress reporting.
-    
+
     This class wraps the backend documentation generator and adds
     CLI-specific features like progress tracking and error handling.
     """
-    
+
     def __init__(
         self,
         repo_path: Path,
         output_dir: Path,
         config: Dict[str, Any],
         verbose: bool = False,
-        generate_html: bool = False
+        generate_html: bool = False,
+        diagrams_dir: Path = None
     ):
         """
         Initialize the CLI documentation generator.
-        
+
         Args:
             repo_path: Repository path
             output_dir: Output directory
             config: LLM configuration
             verbose: Enable verbose output
             generate_html: Whether to generate HTML viewer
+            diagrams_dir: Optional separate directory for Mermaid diagrams
         """
         self.repo_path = repo_path
         self.output_dir = output_dir
         self.config = config
         self.verbose = verbose
         self.generate_html = generate_html
+        self.diagrams_dir = diagrams_dir
         self.progress_tracker = ProgressTracker(total_stages=5, verbose=verbose)
         self.job = DocumentationJob()
         
@@ -140,7 +143,8 @@ class CLIDocumentationGenerator:
                 llm_base_url=self.config.get('base_url'),
                 llm_api_key=self.config.get('api_key'),
                 main_model=self.config.get('main_model'),
-                cluster_model=self.config.get('cluster_model')
+                cluster_model=self.config.get('cluster_model'),
+                diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None
             )
             
             # Run backend documentation generation
@@ -274,10 +278,29 @@ class CLIDocumentationGenerator:
             for file_path in os.listdir(working_dir):
                 if file_path.endswith('.md') or file_path.endswith('.json'):
                     self.job.files_generated.append(file_path)
-            
+
+            # Extract Mermaid diagrams to separate directory if configured
+            if backend_config.diagrams_dir:
+                from codewiki.src.be.utils import extract_and_save_mermaid_diagrams, create_diagrams_readme
+
+                if self.verbose:
+                    self.progress_tracker.update_stage(0.95, "Extracting Mermaid diagrams...")
+
+                all_diagram_files = []
+                for file_path in os.listdir(working_dir):
+                    if file_path.endswith('.md'):
+                        md_path = os.path.join(working_dir, file_path)
+                        diagram_files = extract_and_save_mermaid_diagrams(md_path, backend_config.diagrams_dir)
+                        all_diagram_files.extend(diagram_files)
+
+                # Create README index for diagrams
+                if all_diagram_files:
+                    create_diagrams_readme(backend_config.diagrams_dir, all_diagram_files)
+                    logging.info(f"Extracted {len(all_diagram_files)} Mermaid diagrams to {backend_config.diagrams_dir}")
+
         except Exception as e:
             raise APIError(f"Documentation generation failed: {e}")
-        
+
         self.progress_tracker.complete_stage()
     
     def _run_html_generation(self):

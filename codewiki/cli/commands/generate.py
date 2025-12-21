@@ -39,6 +39,13 @@ from codewiki.cli.models.job import GenerationOptions
     help="Output directory for generated documentation (default: ./docs)",
 )
 @click.option(
+    "--diagrams-output",
+    "-d",
+    type=click.Path(),
+    default=None,
+    help="Separate output directory for Mermaid diagrams (.mmd files). When set, diagrams are extracted from markdown and saved separately.",
+)
+@click.option(
     "--create-branch",
     is_flag=True,
     help="Create a new git branch for documentation changes",
@@ -63,6 +70,7 @@ from codewiki.cli.models.job import GenerationOptions
 def generate_command(
     ctx,
     output: str,
+    diagrams_output: Optional[str],
     create_branch: bool,
     github_pages: bool,
     no_cache: bool,
@@ -196,6 +204,12 @@ def generate_command(
             custom_output=output if output != "docs" else None
         )
         
+        # Resolve diagrams output directory if specified
+        diagrams_dir = None
+        if diagrams_output:
+            diagrams_dir = Path(diagrams_output).expanduser().resolve()
+            logger.success(f"Diagrams directory: {diagrams_dir}")
+
         # Create generator
         generator = CLIDocumentationGenerator(
             repo_path=repo_path,
@@ -207,7 +221,8 @@ def generate_command(
                 'api_key': api_key,
             },
             verbose=verbose,
-            generate_html=github_pages
+            generate_html=github_pages,
+            diagrams_dir=diagrams_dir
         )
         
         # Run generation

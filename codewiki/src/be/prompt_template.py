@@ -35,6 +35,19 @@ Generate documentation following this structure:
    - Process flow diagrams where relevant
 </DOCUMENTATION_STRUCTURE>
 
+<CODE_BLOCK_RULES>
+CRITICAL: ALL code blocks MUST include a language identifier:
+
+- ✅ ```python
+- ✅ ```javascript
+- ✅ ```bash
+- ✅ ```json
+- ✅ ```text (for plain text or generic output)
+- ❌ ``` (bare code blocks without language are NOT allowed)
+
+NEVER use bare ``` without a language. If unsure, use ```text.
+</CODE_BLOCK_RULES>
+
 <MERMAID_SYNTAX_RULES>
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
 
@@ -110,6 +123,19 @@ Generate documentation following the following requirements:
 2. Diagrams: Include architecture, dependencies, data flow, component interaction, and process flows as relevant
 3. References: Link to other module documentation instead of duplicating information
 </DOCUMENTATION_REQUIREMENTS>
+
+<CODE_BLOCK_RULES>
+CRITICAL: ALL code blocks MUST include a language identifier:
+
+- ✅ ```python
+- ✅ ```javascript
+- ✅ ```bash
+- ✅ ```json
+- ✅ ```text (for plain text or generic output)
+- ❌ ``` (bare code blocks without language are NOT allowed)
+
+NEVER use bare ``` without a language. If unsure, use ```text.
+</CODE_BLOCK_RULES>
 
 <MERMAID_SYNTAX_RULES>
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
