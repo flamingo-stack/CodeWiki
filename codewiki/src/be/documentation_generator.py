@@ -240,15 +240,21 @@ class DocumentationGenerator:
         
         try:
             parent_docs = call_llm(prompt, self.config)
-            
+
             # Parse and save parent documentation
-            parent_content = parent_docs.split("<OVERVIEW>")[1].split("</OVERVIEW>")[0].strip()
-            # parent_content = prompt
+            # Handle case where LLM doesn't wrap response in <OVERVIEW> tags
+            if "<OVERVIEW>" in parent_docs and "</OVERVIEW>" in parent_docs:
+                parent_content = parent_docs.split("<OVERVIEW>")[1].split("</OVERVIEW>")[0].strip()
+            else:
+                # Use the entire response if no tags present
+                logger.warning(f"LLM response missing <OVERVIEW> tags for {module_name}, using full response")
+                parent_content = parent_docs.strip()
+
             file_manager.save_text(parent_content, parent_docs_path)
-            
+
             logger.debug(f"Successfully generated parent documentation for: {module_name}")
             return module_tree
-            
+
         except Exception as e:
             logger.error(f"Error generating parent documentation for {module_name}: {str(e)}")
             raise
