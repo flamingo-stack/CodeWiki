@@ -323,6 +323,7 @@ EXTENSION_TO_LANGUAGE = {
     ".sh": "bash",
     ".json": "json",
     ".yaml": "yaml",
+    ".yml": "yaml",
     ".java": "java",
     ".js": "javascript",
     ".ts": "typescript",
@@ -332,13 +333,37 @@ EXTENSION_TO_LANGUAGE = {
     ".hpp": "cpp",
     ".tsx": "typescript",
     ".cc": "cpp",
-    ".hpp": "cpp",
     ".cxx": "cpp",
     ".jsx": "javascript",
     ".mjs": "javascript",
     ".cjs": "javascript",
-    ".jsx": "javascript",
-    ".cs": "csharp"
+    ".cs": "csharp",
+    # Java ecosystem
+    ".xml": "xml",
+    ".properties": "properties",
+    ".gradle": "groovy",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".groovy": "groovy",
+    # Other common types
+    ".sql": "sql",
+    ".html": "html",
+    ".css": "css",
+    ".scss": "scss",
+    ".less": "less",
+    ".vue": "vue",
+    ".go": "go",
+    ".rs": "rust",
+    ".rb": "ruby",
+    ".php": "php",
+    ".swift": "swift",
+    ".scala": "scala",
+    ".r": "r",
+    ".R": "r",
+    ".toml": "toml",
+    ".ini": "ini",
+    ".cfg": "ini",
+    ".conf": "conf",
 }
 
 
@@ -394,13 +419,19 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
         for component_id in component_ids_in_file:
             core_component_codes += f"- {component_id}\n"
         
-        core_component_codes += f"\n## File Content:\n```{EXTENSION_TO_LANGUAGE['.'+path.split('.')[-1]]}\n"
+        # Get language from extension with fallback for unknown types
+        file_ext = '.' + path.split('.')[-1] if '.' in path else ''
+        language = EXTENSION_TO_LANGUAGE.get(file_ext, 'text')
+        core_component_codes += f"\n## File Content:\n```{language}\n"
         
         # Read content of the file using the first component's file path
-        try:
-            core_component_codes += file_manager.load_text(components[component_ids_in_file[0]].file_path)
-        except (FileNotFoundError, IOError) as e:
-            core_component_codes += f"# Error reading file: {e}\n"
+        if component_ids_in_file:
+            try:
+                core_component_codes += file_manager.load_text(components[component_ids_in_file[0]].file_path)
+            except (FileNotFoundError, IOError) as e:
+                core_component_codes += f"# Error reading file: {e}\n"
+        else:
+            core_component_codes += f"# No components found in this file\n"
         
         core_component_codes += "```\n\n"
         
