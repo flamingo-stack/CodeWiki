@@ -4,16 +4,19 @@ Flamingo Markdown Guidelines Loader
 Loads markdown formatting guidelines from environment variable path.
 Single source of truth is the multi-platform-hub API.
 
+Also loads repository-specific custom instructions from environment variable.
+
 Usage:
-    from codewiki.src.be.flamingo_guidelines import get_guidelines_section
+    from codewiki.src.be.flamingo_guidelines import get_guidelines_section, get_custom_instructions_section
 
     # In prompts:
-    prompt = f"{get_guidelines_section()}Your actual prompt here..."
+    prompt = f"{get_custom_instructions_section()}{get_guidelines_section()}Your actual prompt here..."
 """
 import os
 from pathlib import Path
 
 GUIDELINES_ENV_VAR = "FLAMINGO_MARKDOWN_GUIDELINES_PATH"
+CUSTOM_INSTRUCTIONS_ENV_VAR = "CUSTOM_REPO_INSTRUCTIONS"
 
 
 def load_flamingo_guidelines() -> str:
@@ -98,6 +101,66 @@ def get_guidelines_section() -> str:
 ## MARKDOWN FORMATTING GUIDELINES (Flamingo Stack)
 
 {escaped_guidelines}
+
+---
+"""
+
+
+def load_custom_instructions() -> str:
+    """
+    Load repository-specific custom instructions from environment variable.
+
+    Environment Variable:
+        CUSTOM_REPO_INSTRUCTIONS: Custom instructions text (passed directly, not a file path)
+
+    Returns:
+        Custom instructions content string, or empty string if not available.
+    """
+    custom_instructions = os.environ.get(CUSTOM_INSTRUCTIONS_ENV_VAR, "")
+
+    if not custom_instructions:
+        print(f"[CodeWiki] {CUSTOM_INSTRUCTIONS_ENV_VAR} not set - continuing without custom instructions")
+        return ""
+
+    print(f"[CodeWiki] Loaded custom repo instructions ({len(custom_instructions)} chars)")
+    return custom_instructions
+
+
+# Load custom instructions at module import time
+CUSTOM_REPO_INSTRUCTIONS = load_custom_instructions()
+
+
+def get_custom_instructions_section() -> str:
+    """
+    Get formatted custom instructions section for LLM prompts.
+
+    Returns:
+        Formatted section with header, or empty string if no custom instructions.
+
+    Note:
+        Curly braces in instructions are escaped ({{ }}) to prevent KeyError
+        when the prompt template is used with .format(module_name=...).
+
+    Example:
+        >>> from codewiki.src.be.flamingo_guidelines import get_custom_instructions_section
+        >>> prompt = f'''
+        ... {get_custom_instructions_section()}
+        ... {get_guidelines_section()}
+        ... Generate documentation for the following code...
+        ... '''
+    """
+    if not CUSTOM_REPO_INSTRUCTIONS:
+        return ""
+
+    # Escape curly braces to prevent KeyError in .format() calls
+    escaped_instructions = escape_format_braces(CUSTOM_REPO_INSTRUCTIONS)
+
+    return f"""
+## REPOSITORY-SPECIFIC INSTRUCTIONS
+
+The following instructions are specific to this repository and MUST be followed:
+
+{escaped_instructions}
 
 ---
 """

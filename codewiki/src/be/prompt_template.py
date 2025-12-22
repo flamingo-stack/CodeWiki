@@ -1,11 +1,12 @@
-# Import Flamingo markdown guidelines (dynamically loaded from env var)
-from codewiki.src.be.flamingo_guidelines import get_guidelines_section
+# Import Flamingo markdown guidelines and custom instructions (dynamically loaded from env vars)
+from codewiki.src.be.flamingo_guidelines import get_guidelines_section, get_custom_instructions_section
 
-# Get guidelines section for prompt injection (empty string if not available)
+# Get sections for prompt injection (empty string if not available)
+_CUSTOM_INSTRUCTIONS_SECTION = get_custom_instructions_section()
 _GUIDELINES_SECTION = get_guidelines_section()
 
 SYSTEM_PROMPT = f"""
-{_GUIDELINES_SECTION}<ROLE>
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -123,7 +124,7 @@ OUTSIDE code blocks, ALWAYS wrap shell variables in backticks:
 """.strip()
 
 LEAF_SYSTEM_PROMPT = f"""
-{_GUIDELINES_SECTION}<ROLE>
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -221,7 +222,7 @@ Generate comprehensive documentation for the {module_name} module using the prov
 """.strip()
 
 REPO_OVERVIEW_PROMPT = f"""
-{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{repo_name}} repository.
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{repo_name}} repository.
 
 The overview should be a brief documentation of the repository, including:
 - The purpose of the repository
@@ -255,7 +256,7 @@ Generate the overview of the `{{repo_name}}` repository in markdown format:
 """.strip()
 
 MODULE_OVERVIEW_PROMPT = f"""
-{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
 
 The overview should be a brief documentation of the module, including:
 - The purpose of the module
