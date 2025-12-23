@@ -66,6 +66,12 @@ from codewiki.cli.models.job import GenerationOptions
     is_flag=True,
     help="Show detailed progress and debug information",
 )
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force overwrite existing documentation without prompting (for CI/CD)",
+)
 @click.pass_context
 def generate_command(
     ctx,
@@ -74,7 +80,8 @@ def generate_command(
     create_branch: bool,
     github_pages: bool,
     no_cache: bool,
-    verbose: bool
+    verbose: bool,
+    force: bool
 ):
     """
     Generate comprehensive documentation for a code repository.
@@ -159,7 +166,9 @@ def generate_command(
         
         # Check for existing documentation
         if output_dir.exists() and list(output_dir.glob("*.md")):
-            if not click.confirm(
+            if force:
+                logger.info(f"Force mode: overwriting existing documentation in {output_dir}")
+            elif not click.confirm(
                 f"\n{output_dir} already contains documentation. Overwrite?",
                 default=True
             ):
