@@ -8,7 +8,6 @@ from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
 from codewiki.src.be.cluster_modules import format_potential_core_components
-from codewiki.src.config import MAX_TOKEN_PER_LEAF_MODULE
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,14 +53,15 @@ async def generate_sub_module_documentation(
         logger.info(f"{indent}{arrow} Generating documentation for sub-module: {sub_module_name}")
 
         num_tokens = count_tokens(format_potential_core_components(core_component_ids, ctx.deps.components)[-1])
-        
+
         # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
-        if is_complex_module(ctx.deps.components, core_component_ids) and ctx.deps.current_depth < ctx.deps.max_depth and num_tokens >= MAX_TOKEN_PER_LEAF_MODULE:
+        # Use configurable max_token_per_leaf_module instead of hardcoded constant
+        if is_complex_module(ctx.deps.components, core_component_ids) and ctx.deps.current_depth < ctx.deps.max_depth and num_tokens >= ctx.deps.config.max_token_per_leaf_module:
             sub_agent = Agent(
                 model=fallback_models,
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
-                system_prompt=SYSTEM_PROMPT.format(module_name=sub_module_name),
+                system_prompt=SYSTEM_PROMPT.format(module_name=sub_module_name, custom_instructions=ctx.deps.custom_instructions),
                 tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool],
                 retries=3,
             )
@@ -70,7 +70,7 @@ async def generate_sub_module_documentation(
                 model=fallback_models,
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
-                system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=sub_module_name),
+                system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=sub_module_name, custom_instructions=ctx.deps.custom_instructions),
                 tools=[read_code_components_tool, str_replace_editor_tool],
                 retries=3,
             )

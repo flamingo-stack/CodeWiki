@@ -59,6 +59,8 @@ def get_max_output_tokens() -> int:
 
 def create_main_model(config: Config) -> OpenAIModel:
     """Create the main LLM model from configuration."""
+    # Use config.max_tokens if available, otherwise fallback to env var
+    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
     return OpenAIModel(
         model_name=config.main_model,
         provider=OpenAIProvider(
@@ -67,13 +69,15 @@ def create_main_model(config: Config) -> OpenAIModel:
         ),
         settings=OpenAIModelSettings(
             temperature=0.0,
-            max_tokens=get_max_output_tokens()
+            max_tokens=max_tokens
         )
     )
 
 
 def create_fallback_model(config: Config) -> OpenAIModel:
     """Create the fallback LLM model from configuration."""
+    # Use config.max_tokens if available, otherwise fallback to env var
+    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
     return OpenAIModel(
         model_name=config.fallback_model,
         provider=OpenAIProvider(
@@ -82,7 +86,7 @@ def create_fallback_model(config: Config) -> OpenAIModel:
         ),
         settings=OpenAIModelSettings(
             temperature=0.0,
-            max_tokens=get_max_output_tokens()
+            max_tokens=max_tokens
         )
     )
 
@@ -133,10 +137,12 @@ def call_llm(
         model = config.main_model
     
     client = create_openai_client(config)
+    # Use config.max_tokens if available, otherwise fallback to env var
+    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
-        max_tokens=get_max_output_tokens()
+        max_tokens=max_tokens
     )
     return response.choices[0].message.content

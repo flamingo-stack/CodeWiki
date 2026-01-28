@@ -144,6 +144,12 @@ class CLIDocumentationGenerator:
                 llm_api_key=self.config.get('api_key'),
                 main_model=self.config.get('main_model'),
                 cluster_model=self.config.get('cluster_model'),
+                fallback_model=self.config.get('fallback_model'),
+                max_tokens=self.config.get('max_tokens', 32768),
+                max_token_per_module=self.config.get('max_token_per_module', 36369),
+                max_token_per_leaf_module=self.config.get('max_token_per_leaf_module', 16000),
+                max_depth=self.config.get('max_depth', 2),
+                agent_instructions=self.config.get('agent_instructions'),
                 diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None
             )
             

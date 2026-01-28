@@ -1,12 +1,13 @@
 from typing import List, Dict, Any
 from collections import defaultdict
 import logging
+import traceback
 logger = logging.getLogger(__name__)
 
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.be.llm_services import call_llm
 from codewiki.src.be.utils import count_tokens
-from codewiki.src.config import MAX_TOKEN_PER_MODULE, Config
+from codewiki.src.config import Config
 from codewiki.src.be.prompt_template import format_cluster_prompt
 
 
@@ -53,7 +54,7 @@ def cluster_modules(
     """
     potential_core_components, potential_core_components_with_code = format_potential_core_components(leaf_nodes, components)
 
-    if count_tokens(potential_core_components_with_code) <= MAX_TOKEN_PER_MODULE:
+    if count_tokens(potential_core_components_with_code) <= config.max_token_per_module:
         logger.debug(f"Skipping clustering for {current_module_name} because the potential core components are too few: {count_tokens(potential_core_components_with_code)} tokens")
         return {}
 
@@ -75,6 +76,7 @@ def cluster_modules(
             
     except Exception as e:
         logger.error(f"Failed to parse LLM response: {e}. Response: {response[:200]}...")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return {}
 
     # check if the module tree is valid

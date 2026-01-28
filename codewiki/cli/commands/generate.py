@@ -4,8 +4,9 @@ Generate command for documentation generation.
 
 import sys
 import logging
+import traceback
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 import click
 import time
 
@@ -28,6 +29,14 @@ from codewiki.cli.utils.logging import create_logger
 from codewiki.cli.adapters.doc_generator import CLIDocumentationGenerator
 from codewiki.cli.utils.instructions import display_post_generation_instructions
 from codewiki.cli.models.job import GenerationOptions
+from codewiki.cli.models.config import AgentInstructions
+
+
+def parse_patterns(patterns_str: str) -> List[str]:
+    """Parse comma-separated patterns into a list."""
+    if not patterns_str:
+        return []
+    return [p.strip() for p in patterns_str.split(',') if p.strip()]
 
 
 @click.command(name="generate")
@@ -61,6 +70,40 @@ from codewiki.cli.models.job import GenerationOptions
     help="Force full regeneration, ignoring cache",
 )
 @click.option(
+    "--include",
+    "-i",
+    type=str,
+    default=None,
+    help="Comma-separated file patterns to include (e.g., '*.cs,*.py'). Overrides defaults.",
+)
+@click.option(
+    "--exclude",
+    "-e",
+    type=str,
+    default=None,
+    help="Comma-separated patterns to exclude (e.g., '*Tests*,*Specs*,test_*')",
+)
+@click.option(
+    "--focus",
+    "-f",
+    type=str,
+    default=None,
+    help="Comma-separated modules/paths to focus on (e.g., 'src/core,src/api')",
+)
+@click.option(
+    "--doc-type",
+    "-t",
+    type=click.Choice(['api', 'architecture', 'user-guide', 'developer'], case_sensitive=False),
+    default=None,
+    help="Type of documentation to generate",
+)
+@click.option(
+    "--instructions",
+    type=str,
+    default=None,
+    help="Custom instructions for the documentation agent",
+)
+@click.option(
     "--verbose",
     "-v",
     is_flag=True,
@@ -68,9 +111,32 @@ from codewiki.cli.models.job import GenerationOptions
 )
 @click.option(
     "--force",
-    "-f",
     is_flag=True,
     help="Force overwrite existing documentation without prompting (for CI/CD)",
+)
+@click.option(
+    "--max-tokens",
+    type=int,
+    default=None,
+    help="Maximum tokens for LLM response (overrides config)",
+)
+@click.option(
+    "--max-token-per-module",
+    type=int,
+    default=None,
+    help="Maximum tokens per module for clustering (overrides config)",
+)
+@click.option(
+    "--max-token-per-leaf-module",
+    type=int,
+    default=None,
+    help="Maximum tokens per leaf module (overrides config)",
+)
+@click.option(
+    "--max-depth",
+    type=int,
+    default=None,
+    help="Maximum depth for hierarchical decomposition (overrides config)",
 )
 @click.pass_context
 def generate_command(
@@ -80,8 +146,17 @@ def generate_command(
     create_branch: bool,
     github_pages: bool,
     no_cache: bool,
+    include: Optional[str],
+    exclude: Optional[str],
+    focus: Optional[str],
+    doc_type: Optional[str],
+    instructions: Optional[str],
     verbose: bool,
-    force: bool
+    force: bool,
+    max_tokens: Optional[int],
+    max_token_per_module: Optional[int],
+    max_token_per_leaf_module: Optional[int],
+    max_depth: Optional[int]
 ):
     """
     Generate comprehensive documentation for a code repository.
@@ -102,6 +177,30 @@ def generate_command(
     \b
     # Force full regeneration
     $ codewiki generate --no-cache
+    
+    \b
+    # C# project: only .cs files, exclude tests
+    $ codewiki generate --include "*.cs" --exclude "*Tests*,*Specs*"
+    
+    \b
+    # Focus on specific modules with architecture docs
+    $ codewiki generate --focus "src/core,src/api" --doc-type architecture
+    
+    \b
+    # Custom instructions
+    $ codewiki generate --instructions "Focus on public APIs and include usage examples"
+    
+    \b
+    # Override max tokens for this generation
+    $ codewiki generate --max-tokens 16384
+    
+    \b
+    # Set all max token limits
+    $ codewiki generate --max-tokens 32768 --max-token-per-module 40000 --max-token-per-leaf-module 20000
+    
+    \b
+    # Override max depth for hierarchical decomposition
+    $ codewiki generate --max-depth 3
     """
     logger = create_logger(verbose=verbose)
     start_time = time.time()
@@ -212,12 +311,61 @@ def generate_command(
             no_cache=no_cache,
             custom_output=output if output != "docs" else None
         )
-        
-        # Resolve diagrams output directory if specified
+
+        # Resolve diagrams output directory if specified (from fork)
         diagrams_dir = None
         if diagrams_output:
             diagrams_dir = Path(diagrams_output).expanduser().resolve()
             logger.success(f"Diagrams directory: {diagrams_dir}")
+
+        # Create runtime agent instructions from CLI options (from upstream)
+        runtime_instructions = None
+        if any([include, exclude, focus, doc_type, instructions]):
+            runtime_instructions = AgentInstructions(
+                include_patterns=parse_patterns(include) if include else None,
+                exclude_patterns=parse_patterns(exclude) if exclude else None,
+                focus_modules=parse_patterns(focus) if focus else None,
+                doc_type=doc_type,
+                custom_instructions=instructions,
+            )
+
+            if verbose:
+                if include:
+                    logger.debug(f"Include patterns: {parse_patterns(include)}")
+                if exclude:
+                    logger.debug(f"Exclude patterns: {parse_patterns(exclude)}")
+                if focus:
+                    logger.debug(f"Focus modules: {parse_patterns(focus)}")
+                if doc_type:
+                    logger.debug(f"Doc type: {doc_type}")
+                if instructions:
+                    logger.debug(f"Custom instructions: {instructions}")
+
+        # Log max token settings if verbose (from upstream)
+        if verbose:
+            effective_max_tokens = max_tokens if max_tokens is not None else config.max_tokens
+            effective_max_token_per_module = max_token_per_module if max_token_per_module is not None else config.max_token_per_module
+            effective_max_token_per_leaf = max_token_per_leaf_module if max_token_per_leaf_module is not None else config.max_token_per_leaf_module
+            effective_max_depth = max_depth if max_depth is not None else config.max_depth
+            logger.debug(f"Max tokens: {effective_max_tokens}")
+            logger.debug(f"Max token/module: {effective_max_token_per_module}")
+            logger.debug(f"Max token/leaf module: {effective_max_token_per_leaf}")
+            logger.debug(f"Max depth: {effective_max_depth}")
+
+        # Get agent instructions (merge runtime with persistent) (from upstream)
+        agent_instructions_dict = None
+        if runtime_instructions and not runtime_instructions.is_empty():
+            # Merge with persistent settings
+            merged = AgentInstructions(
+                include_patterns=runtime_instructions.include_patterns or (config.agent_instructions.include_patterns if config.agent_instructions else None),
+                exclude_patterns=runtime_instructions.exclude_patterns or (config.agent_instructions.exclude_patterns if config.agent_instructions else None),
+                focus_modules=runtime_instructions.focus_modules or (config.agent_instructions.focus_modules if config.agent_instructions else None),
+                doc_type=runtime_instructions.doc_type or (config.agent_instructions.doc_type if config.agent_instructions else None),
+                custom_instructions=runtime_instructions.custom_instructions or (config.agent_instructions.custom_instructions if config.agent_instructions else None),
+            )
+            agent_instructions_dict = merged.to_dict()
+        elif config.agent_instructions and not config.agent_instructions.is_empty():
+            agent_instructions_dict = config.agent_instructions.to_dict()
 
         # Create generator
         generator = CLIDocumentationGenerator(
@@ -226,8 +374,16 @@ def generate_command(
             config={
                 'main_model': config.main_model,
                 'cluster_model': config.cluster_model,
+                'fallback_model': config.fallback_model,
                 'base_url': config.base_url,
                 'api_key': api_key,
+                'agent_instructions': agent_instructions_dict,
+                # Max token settings (runtime overrides take precedence)
+                'max_tokens': max_tokens if max_tokens is not None else config.max_tokens,
+                'max_token_per_module': max_token_per_module if max_token_per_module is not None else config.max_token_per_module,
+                'max_token_per_leaf_module': max_token_per_leaf_module if max_token_per_leaf_module is not None else config.max_token_per_leaf_module,
+                # Max depth setting (runtime override takes precedence)
+                'max_depth': max_depth if max_depth is not None else config.max_depth,
             },
             verbose=verbose,
             generate_html=github_pages,
@@ -272,12 +428,15 @@ def generate_command(
         
     except ConfigurationError as e:
         logger.error(e.message)
+        logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(e.exit_code)
     except RepositoryError as e:
         logger.error(e.message)
+        logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(e.exit_code)
     except APIError as e:
         logger.error(e.message)
+        logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(e.exit_code)
     except KeyboardInterrupt:
         click.echo("\n\nInterrupted by user")

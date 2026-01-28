@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codewiki"
-version = "1.0.0"
+version = "1.0.1"
 description = "Transform codebases into comprehensive documentation using AI-powered analysis"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -37,6 +37,7 @@ dependencies = [
     "tree-sitter-c>=0.21.4",
     "tree-sitter-cpp>=0.23.4",
     "tree-sitter-c-sharp>=0.23.1",
+    "tree-sitter-php>=0.23.0",
     "openai>=1.107.0",
     "litellm>=1.77.0",
     "pydantic>=2.11.7",
