@@ -121,7 +121,7 @@ OUTSIDE code blocks, ALWAYS wrap shell variables in backticks:
 - `read_code_components`: Explore additional code dependencies not included in the provided components
 - `generate_sub_module_documentation`: Generate detailed documentation for individual sub-modules via sub-agents
 </AVAILABLE_TOOLS>
-{custom_instructions}
+{{custom_instructions}}
 """.strip()
 
 LEAF_SYSTEM_PROMPT = f"""
@@ -207,7 +207,7 @@ Inside code blocks, bare $VAR is fine. OUTSIDE code blocks, ALWAYS wrap shell va
 - `str_replace_editor`: File system operations for creating and editing documentation files
 - `read_code_components`: Explore additional code dependencies not included in the provided components
 </AVAILABLE_TOOLS>
-{custom_instructions}
+{{custom_instructions}}
 """.strip()
 
 USER_PROMPT = """
