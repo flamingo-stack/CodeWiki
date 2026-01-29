@@ -491,21 +491,32 @@ def config_validate(quick: bool, verbose: bool):
         # Step 5: API connectivity test (unless --quick)
         if not quick:
             try:
-                # Detect provider from base URL
-                is_anthropic = "anthropic.com" in config.base_url.lower()
+                base_url_lower = config.base_url.lower()
 
-                if is_anthropic:
+                # Determine provider from base URL
+                if "anthropic.com" in base_url_lower:
                     # Anthropic API - use Anthropic client
+                    if verbose:
+                        click.echo("[5/5] Testing Anthropic API connectivity...")
                     from anthropic import Anthropic
-                    client = Anthropic(api_key=api_key, base_url=config.base_url)
+                    client = Anthropic(api_key=api_key)
                     # Make a minimal messages call to verify API key
                     response = client.messages.create(
                         model=config.main_model,
                         max_tokens=1,
                         messages=[{"role": "user", "content": "test"}]
                     )
+                elif "openai.com" in base_url_lower or "api.openai" in base_url_lower:
+                    # OpenAI API - use OpenAI client
+                    if verbose:
+                        click.echo("[5/5] Testing OpenAI API connectivity...")
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key, base_url=config.base_url)
+                    response = client.models.list()
                 else:
-                    # OpenAI-compatible API
+                    # Generic OpenAI-compatible API (LiteLLM, vLLM, etc.)
+                    if verbose:
+                        click.echo("[5/5] Testing OpenAI-compatible API connectivity...")
                     from openai import OpenAI
                     client = OpenAI(api_key=api_key, base_url=config.base_url)
                     response = client.models.list()
