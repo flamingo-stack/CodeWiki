@@ -72,6 +72,25 @@ Based on official Mermaid documentation and tested LLM patterns.
    - ❌ `A[User Service]` (unquoted spaces cause errors)
    - ❌ `B[@RestController]` (unquoted @ causes errors)
 
+   **CRITICAL - Node Shapes vs Labels with Braces:**
+   Mermaid uses `{{}}` for **diamond-shaped nodes** (reserved syntax). To show braces in labels, use quoted brackets:
+   - ❌ `Verify{{SHA256(x)}}` (WRONG - tries to create diamond shape, causes parse error)
+   - ❌ `Node{{formula}}` (WRONG - reserved shape syntax)
+   - ✅ `Verify["SHA256(x)"]` (CORRECT - quoted label, braces displayed as text)
+   - ✅ `Node["{{formula}}"]` (CORRECT - literal braces in box label)
+
+   **Rule:** If you want to show code, formulas, or any text with braces in a node, ALWAYS use `Node["text"]` syntax, NEVER `Node{{text}}`.
+
+   **CRITICAL - NO Backticks in Node Labels:**
+   Backticks (`) inside node labels break Mermaid parsing. Use plain text or HTML entities instead:
+   - ❌ `Node["\`$variable\`"]` (WRONG - backticks cause parse error)
+   - ❌ `Node["\`code\`<br/>Label"]` (WRONG - backticks break parsing)
+   - ✅ `Node["$variable"]` (CORRECT - plain text)
+   - ✅ `Node["variable<br/>Label"]` (CORRECT - no backticks)
+   - ✅ `Node["&lt;code&gt;"]` (CORRECT - use HTML entities if needed)
+
+   **Rule:** NEVER use backticks (`) inside node labels. Use plain text or HTML entity escaping instead.
+
 4. **Reserved Keywords**: The word "end" breaks flowcharts:
    - ✅ `A["End"]` or `A["END"]` (capitalize one or all letters)
    - ❌ `A[end]` (lowercase breaks rendering completely)
@@ -272,6 +291,16 @@ Based on official Mermaid documentation and tested LLM patterns.
    - ✅ `B["@RestController"]` (quotes for @ symbol)
    - ✅ `C["process()"]` (quotes for parentheses)
    - ❌ `A[User Service]` (unquoted spaces cause errors)
+
+   **CRITICAL - Node Shapes vs Labels with Braces:**
+   Mermaid uses `{{}}` for **diamond-shaped nodes** (reserved syntax). To show braces in labels, use quoted brackets:
+   - ❌ `Verify{{SHA256(x)}}` (WRONG - tries to create diamond shape, causes parse error)
+   - ✅ `Verify["SHA256(x)"]` (CORRECT - quoted label, braces displayed as text)
+
+   **CRITICAL - NO Backticks in Node Labels:**
+   Backticks (`) inside node labels break Mermaid parsing. Use plain text instead:
+   - ❌ `Node["\`$variable\`"]` (WRONG - backticks cause parse error)
+   - ✅ `Node["$variable"]` (CORRECT - plain text)
 
 4. **Reserved Keywords**: The word "end" breaks flowcharts:
    - ✅ `A["End"]` or `A["END"]` (capitalize)
