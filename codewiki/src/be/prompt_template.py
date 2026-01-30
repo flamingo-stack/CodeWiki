@@ -159,21 +159,51 @@ flowchart TD
 </MERMAID_SYNTAX_RULES>
 
 <LATEX_MATH_RULES>
-CRITICAL: Never use bare dollar signs for variables in prose text:
+CRITICAL: ALWAYS wrap dollar sign variables in backticks when in prose/markdown text.
 
-- ✅ CORRECT: `$HOME`, `$PATH`, `$USER`, `$PWD`, `$VARIABLE`
-- ❌ WRONG: $HOME, $PATH, $USER, $PWD (triggers LaTeX math validation warning)
+**Common shell variables that MUST be wrapped:**
+- `$HOME`, `$PATH`, `$USER`, `$PWD`, `$SHELL`
+- `$JAVA_HOME`, `$MAVEN_HOME`, `$NODE_ENV`
+- `$KUBECONFIG`, `$DOCKER_HOST`, `$API_KEY`
+- `$DATABASE_URL`, `$PORT`, `$HOST`
+- ANY variable starting with $ MUST be in backticks
 
-Inside code blocks, bare $VAR is fine:
+**Correct usage in prose:**
+✅ "The application reads the `$DATABASE_URL` environment variable"
+✅ "Configure `$JAVA_HOME` to point to your JDK installation"
+✅ "Set `$PORT` to 8080 in your environment"
+
+**WRONG - triggers validation error:**
+❌ "The application reads the $DATABASE_URL environment variable"
+❌ "Configure $JAVA_HOME to point to your JDK installation"
+❌ "Set $PORT to 8080 in your environment"
+
+**Inside code blocks, bare $ is fine:**
 ```bash
+export DATABASE_URL=$DATABASE_URL
 echo $HOME
-export PATH=$PATH:/usr/local/bin
+mvn clean install -DJAVA_HOME=$JAVA_HOME
 ```
 
-OUTSIDE code blocks, ALWAYS wrap shell variables in backticks:
-- ✅ "Set the `$KUBECONFIG` variable before running the command"
-- ❌ "Set the $KUBECONFIG variable before running the command"
+**BEFORE YOU WRITE ANYTHING:**
+- Scan your output for any $VARIABLE in prose
+- If found outside code blocks, wrap in backticks: `$VARIABLE`
+- Never write bare $ followed by letters in regular markdown text
 </LATEX_MATH_RULES>
+
+<PRE_OUTPUT_VALIDATION>
+BEFORE generating ANY markdown, verify:
+1. ALL code blocks have language hints: ```bash, ```java, ```python, ```text
+2. ALL $VARIABLES in prose are wrapped in backticks: `$HOME`, `$PATH`
+3. ALL Mermaid edge labels with special chars are quoted: -->|"@Autowired"|
+4. Reserved keyword "end" is capitalized: ["End"] not [end]
+5. Close ALL mermaid blocks with ``` on new line
+
+NEVER output:
+- ❌ ``` (bare code block)
+- ❌ $HOME in prose (triggers LATEX_MATH error)
+- ❌ -->|@Service| (triggers Mermaid parse error)
+</PRE_OUTPUT_VALIDATION>
 
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
@@ -276,13 +306,51 @@ flowchart TD
 </MERMAID_SYNTAX_RULES>
 
 <LATEX_MATH_RULES>
-CRITICAL: Never use bare dollar signs for variables in prose text:
+CRITICAL: ALWAYS wrap dollar sign variables in backticks when in prose/markdown text.
 
-- ✅ CORRECT: `$HOME`, `$PATH`, `$USER`, `$PWD`, `$VARIABLE`
-- ❌ WRONG: $HOME, $PATH, $USER, $PWD (triggers LaTeX math validation warning)
+**Common shell variables that MUST be wrapped:**
+- `$HOME`, `$PATH`, `$USER`, `$PWD`, `$SHELL`
+- `$JAVA_HOME`, `$MAVEN_HOME`, `$NODE_ENV`
+- `$KUBECONFIG`, `$DOCKER_HOST`, `$API_KEY`
+- `$DATABASE_URL`, `$PORT`, `$HOST`
+- ANY variable starting with $ MUST be in backticks
 
-Inside code blocks, bare $VAR is fine. OUTSIDE code blocks, ALWAYS wrap shell variables in backticks.
+**Correct usage in prose:**
+✅ "The application reads the `$DATABASE_URL` environment variable"
+✅ "Configure `$JAVA_HOME` to point to your JDK installation"
+✅ "Set `$PORT` to 8080 in your environment"
+
+**WRONG - triggers validation error:**
+❌ "The application reads the $DATABASE_URL environment variable"
+❌ "Configure $JAVA_HOME to point to your JDK installation"
+❌ "Set $PORT to 8080 in your environment"
+
+**Inside code blocks, bare $ is fine:**
+```bash
+export DATABASE_URL=$DATABASE_URL
+echo $HOME
+mvn clean install -DJAVA_HOME=$JAVA_HOME
+```
+
+**BEFORE YOU WRITE ANYTHING:**
+- Scan your output for any $VARIABLE in prose
+- If found outside code blocks, wrap in backticks: `$VARIABLE`
+- Never write bare $ followed by letters in regular markdown text
 </LATEX_MATH_RULES>
+
+<PRE_OUTPUT_VALIDATION>
+BEFORE generating ANY markdown, verify:
+1. ALL code blocks have language hints: ```bash, ```java, ```python, ```text
+2. ALL $VARIABLES in prose are wrapped in backticks: `$HOME`, `$PATH`
+3. ALL Mermaid edge labels with special chars are quoted: -->|"@Autowired"|
+4. Reserved keyword "end" is capitalized: ["End"] not [end]
+5. Close ALL mermaid blocks with ``` on new line
+
+NEVER output:
+- ❌ ``` (bare code block)
+- ❌ $HOME in prose (triggers LATEX_MATH error)
+- ❌ -->|@Service| (triggers Mermaid parse error)
+</PRE_OUTPUT_VALIDATION>
 
 <WORKFLOW>
 1. Analyze provided code components and module structure
