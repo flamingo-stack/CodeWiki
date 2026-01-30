@@ -50,55 +50,112 @@ NEVER use bare ``` without a language. If unsure, use ```text.
 </CODE_BLOCK_RULES>
 
 <MERMAID_SYNTAX_RULES>
-CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
+CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
+Based on official Mermaid documentation and tested LLM patterns.
 
-1. **Node IDs**: Use simple alphanumeric IDs without spaces (use underscores):
-   - ✅ `UserService` or `user_service`
+1. **Diagram Declaration**: ALWAYS start with diagram type:
+   - ✅ `flowchart TD` or `flowchart LR` (top-down or left-right)
+   - ✅ `graph TD` (alternative syntax)
+   - ❌ Missing diagram type causes complete parse failure
+
+2. **Node IDs**: Use simple alphanumeric IDs (CamelCase or snake_case):
+   - ✅ `UserService` or `user_service` or `A` or `Node1`
    - ❌ `User Service` (spaces break parsing)
+   - ❌ Node IDs starting with lowercase "o" or "x" create circle/cross edges
+   - ✅ Use `OrgService` not `orgService` to avoid edge confusion
 
-2. **Node Labels**: Use square brackets with quotes for labels with spaces or special characters:
-   - ✅ `A["User Service"]`
-   - ✅ `B[UserRepository]`
-   - ✅ `C["@AuthenticationPrincipal"]`
-   - ❌ `A[User Service]` (unquoted spaces may break)
+3. **Node Labels**: ALWAYS use quotes for labels with spaces or special characters:
+   - ✅ `A["User Service"]` (quotes for spaces)
+   - ✅ `B["@RestController"]` (quotes for @ symbol)
+   - ✅ `C["process()"]` (quotes for parentheses)
+   - ✅ `D["UserDTO[]"]` (quotes for brackets)
+   - ❌ `A[User Service]` (unquoted spaces cause errors)
+   - ❌ `B[@RestController]` (unquoted @ causes errors)
 
-3. **Edge Labels**: ALWAYS use quotes if label contains special characters:
-   - ✅ `A -->|"provides data"| B` (safe - always quote)
-   - ✅ `A -->|"@Autowired"| B` (@ symbol needs quotes)
-   - ✅ `A -->|"organization(id)"| B` (parentheses need quotes)
+4. **Reserved Keywords**: The word "end" breaks flowcharts:
+   - ✅ `A["End"]` or `A["END"]` (capitalize one or all letters)
+   - ❌ `A[end]` (lowercase breaks rendering completely)
+
+5. **Edge/Link Syntax**: Use proper arrow and label format:
+   **Basic arrows:**
+   - ✅ `A --> B` (solid arrow)
+   - ✅ `A --- B` (no arrow)
+   - ✅ `A -.-> B` (dotted arrow)
+   - ✅ `A ==> B` (thick arrow)
+
+   **Edge labels - ALWAYS quote if ANY special character:**
+   - ✅ `A -->|"text"| B` (safe - always quote)
+   - ✅ `A -->|"@Autowired"| B` (@ needs quotes)
+   - ✅ `A -->|"getUser()"| B` (parentheses need quotes)
    - ✅ `A -->|"UserDTO[]"| B` (brackets need quotes)
-   - ❌ `A -->|@Autowired| B` (@ causes parse error)
-   - ❌ `A -->|organization(id)| B` (parentheses cause errors)
-   - ❌ `A -->| provides data | B` (extra spaces)
-   - ❌ `A --> |label| B` (space before pipe)
+   - ✅ `A -->|"returns {data}"| B` (braces need quotes)
+   - ❌ `A -->|@Autowired| B` (parse error)
+   - ❌ `A -->|getUser()| B` (parse error)
+   - ❌ `A --> |text| B` (space before pipe breaks)
+   - ❌ `A -->| text | B` (spaces around text break)
 
-   **Special characters that REQUIRE quotes in edge labels:**
-   - @ (annotations): `-->|"@Service"|`
-   - () (function calls): `-->|"getUser()"|`
-   - [] (arrays): `-->|"String[]"|`
-   - {} (objects): `-->|"returns {data}"|`
-   - | (pipe): avoid or use `-->|"with | pipe"|`
+   **Special characters requiring quotes:**
+   - `@` (annotations, emails)
+   - `()` (function calls, parameters)
+   - `[]` (arrays, generics)
+   - `{}` (objects, blocks)
+   - `<>` (generics, HTML)
+   - `&` `|` (logical operators)
+   - `#` `$` `%` (symbols)
 
-4. **Line Endings**: Each statement on its own line, no semicolons needed:
-   - ✅ `A --> B`
-   - ❌ `A --> B;` (semicolons can cause issues)
+6. **Subgraph Syntax**: Proper ID and title format:
+   ```
+   subgraph id["Display Title"]
+       direction TB
+       A --> B
+   end
+   ```
+   - ✅ ID must be simple (no spaces): `data_layer` or `DataLayer`
+   - ✅ Title in quotes can have spaces: `["Data Access Layer"]`
+   - ❌ `subgraph Data Layer` (space in ID breaks)
 
-5. **Subgraphs**: Use simple IDs and quoted titles:
-   - ✅ `subgraph data_layer["Data Layer"]`
-   - ❌ `subgraph Data Layer` (spaces in ID)
+7. **Comments**: Use %% for comments (on their own line):
+   - ✅ `%% This is a comment`
+   - ❌ `A --> B %% inline comment` (can cause issues)
+   - ❌ `%%{} comment` (braces can break rendering)
 
-6. **CRITICAL - Close code blocks**: ALWAYS close mermaid blocks with triple backticks on their own line:
-   - ✅ End with ``` on a new line after diagram content
-   - ❌ Never leave mermaid blocks unclosed
+8. **Line Structure**: One statement per line, no semicolons:
+   - ✅ `A --> B` (clean)
+   - ✅ `A --> B --> C` (chaining allowed)
+   - ❌ `A --> B;` (semicolons not needed)
 
-Example of correct flowchart (note the closing backticks):
+9. **Escaping Special Characters**: Use HTML entities if needed:
+   - ✅ `A["Hash: &#35;"]` (# as &#35;)
+   - ✅ `A["Ampersand: &amp;"]` (& as &amp;)
+   - ✅ `A["Less: &lt;"]` (< as &lt;)
+
+10. **Code Block Closure**: ALWAYS close mermaid blocks properly:
+    - ✅ Close with ``` on its own line
+    - ❌ Missing closing backticks breaks rendering
+
+**COMPLETE EXAMPLE (tested and validated):**
 ```mermaid
 flowchart TD
-    A["User Controller"] -->|handles requests| B["User Service"]
-    B -->|queries| C["User Repository"]
-    C -->|returns data| B
-    B -->|returns response| A
+    Start["Start Process"] -->|"initiates"| Controller["API Controller"]
+    Controller -->|"@Autowired"| Service["Business Service"]
+    Service -->|"getUser(id)"| Repository["User Repository"]
+    Repository -->|"returns UserDTO[]"| Service
+    Service -->|"transforms data"| Controller
+    Controller -->|"returns JSON"| End["End"]
+
+    subgraph data_layer["Data Access Layer"]
+        Repository -->|"queries"| DB[("Database")]
+    end
 ```
+
+**Validation Checklist Before Generating:**
+- [ ] Diagram starts with `flowchart TD` or `flowchart LR`
+- [ ] All node labels with spaces/special chars are quoted
+- [ ] No lowercase "end" in any label (use "End" or "END")
+- [ ] All edge labels with special chars are quoted
+- [ ] No spaces before/after pipes in edge labels
+- [ ] Subgraph IDs are simple (no spaces)
+- [ ] Code block closes with ``` on new line
 </MERMAID_SYNTAX_RULES>
 
 <LATEX_MATH_RULES>
@@ -167,46 +224,54 @@ NEVER use bare ``` without a language. If unsure, use ```text.
 </CODE_BLOCK_RULES>
 
 <MERMAID_SYNTAX_RULES>
-CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
+CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
+Based on official Mermaid documentation and tested LLM patterns.
 
-1. **Node IDs**: Use simple alphanumeric IDs without spaces (use underscores):
+1. **Diagram Declaration**: ALWAYS start with diagram type:
+   - ✅ `flowchart TD` or `flowchart LR` (top-down or left-right)
+   - ❌ Missing diagram type causes complete parse failure
+
+2. **Node IDs**: Use simple alphanumeric IDs (CamelCase or snake_case):
    - ✅ `UserService` or `user_service`
    - ❌ `User Service` (spaces break parsing)
+   - ⚠️  Node IDs starting with lowercase "o" or "x" create circle/cross edges
+   - ✅ Use `OrgService` not `orgService` to avoid confusion
 
-2. **Node Labels**: Use square brackets with quotes for labels with spaces or special characters:
-   - ✅ `A["User Service"]`
-   - ✅ `B[UserRepository]`
-   - ✅ `C["@AuthenticationPrincipal"]`
-   - ❌ `A[User Service]` (unquoted spaces may break)
+3. **Node Labels**: ALWAYS use quotes for labels with spaces or special characters:
+   - ✅ `A["User Service"]` (quotes for spaces)
+   - ✅ `B["@RestController"]` (quotes for @ symbol)
+   - ✅ `C["process()"]` (quotes for parentheses)
+   - ❌ `A[User Service]` (unquoted spaces cause errors)
 
-3. **Edge Labels**: ALWAYS use quotes if label contains special characters:
-   - ✅ `A -->|"provides data"| B` (safe - always quote)
-   - ✅ `A -->|"@Autowired"| B` (@ symbol needs quotes)
-   - ✅ `A -->|"organization(id)"| B` (parentheses need quotes)
+4. **Reserved Keywords**: The word "end" breaks flowcharts:
+   - ✅ `A["End"]` or `A["END"]` (capitalize)
+   - ❌ `A[end]` (lowercase breaks rendering)
+
+5. **Edge Labels**: ALWAYS quote if ANY special character present:
+   - ✅ `A -->|"text"| B` (safe - always quote)
+   - ✅ `A -->|"@Autowired"| B` (@ needs quotes)
+   - ✅ `A -->|"getUser()"| B` (parentheses need quotes)
    - ✅ `A -->|"UserDTO[]"| B` (brackets need quotes)
-   - ❌ `A -->|@Autowired| B` (@ causes parse error)
-   - ❌ `A -->|organization(id)| B` (parentheses cause errors)
-   - ❌ `A -->| provides data | B` (extra spaces)
-   - ❌ `A --> |label| B` (space before pipe)
+   - ❌ `A -->|@Autowired| B` (parse error)
+   - ❌ `A --> |text| B` (space before pipe breaks)
 
-   **Special characters that REQUIRE quotes in edge labels:**
-   - @ (annotations): `-->|"@Service"|`
-   - () (function calls): `-->|"getUser()"|`
-   - [] (arrays): `-->|"String[]"|`
-   - {} (objects): `-->|"returns {data}"|`
-   - | (pipe): avoid or use `-->|"with | pipe"|`
+   **Special characters requiring quotes:**
+   `@` `()` `[]` `{}` `<>` `&` `|` `#` `$` `%`
 
-4. **Line Endings**: Each statement on its own line, no semicolons needed:
-   - ✅ `A --> B`
-   - ❌ `A --> B;` (semicolons can cause issues)
+6. **Subgraphs**: Simple ID, quoted title:
+   ```
+   subgraph id["Title"]
+       A --> B
+   end
+   ```
 
-5. **CRITICAL - Close code blocks**: ALWAYS end mermaid blocks with ``` on its own line
+7. **Code Block Closure**: ALWAYS close with ``` on its own line
 
-Example (note closing backticks):
+**EXAMPLE:**
 ```mermaid
 flowchart TD
-    A["Controller"] -->|"handles requests"| B["Service"]
-    B -->|"queries"| C["Repository"]
+    A["Controller"] -->|"@Autowired"| B["Service"]
+    B -->|"getUser()"| C["Repository"]
 ```
 </MERMAID_SYNTAX_RULES>
 
