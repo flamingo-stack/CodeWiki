@@ -167,11 +167,55 @@ flowchart TD
     end
 ```
 
+**SEQUENCE DIAGRAM RULES:**
+
+Sequence diagrams have stricter syntax than flowcharts. Follow these rules exactly:
+
+1. **No Line Breaks in Statements**: Each statement must be on ONE line
+   - ✅ `Browser->>Server: POST /login {credentials}`
+   - ❌ Breaking statement across lines causes parse errors
+   - ❌ Blank lines between statements can break parsing
+
+2. **Participant Labels**: Use simple IDs, add aliases with `as` if needed
+   - ✅ `participant B as Browser`
+   - ✅ `participant API as "API Gateway"`
+   - ❌ `participant "Browser Client"` (spaces without as/alias)
+
+3. **Multi-line Notes**: Use `<br/>` for line breaks inside notes
+   - ✅ `Note over Browser: Set-Cookie<br/>auth_state=xyz`
+   - ❌ Never put actual newlines inside Note text
+   - ❌ `Note over Browser: Line 1\n Line 2` (breaks parsing)
+
+4. **Long Messages**: Keep on ONE line, use abbreviations if needed
+   - ✅ `Browser->>Server: Set-Cookie: auth=xyz; MaxAge=0`
+   - ✅ `Browser->>Server: Cookie: auth=xyz<br/>MaxAge=0` (use <br/> if breaking)
+   - ❌ Never split arrow statements across lines
+
+5. **Special Characters in Messages**: Quote if contains special chars
+   - ✅ `A->>B: "Returns {data}"`
+   - ✅ `A->>B: "Set-Cookie: auth_{state}=value"`
+   - Consider using plain text without braces if possible
+
+**SEQUENCE DIAGRAM EXAMPLE:**
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant API as "API Gateway"
+    participant Auth as "Auth Service"
+
+    Browser->>API: POST /oauth/authorize
+    API->>Auth: Validate credentials
+    Auth->>API: Return access token
+    Note over API: Set-Cookie<br/>auth_state=xyz<br/>MaxAge=3600
+    API->>Browser: Redirect to callback
+```
+
 **Validation Checklist Before Generating:**
-- [ ] Diagram starts with `flowchart TD` or `flowchart LR`
+- [ ] Diagram starts with `flowchart TD` or `flowchart LR` OR `sequenceDiagram`
 - [ ] All node labels with spaces/special chars are quoted
 - [ ] No lowercase "end" in any label (use "End" or "END")
 - [ ] All edge labels with special chars are quoted
+- [ ] **FOR SEQUENCE DIAGRAMS:** No line breaks mid-statement, use `<br/>` inside notes
 - [ ] No spaces before/after pipes in edge labels
 - [ ] Subgraph IDs are simple (no spaces)
 - [ ] Code block closes with ``` on new line
@@ -325,6 +369,13 @@ Based on official Mermaid documentation and tested LLM patterns.
    ```
 
 7. **Code Block Closure**: ALWAYS close with ``` on its own line
+
+**SEQUENCE DIAGRAM RULES (if using):**
+- Each statement must be on ONE line (no line breaks mid-statement)
+- Use `<br/>` for line breaks inside Note text
+- Example: `Note over Browser: Line 1<br/>Line 2`
+- NEVER split arrow statements across lines
+- NEVER put blank lines between sequence steps
 
 **EXAMPLE:**
 ```mermaid
