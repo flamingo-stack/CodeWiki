@@ -56,16 +56,28 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ✅ `UserService` or `user_service`
    - ❌ `User Service` (spaces break parsing)
 
-2. **Node Labels**: Use square brackets with quotes for labels with spaces:
+2. **Node Labels**: Use square brackets with quotes for labels with spaces or special characters:
    - ✅ `A["User Service"]`
    - ✅ `B[UserRepository]`
+   - ✅ `C["@AuthenticationPrincipal"]`
    - ❌ `A[User Service]` (unquoted spaces may break)
 
-3. **Edge Labels**: Use pipe syntax correctly with NO spaces around pipes:
-   - ✅ `A -->|provides data| B`
-   - ✅ `A -->|"complex label"| B`
+3. **Edge Labels**: ALWAYS use quotes if label contains special characters:
+   - ✅ `A -->|"provides data"| B` (safe - always quote)
+   - ✅ `A -->|"@Autowired"| B` (@ symbol needs quotes)
+   - ✅ `A -->|"organization(id)"| B` (parentheses need quotes)
+   - ✅ `A -->|"UserDTO[]"| B` (brackets need quotes)
+   - ❌ `A -->|@Autowired| B` (@ causes parse error)
+   - ❌ `A -->|organization(id)| B` (parentheses cause errors)
    - ❌ `A -->| provides data | B` (extra spaces)
    - ❌ `A --> |label| B` (space before pipe)
+
+   **Special characters that REQUIRE quotes in edge labels:**
+   - @ (annotations): `-->|"@Service"|`
+   - () (function calls): `-->|"getUser()"|`
+   - [] (arrays): `-->|"String[]"|`
+   - {} (objects): `-->|"returns {data}"|`
+   - | (pipe): avoid or use `-->|"with | pipe"|`
 
 4. **Line Endings**: Each statement on its own line, no semicolons needed:
    - ✅ `A --> B`
@@ -75,9 +87,7 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ✅ `subgraph data_layer["Data Layer"]`
    - ❌ `subgraph Data Layer` (spaces in ID)
 
-6. **Special Characters**: Avoid pipe, brackets, braces in labels
-
-7. **CRITICAL - Close code blocks**: ALWAYS close mermaid blocks with triple backticks on their own line:
+6. **CRITICAL - Close code blocks**: ALWAYS close mermaid blocks with triple backticks on their own line:
    - ✅ End with ``` on a new line after diagram content
    - ❌ Never leave mermaid blocks unclosed
 
@@ -163,28 +173,40 @@ CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors:
    - ✅ `UserService` or `user_service`
    - ❌ `User Service` (spaces break parsing)
 
-2. **Node Labels**: Use square brackets with quotes for labels with spaces:
+2. **Node Labels**: Use square brackets with quotes for labels with spaces or special characters:
    - ✅ `A["User Service"]`
+   - ✅ `B[UserRepository]`
+   - ✅ `C["@AuthenticationPrincipal"]`
    - ❌ `A[User Service]` (unquoted spaces may break)
 
-3. **Edge Labels**: Use pipe syntax correctly with NO spaces around pipes:
-   - ✅ `A -->|provides data| B`
+3. **Edge Labels**: ALWAYS use quotes if label contains special characters:
+   - ✅ `A -->|"provides data"| B` (safe - always quote)
+   - ✅ `A -->|"@Autowired"| B` (@ symbol needs quotes)
+   - ✅ `A -->|"organization(id)"| B` (parentheses need quotes)
+   - ✅ `A -->|"UserDTO[]"| B` (brackets need quotes)
+   - ❌ `A -->|@Autowired| B` (@ causes parse error)
+   - ❌ `A -->|organization(id)| B` (parentheses cause errors)
    - ❌ `A -->| provides data | B` (extra spaces)
    - ❌ `A --> |label| B` (space before pipe)
+
+   **Special characters that REQUIRE quotes in edge labels:**
+   - @ (annotations): `-->|"@Service"|`
+   - () (function calls): `-->|"getUser()"|`
+   - [] (arrays): `-->|"String[]"|`
+   - {} (objects): `-->|"returns {data}"|`
+   - | (pipe): avoid or use `-->|"with | pipe"|`
 
 4. **Line Endings**: Each statement on its own line, no semicolons needed:
    - ✅ `A --> B`
    - ❌ `A --> B;` (semicolons can cause issues)
 
-5. **Special Characters**: Avoid pipe, brackets, braces in labels
-
-6. **CRITICAL - Close code blocks**: ALWAYS end mermaid blocks with ``` on its own line
+5. **CRITICAL - Close code blocks**: ALWAYS end mermaid blocks with ``` on its own line
 
 Example (note closing backticks):
 ```mermaid
 flowchart TD
-    A["Controller"] -->|handles| B["Service"]
-    B -->|queries| C["Repository"]
+    A["Controller"] -->|"handles requests"| B["Service"]
+    B -->|"queries"| C["Repository"]
 ```
 </MERMAID_SYNTAX_RULES>
 
