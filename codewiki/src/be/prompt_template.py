@@ -88,7 +88,7 @@ Based on official Mermaid documentation and tested LLM patterns.
    - ✅ `A -->|"@Autowired"| B` (@ needs quotes)
    - ✅ `A -->|"getUser()"| B` (parentheses need quotes)
    - ✅ `A -->|"UserDTO[]"| B` (brackets need quotes)
-   - ✅ `A -->|"returns {data}"| B` (braces need quotes)
+   - ✅ `A -->|"returns {{data}}"| B` (braces need quotes)
    - ❌ `A -->|@Autowired| B` (parse error)
    - ❌ `A -->|getUser()| B` (parse error)
    - ❌ `A --> |text| B` (space before pipe breaks)
@@ -98,7 +98,7 @@ Based on official Mermaid documentation and tested LLM patterns.
    - `@` (annotations, emails)
    - `()` (function calls, parameters)
    - `[]` (arrays, generics)
-   - `{}` (objects, blocks)
+   - `{{}}` (objects, blocks)
    - `<>` (generics, HTML)
    - `&` `|` (logical operators)
    - `#` `$` `%` (symbols)
@@ -117,7 +117,7 @@ Based on official Mermaid documentation and tested LLM patterns.
 7. **Comments**: Use %% for comments (on their own line):
    - ✅ `%% This is a comment`
    - ❌ `A --> B %% inline comment` (can cause issues)
-   - ❌ `%%{} comment` (braces can break rendering)
+   - ❌ `%%{{}} comment` (braces can break rendering)
 
 8. **Line Structure**: One statement per line, no semicolons:
    - ✅ `A --> B` (clean)
@@ -286,7 +286,7 @@ Based on official Mermaid documentation and tested LLM patterns.
    - ❌ `A --> |text| B` (space before pipe breaks)
 
    **Special characters requiring quotes:**
-   `@` `()` `[]` `{}` `<>` `&` `|` `#` `$` `%`
+   `@` `()` `[]` `{{}}` `<>` `&` `|` `#` `$` `%`
 
 6. **Subgraphs**: Simple ID, quoted title:
    ```
