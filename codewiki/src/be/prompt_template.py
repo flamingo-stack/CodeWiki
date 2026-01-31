@@ -268,6 +268,46 @@ NEVER output:
 - ❌ -->|@Service| (triggers Mermaid parse error)
 </PRE_OUTPUT_VALIDATION>
 
+<CRITICAL_LINKING_RULES>
+**ABSOLUTE RULE: ONLY link to files you have VERIFIED exist or are generating.**
+
+❌ FORBIDDEN:
+- Creating links to files you assume should exist but haven't generated
+- Linking to ../api/overview.md without knowing if it exists
+- Linking to ../deployment/kubernetes.md without verification
+- Creating "See Also" or "Related Documentation" sections with unverified links
+
+✅ REQUIRED FOR EVERY LINK:
+1. ONLY link to files you are generating in THIS run (sub-modules you're creating)
+2. ONLY link to parent/sibling modules IF you know they exist from your inputs
+3. If you want to reference a concept without a file, write: "See platform documentation for X"
+4. DO NOT create comprehensive cross-reference sections with links to files you haven't verified
+
+**EXAMPLES:**
+
+CORRECT - Development docs linking to its own sub-modules:
+  You are generating development/README.md and these sub-modules:
+  - development/setup/environment.md
+  - development/setup/local-development.md
+
+  In development/README.md, you CAN link:
+  - [Environment Setup](setup/environment.md) ✅ YOU ARE CREATING THIS
+  - [Local Development](setup/local-development.md) ✅ YOU ARE CREATING THIS
+
+WRONG - Development docs with hallucinated links:
+  ## Related Documentation
+  - [API Reference](../api/overview.md) ❌ DON'T KNOW IF IT EXISTS
+  - [Deployment Guide](../deployment/kubernetes.md) ❌ DON'T KNOW IF IT EXISTS
+  - [Troubleshooting](../operations/troubleshooting.md) ❌ DON'T KNOW IF IT EXISTS
+
+**If you want to reference external documentation:**
+- ✅ CORRECT: "For deployment instructions, see the deployment documentation"
+- ✅ CORRECT: "Refer to your platform's API documentation for details"
+- ❌ WRONG: "For deployment, see [Kubernetes Guide](../deployment/kubernetes.md)"
+
+**Zero tolerance**: Every broken link is a bug. Only link to files you are generating or have verified exist.
+</CRITICAL_LINKING_RULES>
+
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
 2. Create the main `{{module_name}}.md` file with overview and architecture in working directory
@@ -431,6 +471,46 @@ NEVER output:
 - ❌ $HOME in prose (triggers LATEX_MATH error)
 - ❌ -->|@Service| (triggers Mermaid parse error)
 </PRE_OUTPUT_VALIDATION>
+
+<CRITICAL_LINKING_RULES>
+**ABSOLUTE RULE: ONLY link to files you have VERIFIED exist or are generating.**
+
+❌ FORBIDDEN:
+- Creating links to files you assume should exist but haven't generated
+- Linking to ../api/overview.md without knowing if it exists
+- Linking to ../deployment/kubernetes.md without verification
+- Creating "See Also" or "Related Documentation" sections with unverified links
+
+✅ REQUIRED FOR EVERY LINK:
+1. ONLY link to files you are generating in THIS run (sub-modules you're creating)
+2. ONLY link to parent/sibling modules IF you know they exist from your inputs
+3. If you want to reference a concept without a file, write: "See platform documentation for X"
+4. DO NOT create comprehensive cross-reference sections with links to files you haven't verified
+
+**EXAMPLES:**
+
+CORRECT - Development docs linking to its own sub-modules:
+  You are generating development/README.md and these sub-modules:
+  - development/setup/environment.md
+  - development/setup/local-development.md
+
+  In development/README.md, you CAN link:
+  - [Environment Setup](setup/environment.md) ✅ YOU ARE CREATING THIS
+  - [Local Development](setup/local-development.md) ✅ YOU ARE CREATING THIS
+
+WRONG - Development docs with hallucinated links:
+  ## Related Documentation
+  - [API Reference](../api/overview.md) ❌ DON'T KNOW IF IT EXISTS
+  - [Deployment Guide](../deployment/kubernetes.md) ❌ DON'T KNOW IF IT EXISTS
+  - [Troubleshooting](../operations/troubleshooting.md) ❌ DON'T KNOW IF IT EXISTS
+
+**If you want to reference external documentation:**
+- ✅ CORRECT: "For deployment instructions, see the deployment documentation"
+- ✅ CORRECT: "Refer to your platform's API documentation for details"
+- ❌ WRONG: "For deployment, see [Kubernetes Guide](../deployment/kubernetes.md)"
+
+**Zero tolerance**: Every broken link is a bug. Only link to files you are generating or have verified exist.
+</CRITICAL_LINKING_RULES>
 
 <WORKFLOW>
 1. Analyze provided code components and module structure
