@@ -57,8 +57,36 @@ def get_max_output_tokens() -> int:
     return default_tokens
 
 
+def get_model_max_token_field(stage: str = 'generation') -> str:
+    """
+    Get the max token parameter field name from environment variable.
+
+    Environment variables:
+    - CODEWIKI_CLUSTER_MAX_TOKEN_FIELD (for clustering stage)
+    - CODEWIKI_GENERATION_MAX_TOKEN_FIELD (for generation stage)
+    - CODEWIKI_FALLBACK_MAX_TOKEN_FIELD (for fallback stage)
+
+    Returns 'max_tokens' for standard models or 'max_completion_tokens' for reasoning models (o3, o3-mini).
+    """
+    env_var_map = {
+        'cluster': 'CODEWIKI_CLUSTER_MAX_TOKEN_FIELD',
+        'generation': 'CODEWIKI_GENERATION_MAX_TOKEN_FIELD',
+        'fallback': 'CODEWIKI_FALLBACK_MAX_TOKEN_FIELD',
+    }
+
+    env_var = env_var_map.get(stage, 'CODEWIKI_GENERATION_MAX_TOKEN_FIELD')
+    return os.environ.get(env_var, 'max_tokens')
+
+
 def create_main_model(config: Config) -> OpenAIModel:
-    """Create the main LLM model from configuration."""
+    """
+    Create the main LLM model from configuration.
+
+    NOTE: Pydantic AI currently hardcodes the 'max_tokens' parameter name in OpenAIModelSettings.
+    For reasoning models (o3, o3-mini) that require 'max_completion_tokens', the direct API call
+    in call_llm() uses the correct parameter name. If Pydantic AI models fail with "Unrecognized
+    request argument supplied: max_tokens", the system will fall back to the direct API call.
+    """
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
     return OpenAIModel(
@@ -123,26 +151,34 @@ def call_llm(
 ) -> str:
     """
     Call LLM with the given prompt.
-    
+
     Args:
         prompt: The prompt to send
         config: Configuration containing LLM settings
         model: Model name (defaults to config.main_model)
         temperature: Temperature setting
-        
+
     Returns:
         LLM response text
     """
     if model is None:
         model = config.main_model
-    
+
     client = create_openai_client(config)
     # Use config.max_tokens if available, otherwise fallback to env var
-    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=temperature,
-        max_tokens=max_tokens
-    )
+    max_tokens_value = getattr(config, 'max_tokens', None) or get_max_output_tokens()
+
+    # Get the correct parameter name for max tokens (max_tokens vs max_completion_tokens)
+    # Reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
+    max_token_field = get_model_max_token_field('generation')
+
+    # Build kwargs with dynamic parameter name
+    kwargs = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        max_token_field: max_tokens_value
+    }
+
+    response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content

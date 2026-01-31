@@ -106,7 +106,7 @@ class AgentInstructions:
 class Configuration:
     """
     CodeWiki configuration data model.
-    
+
     Attributes:
         base_url: LLM API base URL
         main_model: Primary model for documentation generation
@@ -118,6 +118,9 @@ class Configuration:
         max_token_per_leaf_module: Maximum tokens per leaf module (default: 16000)
         max_depth: Maximum depth for hierarchical decomposition (default: 2)
         agent_instructions: Custom agent instructions for documentation generation
+        cluster_max_token_field: Parameter name for cluster model max tokens (default: "max_tokens")
+        main_max_token_field: Parameter name for main model max tokens (default: "max_tokens")
+        fallback_max_token_field: Parameter name for fallback model max tokens (default: "max_tokens")
     """
     base_url: str
     main_model: str
@@ -129,6 +132,9 @@ class Configuration:
     max_token_per_leaf_module: int = 16000
     max_depth: int = 2
     agent_instructions: AgentInstructions = field(default_factory=AgentInstructions)
+    cluster_max_token_field: str = "max_tokens"
+    main_max_token_field: str = "max_tokens"
+    fallback_max_token_field: str = "max_tokens"
     
     def validate(self):
         """
@@ -148,12 +154,15 @@ class Configuration:
             'base_url': self.base_url,
             'main_model': self.main_model,
             'cluster_model': self.cluster_model,
-            'fallback_model': self.fallback_model,  # ✅ FIXED: Include fallback_model
+            'fallback_model': self.fallback_model,
             'default_output': self.default_output,
             'max_tokens': self.max_tokens,
             'max_token_per_module': self.max_token_per_module,
             'max_token_per_leaf_module': self.max_token_per_leaf_module,
             'max_depth': self.max_depth,
+            'cluster_max_token_field': self.cluster_max_token_field,
+            'main_max_token_field': self.main_max_token_field,
+            'fallback_max_token_field': self.fallback_max_token_field,
         }
         if self.agent_instructions and not self.agent_instructions.is_empty():
             result['agent_instructions'] = self.agent_instructions.to_dict()
@@ -163,17 +172,17 @@ class Configuration:
     def from_dict(cls, data: dict) -> 'Configuration':
         """
         Create Configuration from dictionary.
-        
+
         Args:
             data: Configuration dictionary
-            
+
         Returns:
             Configuration instance
         """
         agent_instructions = AgentInstructions()
         if 'agent_instructions' in data:
             agent_instructions = AgentInstructions.from_dict(data['agent_instructions'])
-        
+
         return cls(
             base_url=data.get('base_url', ''),
             main_model=data.get('main_model', ''),
@@ -185,6 +194,9 @@ class Configuration:
             max_token_per_leaf_module=data.get('max_token_per_leaf_module', 16000),
             max_depth=data.get('max_depth', 2),
             agent_instructions=agent_instructions,
+            cluster_max_token_field=data.get('cluster_max_token_field', 'max_tokens'),
+            main_max_token_field=data.get('main_max_token_field', 'max_tokens'),
+            fallback_max_token_field=data.get('fallback_max_token_field', 'max_tokens'),
         )
     
     def is_complete(self) -> bool:
