@@ -172,7 +172,7 @@ flowchart TD
 Sequence diagrams have stricter syntax than flowcharts. Follow these rules exactly:
 
 1. **No Line Breaks in Statements**: Each statement must be on ONE line
-   - ✅ `Browser->>Server: POST /login {credentials}`
+   - ✅ `Browser->>Server: POST /login with credentials`
    - ❌ Breaking statement across lines causes parse errors
    - ❌ Blank lines between statements can break parsing
 
