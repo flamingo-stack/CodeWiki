@@ -192,8 +192,8 @@ Sequence diagrams have stricter syntax than flowcharts. Follow these rules exact
    - ❌ Never split arrow statements across lines
 
 5. **Special Characters in Messages**: Quote if contains special chars
-   - ✅ `A->>B: "Returns {data}"`
-   - ✅ `A->>B: "Set-Cookie: auth_{state}=value"`
+   - ✅ `A->>B: "Returns {{data}}"`
+   - ✅ `A->>B: "Set-Cookie: auth_{{state}}=value"`
    - Consider using plain text without braces if possible
 
 **SEQUENCE DIAGRAM EXAMPLE:**
