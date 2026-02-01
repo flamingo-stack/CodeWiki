@@ -61,37 +61,26 @@ def escape_format_braces(text: str) -> str:
     This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
     that would be interpreted as format placeholders.
 
-    CRITICAL: Content goes through TWO formatting operations:
-    1. Module import f-string (SYSTEM_PROMPT definition): {{{{ → {{
-    2. Runtime .format() call: {{ → {
-    Therefore we need QUADRUPLE (4x) braces to produce literal braces in final output.
+    CRITICAL: Content goes through ONE formatting operation:
+    - F-string substitution does NOT process braces in variables (f"{var}" → var as-is)
+    - Only .format() call processes braces: {{ → {
+    Therefore we need DOUBLE (2x) braces to produce literal braces in final output.
 
     Flow:
     - Original: {0}
-    - After escape: {{{{0}}}}  (4 braces each side)
-    - After f-string in SYSTEM_PROMPT: {{0}}  (2 braces each side)
+    - After escape: {{0}}  (2 braces each side)
+    - After f-string in SYSTEM_PROMPT: {{0}}  (no change - braces in substituted text not processed)
     - After .format(): {0}  (literal in output)
 
     Args:
         text: Raw text that may contain curly braces
 
     Returns:
-        Text with curly braces quadrupled (4 braces each)
+        Text with curly braces doubled (2 braces each)
     """
-    # DEBUG: Print before escaping
-    if "{0}" in text or "{1}" in text or "{Component}" in text or "{data}" in text:
-        print(f"[DEBUG] escape_format_braces BEFORE (first 200 chars): {text[:200]}...")
-        print(f"[DEBUG] Count of '{{': {text.count('{')}, Count of '}}': {text.count('}')}")
-
-    # QUADRUPLE all curly braces for TWO levels of formatting
-    # (Module definition f-string + runtime .format())
-    result = text.replace("{", "{{{{").replace("}", "}}}}")
-
-    # DEBUG: Print after escaping
-    if "{{{{0}}}}" in result or "{{{{1}}}}" in result or "{{{{data}}}}" in result:
-        print(f"[DEBUG] escape_format_braces AFTER (first 200 chars): {result[:200]}...")
-        print(f"[DEBUG] Count of '{{': {result.count('{')}, Count of '}}': {result.count('}')}")
-        print(f"[DEBUG] Quadruple escaping: {{{{{{{{0}}}}}}}} → {{{{0}}}} → {{0}} → {{0}} (literal)")
+    # DOUBLE all curly braces for ONE level of formatting (.format() only)
+    # F-string does NOT process braces in substituted variables
+    result = text.replace("{", "{{").replace("}", "}}")
 
     return result
 
@@ -122,8 +111,8 @@ def get_guidelines_section() -> str:
     # code examples, or other content with {placeholder} patterns
     escaped_guidelines = escape_format_braces(FLAMINGO_MARKDOWN_GUIDELINES)
 
-    # Use string concatenation instead of f-string to avoid triple nesting
-    # This reduces escaping from octuple (8x) to quadruple (4x)
+    # Use string concatenation (no f-string needed here)
+    # Escaped braces will be processed only once by .format() in prompt_template.py
     return (
         "\n## MARKDOWN FORMATTING GUIDELINES (Flamingo Stack)\n\n" +
         escaped_guidelines +
@@ -180,8 +169,8 @@ def get_custom_instructions_section() -> str:
     # Escape curly braces to prevent KeyError in .format() calls
     escaped_instructions = escape_format_braces(CUSTOM_REPO_INSTRUCTIONS)
 
-    # Use string concatenation instead of f-string to avoid triple nesting
-    # This reduces escaping from octuple (8x) to quadruple (4x)
+    # Use string concatenation (no f-string needed here)
+    # Escaped braces will be processed only once by .format() in prompt_template.py
     return (
         "\n## REPOSITORY-SPECIFIC INSTRUCTIONS\n\n" +
         "The following instructions are specific to this repository and MUST be followed:\n\n" +
