@@ -5,6 +5,14 @@ from codewiki.src.be.flamingo_guidelines import get_guidelines_section, get_cust
 _CUSTOM_INSTRUCTIONS_SECTION = get_custom_instructions_section()
 _GUIDELINES_SECTION = get_guidelines_section()
 
+# DEBUG: Check what's in the sections at module import time
+if _CUSTOM_INSTRUCTIONS_SECTION and ("{0}" in _CUSTOM_INSTRUCTIONS_SECTION or "{1}" in _CUSTOM_INSTRUCTIONS_SECTION):
+    print(f"[DEBUG] prompt_template.py MODULE IMPORT - _CUSTOM_INSTRUCTIONS_SECTION contains {{0}} or {{1}}")
+    print(f"[DEBUG] First 300 chars: {_CUSTOM_INSTRUCTIONS_SECTION[:300]}")
+    import re
+    braces = re.findall(r'\{[^}]*\}', _CUSTOM_INSTRUCTIONS_SECTION)
+    print(f"[DEBUG] All curly brace patterns found: {braces}")
+
 SYSTEM_PROMPT = f"""
 {_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
@@ -885,5 +893,14 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
         # contain placeholders like {0}, {Component}, etc.
         escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
+
+    # DEBUG: Check what's in LEAF_SYSTEM_PROMPT before formatting
+    if "{0}" in LEAF_SYSTEM_PROMPT or "{1}" in LEAF_SYSTEM_PROMPT:
+        print(f"[DEBUG] format_leaf_system_prompt - LEAF_SYSTEM_PROMPT contains {{0}} or {{1}}")
+        print(f"[DEBUG] First 500 chars of LEAF_SYSTEM_PROMPT: {LEAF_SYSTEM_PROMPT[:500]}")
+        print(f"[DEBUG] Looking for curly braces...")
+        import re
+        braces = re.findall(r'\{[^}]*\}', LEAF_SYSTEM_PROMPT[:1000])
+        print(f"[DEBUG] Found braces: {braces}")
 
     return LEAF_SYSTEM_PROMPT.format(module_name=module_name, custom_instructions=custom_section).strip()

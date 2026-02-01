@@ -72,8 +72,18 @@ def escape_format_braces(text: str) -> str:
     Returns:
         Text with curly braces quadrupled ({{{{ and }}}})
     """
+    # DEBUG: Print before escaping
+    if "{0}" in text or "{1}" in text or "{Component}" in text:
+        print(f"[DEBUG] escape_format_braces BEFORE: {text[:200]}...")
+
     # Quadruple all curly braces for TWO levels of formatting
-    return text.replace("{", "{{{{").replace("}", "}}}}")
+    result = text.replace("{", "{{{{").replace("}", "}}}}")
+
+    # DEBUG: Print after escaping
+    if "{{{{0}}}}" in result or "{{{{1}}}}" in result:
+        print(f"[DEBUG] escape_format_braces AFTER: {result[:200]}...")
+
+    return result
 
 
 def get_guidelines_section() -> str:
