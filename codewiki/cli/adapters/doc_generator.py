@@ -72,7 +72,7 @@ class CLIDocumentationGenerator:
         self.job.llm_config = LLMConfig(
             main_model=config.get('main_model', ''),
             cluster_model=config.get('cluster_model', ''),
-            base_url=config.get('base_url', '')
+            base_url=config.get('main_base_url', '')  # Use main_base_url for display
         )
         
         # Configure backend logging
@@ -140,16 +140,41 @@ class CLIDocumentationGenerator:
             backend_config = BackendConfig.from_cli(
                 repo_path=str(self.repo_path),
                 output_dir=str(self.output_dir),
-                llm_base_url=self.config.get('base_url'),
                 llm_api_key=self.config.get('api_key'),
                 main_model=self.config.get('main_model'),
                 cluster_model=self.config.get('cluster_model'),
                 fallback_model=self.config.get('fallback_model'),
-                max_tokens=self.config.get('max_tokens', 32768),
+                # Per-provider base URLs
+                cluster_base_url=self.config.get('cluster_base_url'),
+                main_base_url=self.config.get('main_base_url'),
+                fallback_base_url=self.config.get('fallback_base_url'),
+                # Per-provider API versions
+                cluster_api_version=self.config.get('cluster_api_version'),
+                main_api_version=self.config.get('main_api_version'),
+                fallback_api_version=self.config.get('fallback_api_version'),
+                # Per-provider max tokens
+                cluster_max_tokens=self.config.get('cluster_max_tokens', 128000),
+                main_max_tokens=self.config.get('main_max_tokens', 128000),
+                fallback_max_tokens=self.config.get('fallback_max_tokens', 64000),
+                # Per-provider temperature
+                cluster_temperature=self.config.get('cluster_temperature', 0.0),
+                main_temperature=self.config.get('main_temperature', 0.0),
+                fallback_temperature=self.config.get('fallback_temperature', 0.0),
+                # Per-provider temperature support
+                cluster_temperature_supported=self.config.get('cluster_temperature_supported', True),
+                main_temperature_supported=self.config.get('main_temperature_supported', True),
+                fallback_temperature_supported=self.config.get('fallback_temperature_supported', True),
+                # Per-provider max token field names
+                cluster_max_token_field=self.config.get('cluster_max_token_field', 'max_tokens'),
+                main_max_token_field=self.config.get('main_max_token_field', 'max_tokens'),
+                fallback_max_token_field=self.config.get('fallback_max_token_field', 'max_tokens'),
+                # Shared clustering settings
                 max_token_per_module=self.config.get('max_token_per_module', 36369),
                 max_token_per_leaf_module=self.config.get('max_token_per_leaf_module', 16000),
                 max_depth=self.config.get('max_depth', 2),
+                # Agent instructions
                 agent_instructions=self.config.get('agent_instructions'),
+                # Optional diagrams directory
                 diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None
             )
             

@@ -84,11 +84,16 @@ class ConfigManager:
     def save(
         self,
         api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
         main_model: Optional[str] = None,
         cluster_model: Optional[str] = None,
         fallback_model: Optional[str] = None,
         default_output: Optional[str] = None,
+        cluster_base_url: Optional[str] = None,
+        main_base_url: Optional[str] = None,
+        fallback_base_url: Optional[str] = None,
+        cluster_api_version: Optional[str] = None,
+        main_api_version: Optional[str] = None,
+        fallback_api_version: Optional[str] = None,
         cluster_max_tokens: Optional[int] = None,
         main_max_tokens: Optional[int] = None,
         fallback_max_tokens: Optional[int] = None,
@@ -101,20 +106,25 @@ class ConfigManager:
         cluster_temperature_supported: Optional[bool] = None,
         main_temperature_supported: Optional[bool] = None,
         fallback_temperature_supported: Optional[bool] = None,
-        max_token_field: Optional[str] = None,
-        api_path: Optional[str] = None,
-        api_version: Optional[str] = None
+        cluster_max_token_field: Optional[str] = None,
+        main_max_token_field: Optional[str] = None,
+        fallback_max_token_field: Optional[str] = None
     ):
         """
         Save configuration to file and keyring.
 
         Args:
             api_key: API key (stored in keyring)
-            base_url: LLM API base URL
             main_model: Primary model
             cluster_model: Clustering model
             fallback_model: Fallback model
             default_output: Default output directory
+            cluster_base_url: Cluster model API base URL
+            main_base_url: Main model API base URL
+            fallback_base_url: Fallback model API base URL
+            cluster_api_version: Cluster model API version
+            main_api_version: Main model API version
+            fallback_api_version: Fallback model API version
             cluster_max_tokens: Maximum tokens for cluster model
             main_max_tokens: Maximum tokens for main/generation model
             fallback_max_tokens: Maximum tokens for fallback model
@@ -127,9 +137,9 @@ class ConfigManager:
             cluster_temperature_supported: Whether cluster model supports custom temperature
             main_temperature_supported: Whether main model supports custom temperature
             fallback_temperature_supported: Whether fallback model supports custom temperature
-            max_token_field: Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')
-            api_path: API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')
-            api_version: API version if different from default
+            cluster_max_token_field: Cluster model max token parameter name
+            main_max_token_field: Main model max token parameter name
+            fallback_max_token_field: Fallback model max token parameter name
         """
         # Ensure config directory exists
         try:
@@ -144,17 +154,14 @@ class ConfigManager:
             else:
                 from codewiki.cli.models.config import AgentInstructions
                 self._config = Configuration(
-                    base_url="",
                     main_model="",
                     cluster_model="",
-                    fallback_model="glm-4p5",
+                    fallback_model="",
                     default_output="docs",
                     agent_instructions=AgentInstructions()
                 )
         
         # Update fields if provided
-        if base_url is not None:
-            self._config.base_url = base_url
         if main_model is not None:
             self._config.main_model = main_model
         if cluster_model is not None:
@@ -163,39 +170,65 @@ class ConfigManager:
             self._config.fallback_model = fallback_model
         if default_output is not None:
             self._config.default_output = default_output
+
+        # Per-provider base URLs
+        if cluster_base_url is not None:
+            self._config.cluster_base_url = cluster_base_url
+        if main_base_url is not None:
+            self._config.main_base_url = main_base_url
+        if fallback_base_url is not None:
+            self._config.fallback_base_url = fallback_base_url
+
+        # Per-provider API versions
+        if cluster_api_version is not None:
+            self._config.cluster_api_version = cluster_api_version
+        if main_api_version is not None:
+            self._config.main_api_version = main_api_version
+        if fallback_api_version is not None:
+            self._config.fallback_api_version = fallback_api_version
+
+        # Per-provider max tokens
         if cluster_max_tokens is not None:
             self._config.cluster_max_tokens = cluster_max_tokens
         if main_max_tokens is not None:
             self._config.main_max_tokens = main_max_tokens
         if fallback_max_tokens is not None:
             self._config.fallback_max_tokens = fallback_max_tokens
+
+        # Shared max token settings
         if max_token_per_module is not None:
             self._config.max_token_per_module = max_token_per_module
         if max_token_per_leaf_module is not None:
             self._config.max_token_per_leaf_module = max_token_per_leaf_module
         if max_depth is not None:
             self._config.max_depth = max_depth
+
+        # Per-provider temperature
         if cluster_temperature is not None:
             self._config.cluster_temperature = cluster_temperature
         if main_temperature is not None:
             self._config.main_temperature = main_temperature
         if fallback_temperature is not None:
             self._config.fallback_temperature = fallback_temperature
+
+        # Per-provider temperature support
         if cluster_temperature_supported is not None:
             self._config.cluster_temperature_supported = cluster_temperature_supported
         if main_temperature_supported is not None:
             self._config.main_temperature_supported = main_temperature_supported
         if fallback_temperature_supported is not None:
             self._config.fallback_temperature_supported = fallback_temperature_supported
-        if max_token_field is not None:
-            self._config.max_token_field = max_token_field
-        if api_path is not None:
-            self._config.api_path = api_path
-        if api_version is not None:
-            self._config.api_version = api_version
+
+        # Per-provider max token field names
+        if cluster_max_token_field is not None:
+            self._config.cluster_max_token_field = cluster_max_token_field
+        if main_max_token_field is not None:
+            self._config.main_max_token_field = main_max_token_field
+        if fallback_max_token_field is not None:
+            self._config.fallback_max_token_field = fallback_max_token_field
 
         # Validate configuration (only if base fields are set)
-        if self._config.base_url and self._config.main_model and self._config.cluster_model:
+        if self._config.main_model and self._config.cluster_model:
             self._config.validate()
         
         # Save API key to keyring

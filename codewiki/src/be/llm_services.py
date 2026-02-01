@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIModelSettings
 from pydantic_ai.models.fallback import FallbackModel
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 from codewiki.src.config import Config
 
@@ -87,8 +87,8 @@ def create_main_model(config: Config) -> OpenAIModel:
     in call_llm() uses the correct parameter name. If Pydantic AI models fail with "Unrecognized
     request argument supplied: max_tokens", the system will fall back to the direct API call.
     """
-    # Use config.max_tokens if available, otherwise fallback to env var
-    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
+    # Use per-provider max_tokens
+    max_tokens = getattr(config, 'main_max_tokens', None) or get_max_output_tokens()
     # Check if model supports custom temperature (use per-provider field)
     temperature = getattr(config, 'main_temperature', 0.0)
     temperature_supported = getattr(config, 'main_temperature_supported', True)
@@ -98,11 +98,28 @@ def create_main_model(config: Config) -> OpenAIModel:
     if temperature_supported:
         settings_dict['temperature'] = temperature
 
+    # Build provider with per-provider base_url and optional api_version header
+    base_url = getattr(config, 'main_base_url', None)
+    if not base_url:
+        raise ValueError(
+            "main_base_url is required in configuration for main/generation model.\n"
+            f"Model: {config.main_model}\n"
+            "Please set via CLI: --main-base-url <url>\n"
+            "Or in config file: main_base_url = '<url>'"
+        )
+
+    # Prepare default headers for API version (Anthropic models)
+    default_headers = {}
+    api_version = getattr(config, 'main_api_version', None)
+    if api_version:
+        default_headers['anthropic-version'] = api_version
+
     return OpenAIModel(
         model_name=config.main_model,
         provider=OpenAIProvider(
-            base_url=config.llm_base_url,
-            api_key=config.llm_api_key
+            base_url=base_url,
+            api_key=config.llm_api_key,
+            default_headers=default_headers if default_headers else None
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -110,8 +127,8 @@ def create_main_model(config: Config) -> OpenAIModel:
 
 def create_fallback_model(config: Config) -> OpenAIModel:
     """Create the fallback LLM model from configuration."""
-    # Use config.max_tokens if available, otherwise fallback to env var
-    max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
+    # Use per-provider max_tokens
+    max_tokens = getattr(config, 'fallback_max_tokens', None) or get_max_output_tokens()
     # Check if model supports custom temperature (use per-provider field)
     temperature = getattr(config, 'fallback_temperature', 0.0)
     temperature_supported = getattr(config, 'fallback_temperature_supported', True)
@@ -121,14 +138,86 @@ def create_fallback_model(config: Config) -> OpenAIModel:
     if temperature_supported:
         settings_dict['temperature'] = temperature
 
+    # Build provider with per-provider base_url and optional api_version header
+    base_url = getattr(config, 'fallback_base_url', None)
+    if not base_url:
+        raise ValueError(
+            "fallback_base_url is required in configuration for fallback model.\n"
+            f"Model: {config.fallback_model}\n"
+            "Please set via CLI: --fallback-base-url <url>\n"
+            "Or in config file: fallback_base_url = '<url>'"
+        )
+
+    # Prepare default headers for API version (Anthropic models)
+    default_headers = {}
+    api_version = getattr(config, 'fallback_api_version', None)
+    if api_version:
+        default_headers['anthropic-version'] = api_version
+
     return OpenAIModel(
         model_name=config.fallback_model,
         provider=OpenAIProvider(
-            base_url=config.llm_base_url,
-            api_key=config.llm_api_key
+            base_url=base_url,
+            api_key=config.llm_api_key,
+            default_headers=default_headers if default_headers else None
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
+
+
+
+def create_cluster_model(config: Config) -> OpenAIModel:
+    """
+    Create the cluster model (used for module clustering).
+
+    Validates cluster_base_url is configured and creates an OpenAI-compatible client
+    with cluster-specific settings from config.
+
+    Args:
+        config: Configuration with cluster_* provider settings
+
+    Returns:
+        OpenAIModel configured for clustering operations
+
+    Raises:
+        ValueError: If cluster_base_url is not configured
+    """
+    # Validate cluster base URL is configured
+    base_url = getattr(config, 'cluster_base_url', None)
+    if not base_url:
+        raise ValueError(
+            "cluster_base_url is required in configuration for clustering operations.\n"
+            f"Model: {config.cluster_model}\n"
+            "Please set via CLI: --cluster-base-url <url>\n"
+            "Or in config file: cluster_base_url = '<url>'"
+        )
+
+    # Get cluster-specific settings
+    api_version = getattr(config, 'cluster_api_version', None)
+    max_tokens = getattr(config, 'cluster_max_tokens', None) or get_max_output_tokens()
+    temperature = getattr(config, 'cluster_temperature', 0.0)
+    temperature_supported = getattr(config, 'cluster_temperature_supported', True)
+
+    # Build settings dict - only include temperature if model supports it
+    settings_dict = {'max_tokens': max_tokens}
+    if temperature_supported:
+        settings_dict['temperature'] = temperature
+
+    # Prepare default headers for API version (Anthropic models)
+    default_headers = {}
+    if api_version:
+        default_headers['anthropic-version'] = api_version
+
+    return OpenAIModel(
+        model_name=config.cluster_model,
+        provider=OpenAIProvider(
+            base_url=base_url,
+            api_key=config.llm_api_key,
+            default_headers=default_headers if default_headers else None
+        ),
+        settings=OpenAIModelSettings(**settings_dict)
+    )
+
 
 
 class CountingFallbackModel(FallbackModel):
@@ -147,11 +236,57 @@ def create_fallback_models(config: Config) -> CountingFallbackModel:
     return CountingFallbackModel(main, fallback)
 
 
-def create_openai_client(config: Config) -> OpenAI:
-    """Create OpenAI client from configuration."""
+def create_openai_client(config: Config, model: str = None) -> OpenAI:
+    """
+    Create OpenAI client from configuration.
+
+    Args:
+        config: Configuration with per-provider settings
+        model: Model name to determine which base_url to use (cluster, main, or fallback)
+
+    Returns:
+        OpenAI client configured for the specified model
+
+    Raises:
+        ValueError: When base_url is not configured for the specified model
+    """
+    # Determine which model we're using to select the right base_url and api_version
+    if model is None:
+        model = config.main_model
+
+    # Select base_url and api_version based on model
+    model_stage = "main/generation"
+    if model == config.cluster_model:
+        base_url = getattr(config, 'cluster_base_url', None)
+        api_version = getattr(config, 'cluster_api_version', None)
+        model_stage = "cluster"
+        config_field = "cluster_base_url"
+    elif model == config.fallback_model:
+        base_url = getattr(config, 'fallback_base_url', None)
+        api_version = getattr(config, 'fallback_api_version', None)
+        model_stage = "fallback"
+        config_field = "fallback_base_url"
+    else:  # main/generation model
+        base_url = getattr(config, 'main_base_url', None)
+        api_version = getattr(config, 'main_api_version', None)
+        config_field = "main_base_url"
+
+    if not base_url:
+        raise ValueError(
+            f"base_url not configured for {model_stage} model '{model}'.\n"
+            f"Please set via CLI: --{config_field.replace('_', '-')} <url>\n"
+            f"Or in config file: {config_field} = '<url>'"
+        )
+
+    # Prepare default headers for API version (Anthropic models)
+    default_headers = {}
+    if api_version:
+        default_headers['anthropic-version'] = api_version
+
     return OpenAI(
-        base_url=config.llm_base_url,
-        api_key=config.llm_api_key
+        base_url=base_url,
+        api_key=config.llm_api_key,
+        default_headers=default_headers if default_headers else None
     )
 
 
@@ -162,7 +297,7 @@ def call_llm(
     temperature: float = 0.0
 ) -> str:
     """
-    Call LLM with the given prompt.
+    Call LLM with the given prompt, with comprehensive error context.
 
     Args:
         prompt: The prompt to send
@@ -172,44 +307,83 @@ def call_llm(
 
     Returns:
         LLM response text
+
+    Raises:
+        RuntimeError: When LLM API call fails (wraps original error with context)
     """
     if model is None:
         model = config.main_model
 
-    client = create_openai_client(config)
-    # Use config.max_tokens if available, otherwise fallback to env var
-    max_tokens_value = getattr(config, 'max_tokens', None) or get_max_output_tokens()
-
     # Determine which stage we're in based on the model being used
     # This ensures we use the correct max_token_field for each model
     stage = 'generation'  # default
+    model_stage_name = "main/generation"
     if model == config.cluster_model:
         stage = 'cluster'
+        model_stage_name = 'cluster'
     elif model == config.fallback_model:
         stage = 'fallback'
+        model_stage_name = 'fallback'
 
-    # Get the correct parameter name for max tokens (max_tokens vs max_completion_tokens)
-    # GPT-5.2 and reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
-    max_token_field = get_model_max_token_field(stage)
-
-    # Check if this model supports custom temperature (use per-provider field)
+    # Get base_url for error reporting
     if stage == 'cluster':
-        temperature_supported = getattr(config, 'cluster_temperature_supported', True)
+        base_url = getattr(config, 'cluster_base_url', 'not configured')
     elif stage == 'fallback':
-        temperature_supported = getattr(config, 'fallback_temperature_supported', True)
-    else:  # generation/main
-        temperature_supported = getattr(config, 'main_temperature_supported', True)
+        base_url = getattr(config, 'fallback_base_url', 'not configured')
+    else:  # main/generation
+        base_url = getattr(config, 'main_base_url', 'not configured')
 
-    # Build kwargs with dynamic parameter name
-    kwargs = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        max_token_field: max_tokens_value
-    }
+    try:
+        client = create_openai_client(config, model=model)
 
-    # Only add temperature if model supports it
-    if temperature_supported:
-        kwargs["temperature"] = temperature
+        # Determine max_tokens_value based on which model is being used
+        if model == config.cluster_model:
+            max_tokens_value = getattr(config, 'cluster_max_tokens', None) or get_max_output_tokens()
+        elif model == config.fallback_model:
+            max_tokens_value = getattr(config, 'fallback_max_tokens', None) or get_max_output_tokens()
+        else:  # main/generation model
+            max_tokens_value = getattr(config, 'main_max_tokens', None) or get_max_output_tokens()
 
-    response = client.chat.completions.create(**kwargs)
-    return response.choices[0].message.content
+        # Get the correct parameter name for max tokens (max_tokens vs max_completion_tokens)
+        # GPT-5.2 and reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
+        max_token_field = get_model_max_token_field(stage)
+
+        # Check if this model supports custom temperature (use per-provider field)
+        if stage == 'cluster':
+            temperature_supported = getattr(config, 'cluster_temperature_supported', True)
+        elif stage == 'fallback':
+            temperature_supported = getattr(config, 'fallback_temperature_supported', True)
+        else:  # generation/main
+            temperature_supported = getattr(config, 'main_temperature_supported', True)
+
+        # Build kwargs with dynamic parameter name
+        kwargs = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            max_token_field: max_tokens_value
+        }
+
+        # Only add temperature if model supports it
+        if temperature_supported:
+            kwargs["temperature"] = temperature
+
+        response = client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
+
+    except OpenAIError as e:
+        # Add context to OpenAI SDK errors
+        raise RuntimeError(
+            f"LLM API call failed for {model_stage_name} model '{model}'.\n"
+            f"Base URL: {base_url}\n"
+            f"Temperature: {temperature} (supported: {temperature_supported})\n"
+            f"Max tokens: {kwargs.get('max_tokens') or kwargs.get('max_completion_tokens', 'not set')} "
+            f"(field: {max_token_field})\n"
+            f"Original error: {type(e).__name__}: {str(e)}"
+        ) from e
+
+    except Exception as e:
+        # Wrap unexpected errors with context
+        raise RuntimeError(
+            f"Unexpected error calling {model_stage_name} model '{model}': "
+            f"{type(e).__name__}: {str(e)}"
+        ) from e

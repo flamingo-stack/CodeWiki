@@ -54,12 +54,17 @@ def load_flamingo_guidelines() -> str:
 FLAMINGO_MARKDOWN_GUIDELINES = load_flamingo_guidelines()
 
 
-def escape_format_braces(text: str) -> str:
+def sanitize_and_escape_format_braces(text: str) -> str:
     """
-    Escape curly braces for use with Python's str.format().
+    Sanitize problematic patterns and escape curly braces for use with Python's str.format().
 
     This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
     that would be interpreted as format placeholders.
+
+    Sanitization (performed BEFORE escaping):
+    1. GitHub Actions syntax: ${{...}} → ${...}
+    2. Triple braces: {{{...}}} → {{...}}
+    3. Quadruple+ braces: Iteratively reduced to double braces
 
     CRITICAL: Content goes through ONE formatting operation:
     - F-string substitution does NOT process braces in variables (f"{var}" → var as-is)
@@ -68,6 +73,7 @@ def escape_format_braces(text: str) -> str:
 
     Flow:
     - Original: {0}
+    - After sanitization: {0} (no change for simple placeholders)
     - After escape: {{0}}  (2 braces each side)
     - After f-string in SYSTEM_PROMPT: {{0}}  (no change - braces in substituted text not processed)
     - After .format(): {0}  (literal in output)
@@ -76,27 +82,90 @@ def escape_format_braces(text: str) -> str:
         text: Raw text that may contain curly braces
 
     Returns:
-        Text with curly braces doubled (2 braces each)
+        Sanitized text with curly braces doubled (2 braces each)
     """
-    # DEBUG: Print before and after to verify function is called
-    print(f"[DEBUG] escape_format_braces called - input length: {len(text)}")
+    import re
 
-    # Count braces before
+    # DEBUG: Print before and after to verify function is called
+    print(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
+
+    # Count braces before sanitization
     open_count_before = text.count('{')
     close_count_before = text.count('}')
-    print(f"[DEBUG]   BEFORE: {{ count={open_count_before}, }} count={close_count_before}")
+    print(f"[DEBUG]   BEFORE SANITIZATION: {{ count={open_count_before}, }} count={close_count_before}")
 
-    # DOUBLE all curly braces for ONE level of formatting (.format() only)
+    # STEP 1: SANITIZATION (before escaping)
+    # This ensures problematic patterns are normalized before we double braces
+
+    # 1a. GitHub Actions syntax: ${{...}} → ${...}
+    # Use iterative approach for robustness with nested braces
+    max_github_iterations = 10
+    for _ in range(max_github_iterations):
+        prev = text
+        # Match ${{ followed by anything, then }}
+        # Simple greedy approach that handles most cases
+        text = re.sub(r'\$\{\{(.*?)\}\}', r'${\1}', text)
+        if text == prev:
+            break
+
+    # 1b. Iteratively reduce excessive braces (handles all nesting levels)
+    # This handles: {{{...}}} → {{...}}, {{{{...}}}} → {{...}}, etc.
+    # Algorithm: Keep reducing 3+ consecutive braces to 2 until stable
+    max_iterations = 100  # Prevent infinite loops
+    iteration = 0
+    while iteration < max_iterations:
+        prev_text = text
+
+        # Reduce triple opening braces: {{{ → {{
+        text = text.replace('{{{', '{{')
+        # Reduce triple closing braces: }}} → }}
+        text = text.replace('}}}', '}}')
+
+        # Reduce quadruple opening braces: {{{{ → {{
+        text = text.replace('{{{{', '{{')
+        # Reduce quadruple closing braces: }}}} → }}
+        text = text.replace('}}}}', '}}')
+
+        # Check for convergence
+        if text == prev_text:
+            break
+        iteration += 1
+
+    if iteration >= max_iterations:
+        print(f"[WARNING] Sanitization exceeded max iterations ({max_iterations})")
+
+    # Count braces after sanitization
+    open_count_sanitized = text.count('{')
+    close_count_sanitized = text.count('}')
+    print(f"[DEBUG]   AFTER SANITIZATION: {{ count={open_count_sanitized}, }} count={close_count_sanitized}")
+
+    # STEP 2: ESCAPE (double all braces for .format())
     # F-string does NOT process braces in substituted variables
     result = text.replace("{", "{{").replace("}", "}}")
 
-    # Count braces after
+    # Count braces after escaping
     open_count_after = result.count('{')
     close_count_after = result.count('}')
-    print(f"[DEBUG]   AFTER:  {{ count={open_count_after}, }} count={close_count_after}")
+    print(f"[DEBUG]   AFTER ESCAPING: {{ count={open_count_after}, }} count={close_count_after}")
     print(f"[DEBUG]   Sample (first 200 chars): {result[:200]}")
 
     return result
+
+
+def escape_format_braces(text: str) -> str:
+    """
+    Escape curly braces for use with Python's str.format().
+
+    DEPRECATED: Use sanitize_and_escape_format_braces() instead.
+    This is kept for backward compatibility but delegates to the new function.
+
+    Args:
+        text: Raw text that may contain curly braces
+
+    Returns:
+        Sanitized and escaped text with curly braces doubled
+    """
+    return sanitize_and_escape_format_braces(text)
 
 
 def get_guidelines_section() -> str:

@@ -868,10 +868,10 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
     """
     custom_section = ""
     if custom_instructions:
-        # Escape curly braces to prevent format() errors when custom instructions
-        # contain placeholders like {0}, {Component}, etc.
-        escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
-        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
+        # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
+        # F-strings do NOT process braces in substituted variables, so no double-escape needed.
+        # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
+        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
 
     # Try to format with detailed exception handling
     try:
@@ -887,6 +887,17 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
         print(f"  custom_instructions type: {type(custom_instructions)}")
         print(f"  custom_instructions length: {len(custom_instructions) if custom_instructions else 0}")
         print(f"  custom_section length: {len(custom_section)}")
+
+        # FALLBACK: Retry without custom instructions
+        if custom_instructions:
+            print(f"\n⚠️  FALLBACK: Retrying without custom instructions...")
+            try:
+                result = SYSTEM_PROMPT.format(module_name=module_name, custom_instructions="").strip()
+                print(f"✅ FALLBACK SUCCESS: Generated prompt without custom instructions")
+                print(f"⚠️  WARNING: Custom instructions were skipped due to format error")
+                return result
+            except Exception as fallback_error:
+                print(f"❌ FALLBACK FAILED: {fallback_error}")
 
         print(f"\nSearching for problematic patterns in SYSTEM_PROMPT:")
         import re
@@ -929,10 +940,10 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     """
     custom_section = ""
     if custom_instructions:
-        # Escape curly braces to prevent format() errors when custom instructions
-        # contain placeholders like {0}, {Component}, etc.
-        escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
-        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
+        # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
+        # F-strings do NOT process braces in substituted variables, so no double-escape needed.
+        # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
+        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
 
     # DEBUG: Check what's in LEAF_SYSTEM_PROMPT before formatting
     if "{0}" in LEAF_SYSTEM_PROMPT or "{1}" in LEAF_SYSTEM_PROMPT:
@@ -957,6 +968,17 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
         print(f"  custom_instructions type: {type(custom_instructions)}")
         print(f"  custom_instructions length: {len(custom_instructions) if custom_instructions else 0}")
         print(f"  custom_section length: {len(custom_section)}")
+
+        # FALLBACK: Retry without custom instructions
+        if custom_instructions:
+            print(f"\n⚠️  FALLBACK: Retrying without custom instructions...")
+            try:
+                result = LEAF_SYSTEM_PROMPT.format(module_name=module_name, custom_instructions="").strip()
+                print(f"✅ FALLBACK SUCCESS: Generated prompt without custom instructions")
+                print(f"⚠️  WARNING: Custom instructions were skipped due to format error")
+                return result
+            except Exception as fallback_error:
+                print(f"❌ FALLBACK FAILED: {fallback_error}")
 
         print(f"\nSearching for problematic patterns in LEAF_SYSTEM_PROMPT:")
         import re

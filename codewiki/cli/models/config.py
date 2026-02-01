@@ -108,11 +108,16 @@ class Configuration:
     CodeWiki configuration data model.
 
     Attributes:
-        base_url: LLM API base URL
         main_model: Primary model for documentation generation (generation phase)
         cluster_model: Model for module clustering
         fallback_model: Fallback model for documentation generation
         default_output: Default output directory
+        cluster_base_url: Base URL for cluster model API
+        main_base_url: Base URL for main model API
+        fallback_base_url: Base URL for fallback model API
+        cluster_api_version: API version for cluster model (optional)
+        main_api_version: API version for main model (optional)
+        fallback_api_version: API version for fallback model (optional)
         cluster_max_tokens: Maximum tokens for cluster model (default: 128000)
         main_max_tokens: Maximum tokens for main/generation model (default: 128000)
         fallback_max_tokens: Maximum tokens for fallback model (default: 64000)
@@ -122,19 +127,24 @@ class Configuration:
         cluster_temperature_supported: Whether cluster model supports temperature (default: True)
         main_temperature_supported: Whether main model supports temperature (default: True)
         fallback_temperature_supported: Whether fallback model supports temperature (default: True)
+        cluster_max_token_field: Parameter name for cluster model max tokens (default: "max_tokens")
+        main_max_token_field: Parameter name for main model max tokens (default: "max_tokens")
+        fallback_max_token_field: Parameter name for fallback model max tokens (default: "max_tokens")
         max_token_per_module: Maximum tokens per module for clustering (default: 36369)
         max_token_per_leaf_module: Maximum tokens per leaf module (default: 16000)
         max_depth: Maximum depth for hierarchical decomposition (default: 2)
         agent_instructions: Custom agent instructions for documentation generation
-        cluster_max_token_field: Parameter name for cluster model max tokens (default: "max_tokens")
-        main_max_token_field: Parameter name for main model max tokens (default: "max_tokens")
-        fallback_max_token_field: Parameter name for fallback model max tokens (default: "max_tokens")
     """
-    base_url: str
     main_model: str
     cluster_model: str
-    fallback_model: str = "glm-4p5"
+    fallback_model: str
     default_output: str = "docs"
+    cluster_base_url: Optional[str] = None
+    main_base_url: Optional[str] = None
+    fallback_base_url: Optional[str] = None
+    cluster_api_version: Optional[str] = None
+    main_api_version: Optional[str] = None
+    fallback_api_version: Optional[str] = None
     cluster_max_tokens: int = 128000
     main_max_tokens: int = 128000
     fallback_max_tokens: int = 64000
@@ -144,25 +154,30 @@ class Configuration:
     cluster_temperature_supported: bool = True
     main_temperature_supported: bool = True
     fallback_temperature_supported: bool = True
-    max_token_per_module: int = 36369
-    max_token_per_leaf_module: int = 16000
-    max_depth: int = 2
-    max_token_field: str = "max_tokens"
-    api_path: str = "/v1/chat/completions"
-    api_version: Optional[str] = None
-    agent_instructions: AgentInstructions = field(default_factory=AgentInstructions)
     cluster_max_token_field: str = "max_tokens"
     main_max_token_field: str = "max_tokens"
     fallback_max_token_field: str = "max_tokens"
+    max_token_per_module: int = 36369
+    max_token_per_leaf_module: int = 16000
+    max_depth: int = 2
+    agent_instructions: AgentInstructions = field(default_factory=AgentInstructions)
     
     def validate(self):
         """
         Validate all configuration fields.
-        
+
         Raises:
             ConfigurationError: If validation fails
         """
-        validate_url(self.base_url)
+        # Validate per-provider base_urls if set
+        if self.cluster_base_url:
+            validate_url(self.cluster_base_url)
+        if self.main_base_url:
+            validate_url(self.main_base_url)
+        if self.fallback_base_url:
+            validate_url(self.fallback_base_url)
+
+        # Validate model names
         validate_model_name(self.main_model)
         validate_model_name(self.cluster_model)
         validate_model_name(self.fallback_model)
@@ -170,7 +185,6 @@ class Configuration:
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         result = {
-            'base_url': self.base_url,
             'main_model': self.main_model,
             'cluster_model': self.cluster_model,
             'fallback_model': self.fallback_model,
@@ -184,17 +198,28 @@ class Configuration:
             'cluster_temperature_supported': self.cluster_temperature_supported,
             'main_temperature_supported': self.main_temperature_supported,
             'fallback_temperature_supported': self.fallback_temperature_supported,
-            'max_token_per_module': self.max_token_per_module,
-            'max_token_per_leaf_module': self.max_token_per_leaf_module,
-            'max_depth': self.max_depth,
-            'max_token_field': self.max_token_field,
-            'api_path': self.api_path,
             'cluster_max_token_field': self.cluster_max_token_field,
             'main_max_token_field': self.main_max_token_field,
             'fallback_max_token_field': self.fallback_max_token_field,
+            'max_token_per_module': self.max_token_per_module,
+            'max_token_per_leaf_module': self.max_token_per_leaf_module,
+            'max_depth': self.max_depth,
         }
-        if self.api_version is not None:
-            result['api_version'] = self.api_version
+        # Per-provider base_urls (optional)
+        if self.cluster_base_url is not None:
+            result['cluster_base_url'] = self.cluster_base_url
+        if self.main_base_url is not None:
+            result['main_base_url'] = self.main_base_url
+        if self.fallback_base_url is not None:
+            result['fallback_base_url'] = self.fallback_base_url
+        # Per-provider api_versions (optional)
+        if self.cluster_api_version is not None:
+            result['cluster_api_version'] = self.cluster_api_version
+        if self.main_api_version is not None:
+            result['main_api_version'] = self.main_api_version
+        if self.fallback_api_version is not None:
+            result['fallback_api_version'] = self.fallback_api_version
+        # Agent instructions (optional)
         if self.agent_instructions and not self.agent_instructions.is_empty():
             result['agent_instructions'] = self.agent_instructions.to_dict()
         return result
@@ -202,50 +227,119 @@ class Configuration:
     @classmethod
     def from_dict(cls, data: dict) -> 'Configuration':
         """
-        Create Configuration from dictionary.
+        Create Configuration from dictionary with type coercion.
 
         Args:
-            data: Configuration dictionary
+            data: Configuration dictionary (may contain string values from JSON)
 
         Returns:
-            Configuration instance
+            Configuration instance with properly typed fields
+
+        Raises:
+            ValueError: If type conversion fails or validation fails
         """
+        # Helper function for integer conversion
+        def to_int(value, field_name: str, default: int = None):
+            if value is None:
+                return default
+            if isinstance(value, int):
+                return value
+            if isinstance(value, str):
+                try:
+                    result = int(value)
+                    if result <= 0:
+                        raise ValueError(f"{field_name} must be positive, got {result}")
+                    return result
+                except ValueError as e:
+                    raise ValueError(f"Invalid {field_name}: {value} - {str(e)}")
+            raise ValueError(f"{field_name} must be integer, got {type(value).__name__}")
+
+        # Helper function for float conversion
+        def to_float(value, field_name: str, default: float = None, min_val: float = 0.0, max_val: float = 2.0):
+            if value is None:
+                return default
+            if isinstance(value, (int, float)):
+                result = float(value)
+            elif isinstance(value, str):
+                try:
+                    result = float(value)
+                except ValueError:
+                    raise ValueError(f"Invalid {field_name}: {value}")
+            else:
+                raise ValueError(f"{field_name} must be number, got {type(value).__name__}")
+
+            if not (min_val <= result <= max_val):
+                raise ValueError(f"{field_name} must be between {min_val} and {max_val}, got {result}")
+            return result
+
+        # Helper function for bool conversion
+        def to_bool(value, field_name: str, default: bool = True):
+            if value is None:
+                return default
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                if value.lower() in ('true', '1', 'yes'):
+                    return True
+                if value.lower() in ('false', '0', 'no'):
+                    return False
+                raise ValueError(f"Invalid {field_name}: {value}")
+            raise ValueError(f"{field_name} must be boolean, got {type(value).__name__}")
+
+        # Parse agent instructions
         agent_instructions = AgentInstructions()
         if 'agent_instructions' in data:
             agent_instructions = AgentInstructions.from_dict(data['agent_instructions'])
 
+        # Apply type conversions with validation
+        cluster_max_tokens = to_int(data.get('cluster_max_tokens'), 'cluster_max_tokens', 128000)
+        main_max_tokens = to_int(data.get('main_max_tokens'), 'main_max_tokens', 128000)
+        fallback_max_tokens = to_int(data.get('fallback_max_tokens'), 'fallback_max_tokens', 64000)
+        max_token_per_module = to_int(data.get('max_token_per_module'), 'max_token_per_module', 36369)
+        max_token_per_leaf_module = to_int(data.get('max_token_per_leaf_module'), 'max_token_per_leaf_module', 16000)
+        max_depth = to_int(data.get('max_depth'), 'max_depth', 2)
+
+        cluster_temperature = to_float(data.get('cluster_temperature'), 'cluster_temperature', 0.0)
+        main_temperature = to_float(data.get('main_temperature'), 'main_temperature', 0.0)
+        fallback_temperature = to_float(data.get('fallback_temperature'), 'fallback_temperature', 0.0)
+
+        cluster_temperature_supported = to_bool(data.get('cluster_temperature_supported'), 'cluster_temperature_supported', True)
+        main_temperature_supported = to_bool(data.get('main_temperature_supported'), 'main_temperature_supported', True)
+        fallback_temperature_supported = to_bool(data.get('fallback_temperature_supported'), 'fallback_temperature_supported', True)
+
         return cls(
-            base_url=data.get('base_url', ''),
             main_model=data.get('main_model', ''),
             cluster_model=data.get('cluster_model', ''),
-            fallback_model=data.get('fallback_model', 'glm-4p5'),
+            fallback_model=data.get('fallback_model', ''),
             default_output=data.get('default_output', 'docs'),
-            cluster_max_tokens=data.get('cluster_max_tokens', 128000),
-            main_max_tokens=data.get('main_max_tokens', 128000),
-            fallback_max_tokens=data.get('fallback_max_tokens', 64000),
-            cluster_temperature=data.get('cluster_temperature', 0.0),
-            main_temperature=data.get('main_temperature', 0.0),
-            fallback_temperature=data.get('fallback_temperature', 0.0),
-            cluster_temperature_supported=data.get('cluster_temperature_supported', True),
-            main_temperature_supported=data.get('main_temperature_supported', True),
-            fallback_temperature_supported=data.get('fallback_temperature_supported', True),
-            max_token_per_module=data.get('max_token_per_module', 36369),
-            max_token_per_leaf_module=data.get('max_token_per_leaf_module', 16000),
-            max_depth=data.get('max_depth', 2),
-            max_token_field=data.get('max_token_field', 'max_tokens'),
-            api_path=data.get('api_path', '/v1/chat/completions'),
-            api_version=data.get('api_version'),
-            agent_instructions=agent_instructions,
+            cluster_base_url=data.get('cluster_base_url'),
+            main_base_url=data.get('main_base_url'),
+            fallback_base_url=data.get('fallback_base_url'),
+            cluster_api_version=data.get('cluster_api_version'),
+            main_api_version=data.get('main_api_version'),
+            fallback_api_version=data.get('fallback_api_version'),
+            cluster_max_tokens=cluster_max_tokens,
+            main_max_tokens=main_max_tokens,
+            fallback_max_tokens=fallback_max_tokens,
+            cluster_temperature=cluster_temperature,
+            main_temperature=main_temperature,
+            fallback_temperature=fallback_temperature,
+            cluster_temperature_supported=cluster_temperature_supported,
+            main_temperature_supported=main_temperature_supported,
+            fallback_temperature_supported=fallback_temperature_supported,
             cluster_max_token_field=data.get('cluster_max_token_field', 'max_tokens'),
             main_max_token_field=data.get('main_max_token_field', 'max_tokens'),
             fallback_max_token_field=data.get('fallback_max_token_field', 'max_tokens'),
+            max_token_per_module=max_token_per_module,
+            max_token_per_leaf_module=max_token_per_leaf_module,
+            max_depth=max_depth,
+            agent_instructions=agent_instructions,
         )
     
     def is_complete(self) -> bool:
         """Check if all required fields are set."""
         return bool(
-            self.base_url and 
-            self.main_model and 
+            self.main_model and
             self.cluster_model and
             self.fallback_model
         )
@@ -283,20 +377,31 @@ class Configuration:
         return Config.from_cli(
             repo_path=repo_path,
             output_dir=output_dir,
-            llm_base_url=self.base_url,
             llm_api_key=api_key,
             main_model=self.main_model,
             cluster_model=self.cluster_model,
             fallback_model=self.fallback_model,
-            max_tokens=self.main_max_tokens,  # Use main model max tokens for backend
+            cluster_base_url=self.cluster_base_url,
+            main_base_url=self.main_base_url,
+            fallback_base_url=self.fallback_base_url,
+            cluster_api_version=self.cluster_api_version,
+            main_api_version=self.main_api_version,
+            fallback_api_version=self.fallback_api_version,
+            cluster_max_tokens=self.cluster_max_tokens,
+            main_max_tokens=self.main_max_tokens,
+            fallback_max_tokens=self.fallback_max_tokens,
+            cluster_temperature=self.cluster_temperature,
+            main_temperature=self.main_temperature,
+            fallback_temperature=self.fallback_temperature,
+            cluster_temperature_supported=self.cluster_temperature_supported,
+            main_temperature_supported=self.main_temperature_supported,
+            fallback_temperature_supported=self.fallback_temperature_supported,
+            cluster_max_token_field=self.cluster_max_token_field,
+            main_max_token_field=self.main_max_token_field,
+            fallback_max_token_field=self.fallback_max_token_field,
             max_token_per_module=self.max_token_per_module,
             max_token_per_leaf_module=self.max_token_per_leaf_module,
             max_depth=self.max_depth,
-            temperature=self.main_temperature,  # Use main model temperature
-            temperature_supported=self.main_temperature_supported,  # Use main model support
-            max_token_field=self.max_token_field,
-            api_path=self.api_path,
-            api_version=self.api_version,
             agent_instructions=final_instructions.to_dict() if final_instructions else None
         )
 

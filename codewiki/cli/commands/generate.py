@@ -372,18 +372,41 @@ def generate_command(
             repo_path=repo_path,
             output_dir=output_dir,
             config={
+                # Model configuration
                 'main_model': config.main_model,
                 'cluster_model': config.cluster_model,
                 'fallback_model': config.fallback_model,
-                'base_url': config.base_url,
                 'api_key': api_key,
-                'agent_instructions': agent_instructions_dict,
-                # Max token settings (runtime overrides take precedence)
-                'max_tokens': max_tokens if max_tokens is not None else config.main_max_tokens,
+                # Per-provider base URLs
+                'cluster_base_url': config.cluster_base_url,
+                'main_base_url': config.main_base_url,
+                'fallback_base_url': config.fallback_base_url,
+                # Per-provider API versions
+                'cluster_api_version': config.cluster_api_version,
+                'main_api_version': config.main_api_version,
+                'fallback_api_version': config.fallback_api_version,
+                # Per-provider max tokens (runtime overrides take precedence for backward compatibility)
+                'cluster_max_tokens': config.cluster_max_tokens,
+                'main_max_tokens': max_tokens if max_tokens is not None else config.main_max_tokens,
+                'fallback_max_tokens': config.fallback_max_tokens,
+                # Per-provider temperature
+                'cluster_temperature': config.cluster_temperature,
+                'main_temperature': config.main_temperature,
+                'fallback_temperature': config.fallback_temperature,
+                # Per-provider temperature support
+                'cluster_temperature_supported': config.cluster_temperature_supported,
+                'main_temperature_supported': config.main_temperature_supported,
+                'fallback_temperature_supported': config.fallback_temperature_supported,
+                # Per-provider max token field names
+                'cluster_max_token_field': config.cluster_max_token_field,
+                'main_max_token_field': config.main_max_token_field,
+                'fallback_max_token_field': config.fallback_max_token_field,
+                # Shared clustering settings (runtime overrides take precedence)
                 'max_token_per_module': max_token_per_module if max_token_per_module is not None else config.max_token_per_module,
                 'max_token_per_leaf_module': max_token_per_leaf_module if max_token_per_leaf_module is not None else config.max_token_per_leaf_module,
-                # Max depth setting (runtime override takes precedence)
                 'max_depth': max_depth if max_depth is not None else config.max_depth,
+                # Agent instructions
+                'agent_instructions': agent_instructions_dict,
             },
             verbose=verbose,
             generate_html=github_pages,

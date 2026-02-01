@@ -58,11 +58,6 @@ def config_group():
     help="LLM API key (stored securely in system keychain)"
 )
 @click.option(
-    "--base-url",
-    type=str,
-    help="LLM API base URL (e.g., https://api.anthropic.com)"
-)
-@click.option(
     "--main-model",
     type=str,
     help="Primary model for documentation generation"
@@ -138,23 +133,52 @@ def config_group():
     help="Whether fallback model supports custom temperature (true/false)"
 )
 @click.option(
-    "--max-token-field",
+    "--cluster-base-url",
     type=str,
-    help="Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')"
+    help="Cluster model API base URL (e.g., https://api.openai.com/v1)"
 )
 @click.option(
-    "--api-path",
+    "--main-base-url",
     type=str,
-    help="API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')"
+    help="Main model API base URL (e.g., https://api.openai.com/v1)"
 )
 @click.option(
-    "--api-version",
+    "--fallback-base-url",
     type=str,
-    help="API version if different from default"
+    help="Fallback model API base URL (e.g., https://api.anthropic.com/v1)"
+)
+@click.option(
+    "--cluster-api-version",
+    type=str,
+    help="Cluster model API version (for Anthropic models)"
+)
+@click.option(
+    "--main-api-version",
+    type=str,
+    help="Main model API version (for Anthropic models)"
+)
+@click.option(
+    "--fallback-api-version",
+    type=str,
+    help="Fallback model API version (for Anthropic models)"
+)
+@click.option(
+    "--cluster-max-token-field",
+    type=str,
+    help="Parameter name for cluster model max tokens ('max_tokens' or 'max_completion_tokens')"
+)
+@click.option(
+    "--main-max-token-field",
+    type=str,
+    help="Parameter name for main model max tokens ('max_tokens' or 'max_completion_tokens')"
+)
+@click.option(
+    "--fallback-max-token-field",
+    type=str,
+    help="Parameter name for fallback model max tokens ('max_tokens' or 'max_completion_tokens')"
 )
 def config_set(
     api_key: Optional[str],
-    base_url: Optional[str],
     main_model: Optional[str],
     cluster_model: Optional[str],
     fallback_model: Optional[str],
@@ -170,9 +194,15 @@ def config_set(
     cluster_temperature_supported: Optional[bool],
     main_temperature_supported: Optional[bool],
     fallback_temperature_supported: Optional[bool],
-    max_token_field: Optional[str],
-    api_path: Optional[str],
-    api_version: Optional[str]
+    cluster_base_url: Optional[str],
+    main_base_url: Optional[str],
+    fallback_base_url: Optional[str],
+    cluster_api_version: Optional[str],
+    main_api_version: Optional[str],
+    fallback_api_version: Optional[str],
+    cluster_max_token_field: Optional[str],
+    main_max_token_field: Optional[str],
+    fallback_max_token_field: Optional[str]
 ):
     """
     Set configuration values for CodeWiki.
@@ -207,12 +237,14 @@ def config_set(
     """
     try:
         # Check if at least one option is provided
-        if not any([api_key, base_url, main_model, cluster_model, fallback_model,
+        if not any([api_key, main_model, cluster_model, fallback_model,
                     cluster_max_tokens, main_max_tokens, fallback_max_tokens,
                     max_token_per_module, max_token_per_leaf_module, max_depth,
                     cluster_temperature is not None, main_temperature is not None, fallback_temperature is not None,
                     cluster_temperature_supported is not None, main_temperature_supported is not None, fallback_temperature_supported is not None,
-                    max_token_field, api_path, api_version]):
+                    cluster_base_url, main_base_url, fallback_base_url,
+                    cluster_api_version, main_api_version, fallback_api_version,
+                    cluster_max_token_field, main_max_token_field, fallback_max_token_field]):
             click.echo("No options provided. Use --help for usage information.")
             sys.exit(EXIT_CONFIG_ERROR)
         
@@ -221,10 +253,7 @@ def config_set(
         
         if api_key:
             validated_data['api_key'] = validate_api_key(api_key)
-        
-        if base_url:
-            validated_data['base_url'] = validate_url(base_url)
-        
+
         if main_model:
             validated_data['main_model'] = validate_model_name(main_model)
         
@@ -288,20 +317,41 @@ def config_set(
         if fallback_temperature_supported is not None:
             validated_data['fallback_temperature_supported'] = fallback_temperature_supported
 
-        if max_token_field is not None:
-            # Validate it's one of the known values
-            if max_token_field not in ['max_tokens', 'max_completion_tokens']:
-                raise ConfigurationError("max_token_field must be 'max_tokens' or 'max_completion_tokens'")
-            validated_data['max_token_field'] = max_token_field
+        # Per-provider base_url validation
+        if cluster_base_url:
+            validated_data['cluster_base_url'] = validate_url(cluster_base_url)
 
-        if api_path is not None:
-            # Basic validation - must start with /
-            if not api_path.startswith('/'):
-                raise ConfigurationError("api_path must start with /")
-            validated_data['api_path'] = api_path
+        if main_base_url:
+            validated_data['main_base_url'] = validate_url(main_base_url)
 
-        if api_version is not None:
-            validated_data['api_version'] = api_version
+        if fallback_base_url:
+            validated_data['fallback_base_url'] = validate_url(fallback_base_url)
+
+        # Per-provider api_version (no validation needed - optional string)
+        if cluster_api_version is not None:
+            validated_data['cluster_api_version'] = cluster_api_version
+
+        if main_api_version is not None:
+            validated_data['main_api_version'] = main_api_version
+
+        if fallback_api_version is not None:
+            validated_data['fallback_api_version'] = fallback_api_version
+
+        # Per-provider max_token_field validation
+        if cluster_max_token_field is not None:
+            if cluster_max_token_field not in ['max_tokens', 'max_completion_tokens']:
+                raise ConfigurationError("cluster_max_token_field must be 'max_tokens' or 'max_completion_tokens'")
+            validated_data['cluster_max_token_field'] = cluster_max_token_field
+
+        if main_max_token_field is not None:
+            if main_max_token_field not in ['max_tokens', 'max_completion_tokens']:
+                raise ConfigurationError("main_max_token_field must be 'max_tokens' or 'max_completion_tokens'")
+            validated_data['main_max_token_field'] = main_max_token_field
+
+        if fallback_max_token_field is not None:
+            if fallback_max_token_field not in ['max_tokens', 'max_completion_tokens']:
+                raise ConfigurationError("fallback_max_token_field must be 'max_tokens' or 'max_completion_tokens'")
+            validated_data['fallback_max_token_field'] = fallback_max_token_field
 
         # Create config manager and save
         manager = ConfigManager()
@@ -309,10 +359,15 @@ def config_set(
 
         manager.save(
             api_key=validated_data.get('api_key'),
-            base_url=validated_data.get('base_url'),
             main_model=validated_data.get('main_model'),
             cluster_model=validated_data.get('cluster_model'),
             fallback_model=validated_data.get('fallback_model'),
+            cluster_base_url=validated_data.get('cluster_base_url'),
+            main_base_url=validated_data.get('main_base_url'),
+            fallback_base_url=validated_data.get('fallback_base_url'),
+            cluster_api_version=validated_data.get('cluster_api_version'),
+            main_api_version=validated_data.get('main_api_version'),
+            fallback_api_version=validated_data.get('fallback_api_version'),
             cluster_max_tokens=validated_data.get('cluster_max_tokens'),
             main_max_tokens=validated_data.get('main_max_tokens'),
             fallback_max_tokens=validated_data.get('fallback_max_tokens'),
@@ -325,9 +380,9 @@ def config_set(
             cluster_temperature_supported=validated_data.get('cluster_temperature_supported'),
             main_temperature_supported=validated_data.get('main_temperature_supported'),
             fallback_temperature_supported=validated_data.get('fallback_temperature_supported'),
-            max_token_field=validated_data.get('max_token_field'),
-            api_path=validated_data.get('api_path'),
-            api_version=validated_data.get('api_version')
+            cluster_max_token_field=validated_data.get('cluster_max_token_field'),
+            main_max_token_field=validated_data.get('main_max_token_field'),
+            fallback_max_token_field=validated_data.get('fallback_max_token_field')
         )
         
         # Display success messages
@@ -341,9 +396,24 @@ def config_set(
                     fg="yellow"
                 )
         
-        if base_url:
-            click.secho(f"✓ Base URL: {base_url}", fg="green")
-        
+        if cluster_base_url:
+            click.secho(f"✓ Cluster base URL: {cluster_base_url}", fg="green")
+
+        if main_base_url:
+            click.secho(f"✓ Main base URL: {main_base_url}", fg="green")
+
+        if fallback_base_url:
+            click.secho(f"✓ Fallback base URL: {fallback_base_url}", fg="green")
+
+        if cluster_api_version:
+            click.secho(f"✓ Cluster API version: {cluster_api_version}", fg="green")
+
+        if main_api_version:
+            click.secho(f"✓ Main API version: {main_api_version}", fg="green")
+
+        if fallback_api_version:
+            click.secho(f"✓ Fallback API version: {fallback_api_version}", fg="green")
+
         if main_model:
             click.secho(f"✓ Main model: {main_model}", fg="green")
         
