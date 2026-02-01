@@ -83,6 +83,33 @@ def config_group():
     type=int,
     help="Maximum depth for hierarchical decomposition (default: 2)"
 )
+@click.option(
+    "--temperature",
+    type=float,
+    help="Temperature setting for LLM (some models like gpt-4.1 only support 1.0)"
+)
+@click.option(
+    "--temperature-supported",
+    type=bool,
+    is_flag=False,
+    flag_value=True,
+    help="Whether model supports custom temperature (if false, temperature parameter will be omitted)"
+)
+@click.option(
+    "--max-token-field",
+    type=str,
+    help="Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')"
+)
+@click.option(
+    "--api-path",
+    type=str,
+    help="API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')"
+)
+@click.option(
+    "--api-version",
+    type=str,
+    help="API version if different from default"
+)
 def config_set(
     api_key: Optional[str],
     base_url: Optional[str],
@@ -92,7 +119,12 @@ def config_set(
     max_tokens: Optional[int],
     max_token_per_module: Optional[int],
     max_token_per_leaf_module: Optional[int],
-    max_depth: Optional[int]
+    max_depth: Optional[int],
+    temperature: Optional[float],
+    temperature_supported: Optional[bool],
+    max_token_field: Optional[str],
+    api_path: Optional[str],
+    api_version: Optional[str]
 ):
     """
     Set configuration values for CodeWiki.
@@ -127,7 +159,7 @@ def config_set(
     """
     try:
         # Check if at least one option is provided
-        if not any([api_key, base_url, main_model, cluster_model, fallback_model, max_tokens, max_token_per_module, max_token_per_leaf_module, max_depth]):
+        if not any([api_key, base_url, main_model, cluster_model, fallback_model, max_tokens, max_token_per_module, max_token_per_leaf_module, max_depth, temperature is not None, temperature_supported is not None, max_token_field, api_path, api_version]):
             click.echo("No options provided. Use --help for usage information.")
             sys.exit(EXIT_CONFIG_ERROR)
         
@@ -168,11 +200,34 @@ def config_set(
             if max_depth < 1:
                 raise ConfigurationError("max_depth must be a positive integer")
             validated_data['max_depth'] = max_depth
-        
+
+        if temperature is not None:
+            if temperature < 0.0 or temperature > 2.0:
+                raise ConfigurationError("temperature must be between 0.0 and 2.0")
+            validated_data['temperature'] = temperature
+
+        if temperature_supported is not None:
+            validated_data['temperature_supported'] = temperature_supported
+
+        if max_token_field is not None:
+            # Validate it's one of the known values
+            if max_token_field not in ['max_tokens', 'max_completion_tokens']:
+                raise ConfigurationError("max_token_field must be 'max_tokens' or 'max_completion_tokens'")
+            validated_data['max_token_field'] = max_token_field
+
+        if api_path is not None:
+            # Basic validation - must start with /
+            if not api_path.startswith('/'):
+                raise ConfigurationError("api_path must start with /")
+            validated_data['api_path'] = api_path
+
+        if api_version is not None:
+            validated_data['api_version'] = api_version
+
         # Create config manager and save
         manager = ConfigManager()
         manager.load()  # Load existing config if present
-        
+
         manager.save(
             api_key=validated_data.get('api_key'),
             base_url=validated_data.get('base_url'),
@@ -182,7 +237,12 @@ def config_set(
             max_tokens=validated_data.get('max_tokens'),
             max_token_per_module=validated_data.get('max_token_per_module'),
             max_token_per_leaf_module=validated_data.get('max_token_per_leaf_module'),
-            max_depth=validated_data.get('max_depth')
+            max_depth=validated_data.get('max_depth'),
+            temperature=validated_data.get('temperature'),
+            temperature_supported=validated_data.get('temperature_supported'),
+            max_token_field=validated_data.get('max_token_field'),
+            api_path=validated_data.get('api_path'),
+            api_version=validated_data.get('api_version')
         )
         
         # Display success messages
@@ -230,7 +290,10 @@ def config_set(
         
         if max_depth:
             click.secho(f"✓ Max depth: {max_depth}", fg="green")
-        
+
+        if temperature is not None:
+            click.secho(f"✓ Temperature: {temperature}", fg="green")
+
         click.echo("\n" + click.style("Configuration updated successfully.", fg="green", bold=True))
         
     except ConfigurationError as e:

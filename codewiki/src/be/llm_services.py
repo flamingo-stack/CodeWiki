@@ -89,16 +89,22 @@ def create_main_model(config: Config) -> OpenAIModel:
     """
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
+    # Check if model supports custom temperature
+    temperature = getattr(config, 'temperature', 0.0)
+    temperature_supported = getattr(config, 'temperature_supported', True)
+
+    # Build settings dict - only include temperature if model supports it
+    settings_dict = {'max_tokens': max_tokens}
+    if temperature_supported:
+        settings_dict['temperature'] = temperature
+
     return OpenAIModel(
         model_name=config.main_model,
         provider=OpenAIProvider(
             base_url=config.llm_base_url,
             api_key=config.llm_api_key
         ),
-        settings=OpenAIModelSettings(
-            temperature=0.0,
-            max_tokens=max_tokens
-        )
+        settings=OpenAIModelSettings(**settings_dict)
     )
 
 
@@ -106,16 +112,22 @@ def create_fallback_model(config: Config) -> OpenAIModel:
     """Create the fallback LLM model from configuration."""
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
+    # Check if model supports custom temperature
+    temperature = getattr(config, 'temperature', 0.0)
+    temperature_supported = getattr(config, 'temperature_supported', True)
+
+    # Build settings dict - only include temperature if model supports it
+    settings_dict = {'max_tokens': max_tokens}
+    if temperature_supported:
+        settings_dict['temperature'] = temperature
+
     return OpenAIModel(
         model_name=config.fallback_model,
         provider=OpenAIProvider(
             base_url=config.llm_base_url,
             api_key=config.llm_api_key
         ),
-        settings=OpenAIModelSettings(
-            temperature=0.0,
-            max_tokens=max_tokens
-        )
+        settings=OpenAIModelSettings(**settings_dict)
     )
 
 

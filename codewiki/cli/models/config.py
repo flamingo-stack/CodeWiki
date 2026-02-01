@@ -131,6 +131,11 @@ class Configuration:
     max_token_per_module: int = 36369
     max_token_per_leaf_module: int = 16000
     max_depth: int = 2
+    temperature: float = 0.0
+    temperature_supported: bool = True
+    max_token_field: str = "max_tokens"
+    api_path: str = "/v1/chat/completions"
+    api_version: Optional[str] = None
     agent_instructions: AgentInstructions = field(default_factory=AgentInstructions)
     cluster_max_token_field: str = "max_tokens"
     main_max_token_field: str = "max_tokens"
@@ -160,10 +165,16 @@ class Configuration:
             'max_token_per_module': self.max_token_per_module,
             'max_token_per_leaf_module': self.max_token_per_leaf_module,
             'max_depth': self.max_depth,
+            'temperature': self.temperature,
+            'temperature_supported': self.temperature_supported,
+            'max_token_field': self.max_token_field,
+            'api_path': self.api_path,
             'cluster_max_token_field': self.cluster_max_token_field,
             'main_max_token_field': self.main_max_token_field,
             'fallback_max_token_field': self.fallback_max_token_field,
         }
+        if self.api_version is not None:
+            result['api_version'] = self.api_version
         if self.agent_instructions and not self.agent_instructions.is_empty():
             result['agent_instructions'] = self.agent_instructions.to_dict()
         return result
@@ -193,6 +204,11 @@ class Configuration:
             max_token_per_module=data.get('max_token_per_module', 36369),
             max_token_per_leaf_module=data.get('max_token_per_leaf_module', 16000),
             max_depth=data.get('max_depth', 2),
+            temperature=data.get('temperature', 0.0),
+            temperature_supported=data.get('temperature_supported', True),
+            max_token_field=data.get('max_token_field', 'max_tokens'),
+            api_path=data.get('api_path', '/v1/chat/completions'),
+            api_version=data.get('api_version'),
             agent_instructions=agent_instructions,
             cluster_max_token_field=data.get('cluster_max_token_field', 'max_tokens'),
             main_max_token_field=data.get('main_max_token_field', 'max_tokens'),
@@ -250,6 +266,11 @@ class Configuration:
             max_token_per_module=self.max_token_per_module,
             max_token_per_leaf_module=self.max_token_per_leaf_module,
             max_depth=self.max_depth,
+            temperature=self.temperature,
+            temperature_supported=self.temperature_supported,
+            max_token_field=self.max_token_field,
+            api_path=self.api_path,
+            api_version=self.api_version,
             agent_instructions=final_instructions.to_dict() if final_instructions else None
         )
 

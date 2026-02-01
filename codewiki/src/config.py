@@ -61,6 +61,13 @@ class Config:
     max_tokens: int = DEFAULT_MAX_TOKENS
     max_token_per_module: int = DEFAULT_MAX_TOKEN_PER_MODULE
     max_token_per_leaf_module: int = DEFAULT_MAX_TOKEN_PER_LEAF_MODULE
+    # Temperature setting (some models like gpt-4.1 only support default 1.0)
+    temperature: float = 0.0
+    temperature_supported: bool = True  # Whether model supports custom temperature
+    # Model-specific API parameters
+    max_token_field: str = "max_tokens"  # 'max_tokens' or 'max_completion_tokens'
+    api_path: str = "/v1/chat/completions"  # API endpoint path
+    api_version: Optional[str] = None  # API version if different from default
     # Agent instructions for customization (from upstream)
     agent_instructions: Optional[Dict[str, Any]] = None
     # Optional separate directory for Mermaid diagrams (from fork)
@@ -162,6 +169,11 @@ class Config:
         max_token_per_module: int = DEFAULT_MAX_TOKEN_PER_MODULE,
         max_token_per_leaf_module: int = DEFAULT_MAX_TOKEN_PER_LEAF_MODULE,
         max_depth: int = MAX_DEPTH,
+        temperature: float = 0.0,
+        temperature_supported: bool = True,
+        max_token_field: str = "max_tokens",
+        api_path: str = "/v1/chat/completions",
+        api_version: Optional[str] = None,
         agent_instructions: Optional[Dict[str, Any]] = None,
         diagrams_dir: str = None
     ) -> 'Config':
@@ -180,6 +192,11 @@ class Config:
             max_token_per_module: Maximum tokens per module for clustering
             max_token_per_leaf_module: Maximum tokens per leaf module
             max_depth: Maximum depth for hierarchical decomposition
+            temperature: Temperature setting (some models like gpt-4.1 only support 1.0)
+            temperature_supported: Whether model supports custom temperature
+            max_token_field: Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')
+            api_path: API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')
+            api_version: API version if different from default
             agent_instructions: Custom agent instructions dict
             diagrams_dir: Optional separate directory for Mermaid diagrams
 
@@ -203,6 +220,11 @@ class Config:
             max_tokens=max_tokens,
             max_token_per_module=max_token_per_module,
             max_token_per_leaf_module=max_token_per_leaf_module,
+            temperature=temperature,
+            temperature_supported=temperature_supported,
+            max_token_field=max_token_field,
+            api_path=api_path,
+            api_version=api_version,
             agent_instructions=agent_instructions,
             diagrams_dir=diagrams_dir
         )

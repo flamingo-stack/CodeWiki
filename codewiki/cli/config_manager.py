@@ -82,7 +82,7 @@ class ConfigManager:
             raise ConfigurationError(f"Failed to load configuration: {e}")
     
     def save(
-        self, 
+        self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         main_model: Optional[str] = None,
@@ -92,11 +92,16 @@ class ConfigManager:
         max_tokens: Optional[int] = None,
         max_token_per_module: Optional[int] = None,
         max_token_per_leaf_module: Optional[int] = None,
-        max_depth: Optional[int] = None
+        max_depth: Optional[int] = None,
+        temperature: Optional[float] = None,
+        temperature_supported: Optional[bool] = None,
+        max_token_field: Optional[str] = None,
+        api_path: Optional[str] = None,
+        api_version: Optional[str] = None
     ):
         """
         Save configuration to file and keyring.
-        
+
         Args:
             api_key: API key (stored in keyring)
             base_url: LLM API base URL
@@ -108,6 +113,11 @@ class ConfigManager:
             max_token_per_module: Maximum tokens per module for clustering
             max_token_per_leaf_module: Maximum tokens per leaf module
             max_depth: Maximum depth for hierarchical decomposition
+            temperature: Temperature setting for LLM (some models only support default)
+            temperature_supported: Whether model supports custom temperature
+            max_token_field: Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')
+            api_path: API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')
+            api_version: API version if different from default
         """
         # Ensure config directory exists
         try:
@@ -149,7 +159,17 @@ class ConfigManager:
             self._config.max_token_per_leaf_module = max_token_per_leaf_module
         if max_depth is not None:
             self._config.max_depth = max_depth
-        
+        if temperature is not None:
+            self._config.temperature = temperature
+        if temperature_supported is not None:
+            self._config.temperature_supported = temperature_supported
+        if max_token_field is not None:
+            self._config.max_token_field = max_token_field
+        if api_path is not None:
+            self._config.api_path = api_path
+        if api_version is not None:
+            self._config.api_version = api_version
+
         # Validate configuration (only if base fields are set)
         if self._config.base_url and self._config.main_model and self._config.cluster_model:
             self._config.validate()
