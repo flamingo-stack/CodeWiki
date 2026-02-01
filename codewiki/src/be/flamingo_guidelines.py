@@ -64,24 +64,36 @@ def escape_format_braces(text: str) -> str:
     CRITICAL: Content goes through TWO formatting operations:
     1. Module import f-string: {{{{ → {{
     2. Runtime .format() call: {{ → {
-    Therefore we need QUADRUPLE braces to produce literal braces in final output.
+    Therefore we need OCTUPLE (8x) braces to produce literal braces in final output.
+
+    UPDATE: After testing, quadruple escaping was insufficient. Using octuple (8x) escaping:
+    - Original: {0}
+    - After escape: {{{{{{{{0}}}}}}}}  (8 braces each side)
+    - After f-string: {{{{0}}}}  (4 braces each side)
+    - After .format(): {{0}}  (2 braces each side - literal in output)
 
     Args:
         text: Raw text that may contain curly braces
 
     Returns:
-        Text with curly braces quadrupled ({{{{ and }}}})
+        Text with curly braces octupled (8 braces each)
     """
     # DEBUG: Print before escaping
-    if "{0}" in text or "{1}" in text or "{Component}" in text:
-        print(f"[DEBUG] escape_format_braces BEFORE: {text[:200]}...")
+    if "{0}" in text or "{1}" in text or "{Component}" in text or "{data}" in text:
+        print(f"[DEBUG] escape_format_braces BEFORE (first 200 chars): {text[:200]}...")
+        print(f"[DEBUG] Count of '{{': {text.count('{')}, Count of '}}': {text.count('}')}")
 
-    # Quadruple all curly braces for TWO levels of formatting
-    result = text.replace("{", "{{{{").replace("}", "}}}}")
+    # OCTUPLE all curly braces for THREE levels of formatting
+    # (Module definition f-string + function call f-string + runtime .format())
+    result = text.replace("{", "{{{{{{{{").replace("}", "}}}}}}}}")
 
     # DEBUG: Print after escaping
-    if "{{{{0}}}}" in result or "{{{{1}}}}" in result:
-        print(f"[DEBUG] escape_format_braces AFTER: {result[:200]}...")
+    if "{{{{{{{{0}}}}}}}}" in result or "{{{{{{{{1}}}}}}}}" in result or "{{{{{{{{data}}}}}}}}" in result:
+        print(f"[DEBUG] escape_format_braces AFTER (first 200 chars): {result[:200]}...")
+        print(f"[DEBUG] Count of '{{': {result.count('{')}, Count of '}}': {result.count('}')}")
+        # Verify escaping worked
+        test_escaped = "{{{{{{{{0}}}}}}}}"
+        print(f"[DEBUG] Test: After f-string eval, '{test_escaped}' becomes: {eval('f\"' + test_escaped + '\"')}")
 
     return result
 
