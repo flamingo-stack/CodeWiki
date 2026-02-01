@@ -61,14 +61,19 @@ def escape_format_braces(text: str) -> str:
     This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
     that would be interpreted as format placeholders.
 
+    CRITICAL: Content goes through TWO formatting operations:
+    1. Module import f-string: {{{{ → {{
+    2. Runtime .format() call: {{ → {
+    Therefore we need QUADRUPLE braces to produce literal braces in final output.
+
     Args:
         text: Raw text that may contain curly braces
 
     Returns:
-        Text with curly braces doubled ({{ and }})
+        Text with curly braces quadrupled ({{{{ and }}}})
     """
-    # Double all curly braces to escape them for .format()
-    return text.replace("{", "{{").replace("}", "}}")
+    # Quadruple all curly braces for TWO levels of formatting
+    return text.replace("{", "{{{{").replace("}", "}}}}")
 
 
 def get_guidelines_section() -> str:
