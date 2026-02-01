@@ -31,6 +31,20 @@ def parse_patterns(patterns_str: str) -> List[str]:
     return [p.strip() for p in patterns_str.split(',') if p.strip()]
 
 
+def parse_bool_string(ctx, param, value):
+    """
+    Parse string boolean values for click options.
+    Handles "true", "false", "1", "0", True, False, 1, 0.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', '1', 'yes')
+    return bool(value)
+
+
 @click.group(name="config")
 def config_group():
     """Manage CodeWiki configuration (API credentials and settings)."""
@@ -110,24 +124,18 @@ def config_group():
 )
 @click.option(
     "--cluster-temperature-supported",
-    type=bool,
-    is_flag=False,
-    flag_value=True,
-    help="Whether cluster model supports custom temperature"
+    callback=parse_bool_string,
+    help="Whether cluster model supports custom temperature (true/false)"
 )
 @click.option(
     "--main-temperature-supported",
-    type=bool,
-    is_flag=False,
-    flag_value=True,
-    help="Whether main model supports custom temperature"
+    callback=parse_bool_string,
+    help="Whether main model supports custom temperature (true/false)"
 )
 @click.option(
     "--fallback-temperature-supported",
-    type=bool,
-    is_flag=False,
-    flag_value=True,
-    help="Whether fallback model supports custom temperature"
+    callback=parse_bool_string,
+    help="Whether fallback model supports custom temperature (true/false)"
 )
 @click.option(
     "--max-token-field",
