@@ -95,8 +95,12 @@ class ConfigManager:
         max_token_per_module: Optional[int] = None,
         max_token_per_leaf_module: Optional[int] = None,
         max_depth: Optional[int] = None,
-        temperature: Optional[float] = None,
-        temperature_supported: Optional[bool] = None,
+        cluster_temperature: Optional[float] = None,
+        main_temperature: Optional[float] = None,
+        fallback_temperature: Optional[float] = None,
+        cluster_temperature_supported: Optional[bool] = None,
+        main_temperature_supported: Optional[bool] = None,
+        fallback_temperature_supported: Optional[bool] = None,
         max_token_field: Optional[str] = None,
         api_path: Optional[str] = None,
         api_version: Optional[str] = None
@@ -117,8 +121,12 @@ class ConfigManager:
             max_token_per_module: Maximum tokens per module for clustering
             max_token_per_leaf_module: Maximum tokens per leaf module
             max_depth: Maximum depth for hierarchical decomposition
-            temperature: Temperature setting for LLM (some models only support default)
-            temperature_supported: Whether model supports custom temperature
+            cluster_temperature: Temperature for cluster model
+            main_temperature: Temperature for main/generation model
+            fallback_temperature: Temperature for fallback model
+            cluster_temperature_supported: Whether cluster model supports custom temperature
+            main_temperature_supported: Whether main model supports custom temperature
+            fallback_temperature_supported: Whether fallback model supports custom temperature
             max_token_field: Parameter name for max tokens ('max_tokens' or 'max_completion_tokens')
             api_path: API endpoint path (e.g., '/v1/chat/completions' or '/v1/messages')
             api_version: API version if different from default
@@ -167,10 +175,18 @@ class ConfigManager:
             self._config.max_token_per_leaf_module = max_token_per_leaf_module
         if max_depth is not None:
             self._config.max_depth = max_depth
-        if temperature is not None:
-            self._config.temperature = temperature
-        if temperature_supported is not None:
-            self._config.temperature_supported = temperature_supported
+        if cluster_temperature is not None:
+            self._config.cluster_temperature = cluster_temperature
+        if main_temperature is not None:
+            self._config.main_temperature = main_temperature
+        if fallback_temperature is not None:
+            self._config.fallback_temperature = fallback_temperature
+        if cluster_temperature_supported is not None:
+            self._config.cluster_temperature_supported = cluster_temperature_supported
+        if main_temperature_supported is not None:
+            self._config.main_temperature_supported = main_temperature_supported
+        if fallback_temperature_supported is not None:
+            self._config.fallback_temperature_supported = fallback_temperature_supported
         if max_token_field is not None:
             self._config.max_token_field = max_token_field
         if api_path is not None:

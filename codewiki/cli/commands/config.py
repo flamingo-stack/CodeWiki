@@ -94,16 +94,40 @@ def config_group():
     help="Maximum depth for hierarchical decomposition (default: 2)"
 )
 @click.option(
-    "--temperature",
+    "--cluster-temperature",
     type=float,
-    help="Temperature setting for LLM (some models like gpt-4.1 only support 1.0)"
+    help="Temperature setting for cluster model"
 )
 @click.option(
-    "--temperature-supported",
+    "--main-temperature",
+    type=float,
+    help="Temperature setting for main/generation model"
+)
+@click.option(
+    "--fallback-temperature",
+    type=float,
+    help="Temperature setting for fallback model"
+)
+@click.option(
+    "--cluster-temperature-supported",
     type=bool,
     is_flag=False,
     flag_value=True,
-    help="Whether model supports custom temperature (if false, temperature parameter will be omitted)"
+    help="Whether cluster model supports custom temperature"
+)
+@click.option(
+    "--main-temperature-supported",
+    type=bool,
+    is_flag=False,
+    flag_value=True,
+    help="Whether main model supports custom temperature"
+)
+@click.option(
+    "--fallback-temperature-supported",
+    type=bool,
+    is_flag=False,
+    flag_value=True,
+    help="Whether fallback model supports custom temperature"
 )
 @click.option(
     "--max-token-field",
@@ -132,8 +156,12 @@ def config_set(
     max_token_per_module: Optional[int],
     max_token_per_leaf_module: Optional[int],
     max_depth: Optional[int],
-    temperature: Optional[float],
-    temperature_supported: Optional[bool],
+    cluster_temperature: Optional[float],
+    main_temperature: Optional[float],
+    fallback_temperature: Optional[float],
+    cluster_temperature_supported: Optional[bool],
+    main_temperature_supported: Optional[bool],
+    fallback_temperature_supported: Optional[bool],
     max_token_field: Optional[str],
     api_path: Optional[str],
     api_version: Optional[str]
@@ -171,7 +199,12 @@ def config_set(
     """
     try:
         # Check if at least one option is provided
-        if not any([api_key, base_url, main_model, cluster_model, fallback_model, cluster_max_tokens, main_max_tokens, fallback_max_tokens, max_token_per_module, max_token_per_leaf_module, max_depth, temperature is not None, temperature_supported is not None, max_token_field, api_path, api_version]):
+        if not any([api_key, base_url, main_model, cluster_model, fallback_model,
+                    cluster_max_tokens, main_max_tokens, fallback_max_tokens,
+                    max_token_per_module, max_token_per_leaf_module, max_depth,
+                    cluster_temperature is not None, main_temperature is not None, fallback_temperature is not None,
+                    cluster_temperature_supported is not None, main_temperature_supported is not None, fallback_temperature_supported is not None,
+                    max_token_field, api_path, api_version]):
             click.echo("No options provided. Use --help for usage information.")
             sys.exit(EXIT_CONFIG_ERROR)
         
@@ -223,13 +256,29 @@ def config_set(
                 raise ConfigurationError("max_depth must be a positive integer")
             validated_data['max_depth'] = max_depth
 
-        if temperature is not None:
-            if temperature < 0.0 or temperature > 2.0:
-                raise ConfigurationError("temperature must be between 0.0 and 2.0")
-            validated_data['temperature'] = temperature
+        if cluster_temperature is not None:
+            if cluster_temperature < 0.0 or cluster_temperature > 2.0:
+                raise ConfigurationError("cluster_temperature must be between 0.0 and 2.0")
+            validated_data['cluster_temperature'] = cluster_temperature
 
-        if temperature_supported is not None:
-            validated_data['temperature_supported'] = temperature_supported
+        if main_temperature is not None:
+            if main_temperature < 0.0 or main_temperature > 2.0:
+                raise ConfigurationError("main_temperature must be between 0.0 and 2.0")
+            validated_data['main_temperature'] = main_temperature
+
+        if fallback_temperature is not None:
+            if fallback_temperature < 0.0 or fallback_temperature > 2.0:
+                raise ConfigurationError("fallback_temperature must be between 0.0 and 2.0")
+            validated_data['fallback_temperature'] = fallback_temperature
+
+        if cluster_temperature_supported is not None:
+            validated_data['cluster_temperature_supported'] = cluster_temperature_supported
+
+        if main_temperature_supported is not None:
+            validated_data['main_temperature_supported'] = main_temperature_supported
+
+        if fallback_temperature_supported is not None:
+            validated_data['fallback_temperature_supported'] = fallback_temperature_supported
 
         if max_token_field is not None:
             # Validate it's one of the known values
@@ -262,8 +311,12 @@ def config_set(
             max_token_per_module=validated_data.get('max_token_per_module'),
             max_token_per_leaf_module=validated_data.get('max_token_per_leaf_module'),
             max_depth=validated_data.get('max_depth'),
-            temperature=validated_data.get('temperature'),
-            temperature_supported=validated_data.get('temperature_supported'),
+            cluster_temperature=validated_data.get('cluster_temperature'),
+            main_temperature=validated_data.get('main_temperature'),
+            fallback_temperature=validated_data.get('fallback_temperature'),
+            cluster_temperature_supported=validated_data.get('cluster_temperature_supported'),
+            main_temperature_supported=validated_data.get('main_temperature_supported'),
+            fallback_temperature_supported=validated_data.get('fallback_temperature_supported'),
             max_token_field=validated_data.get('max_token_field'),
             api_path=validated_data.get('api_path'),
             api_version=validated_data.get('api_version')
@@ -321,8 +374,14 @@ def config_set(
         if max_depth:
             click.secho(f"✓ Max depth: {max_depth}", fg="green")
 
-        if temperature is not None:
-            click.secho(f"✓ Temperature: {temperature}", fg="green")
+        if cluster_temperature is not None:
+            click.secho(f"✓ Cluster temperature: {cluster_temperature}", fg="green")
+
+        if main_temperature is not None:
+            click.secho(f"✓ Main temperature: {main_temperature}", fg="green")
+
+        if fallback_temperature is not None:
+            click.secho(f"✓ Fallback temperature: {fallback_temperature}", fg="green")
 
         click.echo("\n" + click.style("Configuration updated successfully.", fg="green", bold=True))
         
@@ -383,6 +442,12 @@ def config_show(output_json: bool):
                 "cluster_max_tokens": config.cluster_max_tokens if config else 128000,
                 "main_max_tokens": config.main_max_tokens if config else 128000,
                 "fallback_max_tokens": config.fallback_max_tokens if config else 64000,
+                "cluster_temperature": config.cluster_temperature if config else 0.0,
+                "main_temperature": config.main_temperature if config else 0.0,
+                "fallback_temperature": config.fallback_temperature if config else 0.0,
+                "cluster_temperature_supported": config.cluster_temperature_supported if config else True,
+                "main_temperature_supported": config.main_temperature_supported if config else True,
+                "fallback_temperature_supported": config.fallback_temperature_supported if config else True,
                 "max_token_per_module": config.max_token_per_module if config else 36369,
                 "max_token_per_leaf_module": config.max_token_per_leaf_module if config else 16000,
                 "max_depth": config.max_depth if config else 2,
@@ -427,7 +492,14 @@ def config_show(output_json: bool):
                 click.echo(f"  Fallback Max Tokens:     {config.fallback_max_tokens}")
                 click.echo(f"  Max Token/Module:        {config.max_token_per_module}")
                 click.echo(f"  Max Token/Leaf Module:   {config.max_token_per_leaf_module}")
-            
+
+            click.echo()
+            click.secho("Temperature Settings", fg="cyan", bold=True)
+            if config:
+                click.echo(f"  Cluster Temperature:     {config.cluster_temperature} (supported: {config.cluster_temperature_supported})")
+                click.echo(f"  Main Temperature:        {config.main_temperature} (supported: {config.main_temperature_supported})")
+                click.echo(f"  Fallback Temperature:    {config.fallback_temperature} (supported: {config.fallback_temperature_supported})")
+
             click.echo()
             click.secho("Decomposition Settings", fg="cyan", bold=True)
             if config:

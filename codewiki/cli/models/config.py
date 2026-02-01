@@ -116,6 +116,12 @@ class Configuration:
         cluster_max_tokens: Maximum tokens for cluster model (default: 128000)
         main_max_tokens: Maximum tokens for main/generation model (default: 128000)
         fallback_max_tokens: Maximum tokens for fallback model (default: 64000)
+        cluster_temperature: Temperature for cluster model (default: 0.0)
+        main_temperature: Temperature for main/generation model (default: 0.0)
+        fallback_temperature: Temperature for fallback model (default: 0.0)
+        cluster_temperature_supported: Whether cluster model supports temperature (default: True)
+        main_temperature_supported: Whether main model supports temperature (default: True)
+        fallback_temperature_supported: Whether fallback model supports temperature (default: True)
         max_token_per_module: Maximum tokens per module for clustering (default: 36369)
         max_token_per_leaf_module: Maximum tokens per leaf module (default: 16000)
         max_depth: Maximum depth for hierarchical decomposition (default: 2)
@@ -132,11 +138,15 @@ class Configuration:
     cluster_max_tokens: int = 128000
     main_max_tokens: int = 128000
     fallback_max_tokens: int = 64000
+    cluster_temperature: float = 0.0
+    main_temperature: float = 0.0
+    fallback_temperature: float = 0.0
+    cluster_temperature_supported: bool = True
+    main_temperature_supported: bool = True
+    fallback_temperature_supported: bool = True
     max_token_per_module: int = 36369
     max_token_per_leaf_module: int = 16000
     max_depth: int = 2
-    temperature: float = 0.0
-    temperature_supported: bool = True
     max_token_field: str = "max_tokens"
     api_path: str = "/v1/chat/completions"
     api_version: Optional[str] = None
@@ -274,8 +284,8 @@ class Configuration:
             max_token_per_module=self.max_token_per_module,
             max_token_per_leaf_module=self.max_token_per_leaf_module,
             max_depth=self.max_depth,
-            temperature=self.temperature,
-            temperature_supported=self.temperature_supported,
+            temperature=self.main_temperature,  # Use main model temperature
+            temperature_supported=self.main_temperature_supported,  # Use main model support
             max_token_field=self.max_token_field,
             api_path=self.api_path,
             api_version=self.api_version,
