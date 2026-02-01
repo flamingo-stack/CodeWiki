@@ -850,34 +850,40 @@ def format_cluster_prompt(potential_core_components: str, module_tree: dict[str,
 def format_system_prompt(module_name: str, custom_instructions: str = None) -> str:
     """
     Format the system prompt with module name and optional custom instructions.
-    
+
     Args:
         module_name: Name of the module to document
         custom_instructions: Optional custom instructions to append
-        
+
     Returns:
         Formatted system prompt string
     """
     custom_section = ""
     if custom_instructions:
-        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
-    
+        # Escape curly braces to prevent format() errors when custom instructions
+        # contain placeholders like {0}, {Component}, etc.
+        escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
+        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
+
     return SYSTEM_PROMPT.format(module_name=module_name, custom_instructions=custom_section).strip()
 
 
 def format_leaf_system_prompt(module_name: str, custom_instructions: str = None) -> str:
     """
     Format the leaf system prompt with module name and optional custom instructions.
-    
+
     Args:
         module_name: Name of the module to document
         custom_instructions: Optional custom instructions to append
-        
+
     Returns:
         Formatted leaf system prompt string
     """
     custom_section = ""
     if custom_instructions:
-        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
-    
+        # Escape curly braces to prevent format() errors when custom instructions
+        # contain placeholders like {0}, {Component}, etc.
+        escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
+        custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
+
     return LEAF_SYSTEM_PROMPT.format(module_name=module_name, custom_instructions=custom_section).strip()
