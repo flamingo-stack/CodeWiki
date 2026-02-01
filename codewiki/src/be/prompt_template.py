@@ -873,7 +873,47 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
         escaped_instructions = custom_instructions.replace("{", "{{").replace("}", "}}")
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{escaped_instructions}\n</CUSTOM_INSTRUCTIONS>"
 
-    return SYSTEM_PROMPT.format(module_name=module_name, custom_instructions=custom_section).strip()
+    # Try to format with detailed exception handling
+    try:
+        return SYSTEM_PROMPT.format(module_name=module_name, custom_instructions=custom_section).strip()
+    except (IndexError, KeyError) as e:
+        print(f"\n{'='*80}")
+        print(f"ERROR in format_system_prompt():")
+        print(f"{'='*80}")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {str(e)}")
+        print(f"\nFunction Arguments:")
+        print(f"  module_name: {module_name}")
+        print(f"  custom_instructions type: {type(custom_instructions)}")
+        print(f"  custom_instructions length: {len(custom_instructions) if custom_instructions else 0}")
+        print(f"  custom_section length: {len(custom_section)}")
+
+        print(f"\nSearching for problematic patterns in SYSTEM_PROMPT:")
+        import re
+        # Find all format placeholders
+        all_placeholders = re.findall(r'\{([^}]*)\}', SYSTEM_PROMPT)
+        print(f"  Total placeholders found: {len(all_placeholders)}")
+        print(f"  Unique placeholders: {set(all_placeholders)}")
+
+        # Find positional placeholders like {0}, {1}
+        positional = [p for p in all_placeholders if p.isdigit()]
+        if positional:
+            print(f"  ⚠️  POSITIONAL placeholders found: {positional}")
+
+            # Show context around each positional placeholder
+            for pos in positional:
+                pattern = r'.{{0,100}}\{' + pos + r'\}.{{0,100}}'
+                matches = re.findall(pattern, SYSTEM_PROMPT, re.DOTALL)
+                for match in matches[:3]:  # Show first 3 occurrences
+                    print(f"\n  Context around {{{pos}}}:")
+                    print(f"    ...{match}...")
+
+        print(f"\nFirst 1000 chars of SYSTEM_PROMPT:")
+        print(f"  {SYSTEM_PROMPT[:1000]}")
+        print(f"\n{'='*80}\n")
+
+        # Re-raise the exception
+        raise
 
 
 def format_leaf_system_prompt(module_name: str, custom_instructions: str = None) -> str:
