@@ -109,11 +109,13 @@ class Configuration:
 
     Attributes:
         base_url: LLM API base URL
-        main_model: Primary model for documentation generation
+        main_model: Primary model for documentation generation (generation phase)
         cluster_model: Model for module clustering
         fallback_model: Fallback model for documentation generation
         default_output: Default output directory
-        max_tokens: Maximum tokens for LLM response (default: 32768)
+        cluster_max_tokens: Maximum tokens for cluster model (default: 128000)
+        main_max_tokens: Maximum tokens for main/generation model (default: 128000)
+        fallback_max_tokens: Maximum tokens for fallback model (default: 64000)
         max_token_per_module: Maximum tokens per module for clustering (default: 36369)
         max_token_per_leaf_module: Maximum tokens per leaf module (default: 16000)
         max_depth: Maximum depth for hierarchical decomposition (default: 2)
@@ -127,7 +129,9 @@ class Configuration:
     cluster_model: str
     fallback_model: str = "glm-4p5"
     default_output: str = "docs"
-    max_tokens: int = 32768
+    cluster_max_tokens: int = 128000
+    main_max_tokens: int = 128000
+    fallback_max_tokens: int = 64000
     max_token_per_module: int = 36369
     max_token_per_leaf_module: int = 16000
     max_depth: int = 2
@@ -161,7 +165,9 @@ class Configuration:
             'cluster_model': self.cluster_model,
             'fallback_model': self.fallback_model,
             'default_output': self.default_output,
-            'max_tokens': self.max_tokens,
+            'cluster_max_tokens': self.cluster_max_tokens,
+            'main_max_tokens': self.main_max_tokens,
+            'fallback_max_tokens': self.fallback_max_tokens,
             'max_token_per_module': self.max_token_per_module,
             'max_token_per_leaf_module': self.max_token_per_leaf_module,
             'max_depth': self.max_depth,
@@ -200,7 +206,9 @@ class Configuration:
             cluster_model=data.get('cluster_model', ''),
             fallback_model=data.get('fallback_model', 'glm-4p5'),
             default_output=data.get('default_output', 'docs'),
-            max_tokens=data.get('max_tokens', 32768),
+            cluster_max_tokens=data.get('cluster_max_tokens', 128000),
+            main_max_tokens=data.get('main_max_tokens', 128000),
+            fallback_max_tokens=data.get('fallback_max_tokens', 64000),
             max_token_per_module=data.get('max_token_per_module', 36369),
             max_token_per_leaf_module=data.get('max_token_per_leaf_module', 16000),
             max_depth=data.get('max_depth', 2),

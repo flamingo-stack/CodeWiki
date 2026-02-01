@@ -64,9 +64,19 @@ def config_group():
     help="Fallback model for documentation generation"
 )
 @click.option(
-    "--max-tokens",
+    "--cluster-max-tokens",
     type=int,
-    help="Maximum tokens for LLM response (default: 32768)"
+    help="Maximum tokens for cluster model (default: 128000)"
+)
+@click.option(
+    "--main-max-tokens",
+    type=int,
+    help="Maximum tokens for main/generation model (default: 128000)"
+)
+@click.option(
+    "--fallback-max-tokens",
+    type=int,
+    help="Maximum tokens for fallback model (default: 64000)"
 )
 @click.option(
     "--max-token-per-module",
@@ -116,7 +126,9 @@ def config_set(
     main_model: Optional[str],
     cluster_model: Optional[str],
     fallback_model: Optional[str],
-    max_tokens: Optional[int],
+    cluster_max_tokens: Optional[int],
+    main_max_tokens: Optional[int],
+    fallback_max_tokens: Optional[int],
     max_token_per_module: Optional[int],
     max_token_per_leaf_module: Optional[int],
     max_depth: Optional[int],
@@ -159,7 +171,7 @@ def config_set(
     """
     try:
         # Check if at least one option is provided
-        if not any([api_key, base_url, main_model, cluster_model, fallback_model, max_tokens, max_token_per_module, max_token_per_leaf_module, max_depth, temperature is not None, temperature_supported is not None, max_token_field, api_path, api_version]):
+        if not any([api_key, base_url, main_model, cluster_model, fallback_model, cluster_max_tokens, main_max_tokens, fallback_max_tokens, max_token_per_module, max_token_per_leaf_module, max_depth, temperature is not None, temperature_supported is not None, max_token_field, api_path, api_version]):
             click.echo("No options provided. Use --help for usage information.")
             sys.exit(EXIT_CONFIG_ERROR)
         
@@ -181,10 +193,20 @@ def config_set(
         if fallback_model:
             validated_data['fallback_model'] = validate_model_name(fallback_model)
         
-        if max_tokens is not None:
-            if max_tokens < 1:
-                raise ConfigurationError("max_tokens must be a positive integer")
-            validated_data['max_tokens'] = max_tokens
+        if cluster_max_tokens is not None:
+            if cluster_max_tokens < 1:
+                raise ConfigurationError("cluster_max_tokens must be a positive integer")
+            validated_data['cluster_max_tokens'] = cluster_max_tokens
+
+        if main_max_tokens is not None:
+            if main_max_tokens < 1:
+                raise ConfigurationError("main_max_tokens must be a positive integer")
+            validated_data['main_max_tokens'] = main_max_tokens
+
+        if fallback_max_tokens is not None:
+            if fallback_max_tokens < 1:
+                raise ConfigurationError("fallback_max_tokens must be a positive integer")
+            validated_data['fallback_max_tokens'] = fallback_max_tokens
         
         if max_token_per_module is not None:
             if max_token_per_module < 1:
@@ -234,7 +256,9 @@ def config_set(
             main_model=validated_data.get('main_model'),
             cluster_model=validated_data.get('cluster_model'),
             fallback_model=validated_data.get('fallback_model'),
-            max_tokens=validated_data.get('max_tokens'),
+            cluster_max_tokens=validated_data.get('cluster_max_tokens'),
+            main_max_tokens=validated_data.get('main_max_tokens'),
+            fallback_max_tokens=validated_data.get('fallback_max_tokens'),
             max_token_per_module=validated_data.get('max_token_per_module'),
             max_token_per_leaf_module=validated_data.get('max_token_per_leaf_module'),
             max_depth=validated_data.get('max_depth'),
@@ -278,9 +302,15 @@ def config_set(
         
         if fallback_model:
             click.secho(f"✓ Fallback model: {fallback_model}", fg="green")
-        
-        if max_tokens:
-            click.secho(f"✓ Max tokens: {max_tokens}", fg="green")
+
+        if cluster_max_tokens:
+            click.secho(f"✓ Cluster max tokens: {cluster_max_tokens}", fg="green")
+
+        if main_max_tokens:
+            click.secho(f"✓ Main max tokens: {main_max_tokens}", fg="green")
+
+        if fallback_max_tokens:
+            click.secho(f"✓ Fallback max tokens: {fallback_max_tokens}", fg="green")
         
         if max_token_per_module:
             click.secho(f"✓ Max token per module: {max_token_per_module}", fg="green")
