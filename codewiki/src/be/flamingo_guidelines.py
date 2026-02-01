@@ -78,9 +78,23 @@ def escape_format_braces(text: str) -> str:
     Returns:
         Text with curly braces doubled (2 braces each)
     """
+    # DEBUG: Print before and after to verify function is called
+    print(f"[DEBUG] escape_format_braces called - input length: {len(text)}")
+
+    # Count braces before
+    open_count_before = text.count('{')
+    close_count_before = text.count('}')
+    print(f"[DEBUG]   BEFORE: {{ count={open_count_before}, }} count={close_count_before}")
+
     # DOUBLE all curly braces for ONE level of formatting (.format() only)
     # F-string does NOT process braces in substituted variables
     result = text.replace("{", "{{").replace("}", "}}")
+
+    # Count braces after
+    open_count_after = result.count('{')
+    close_count_after = result.count('}')
+    print(f"[DEBUG]   AFTER:  {{ count={open_count_after}, }} count={close_count_after}")
+    print(f"[DEBUG]   Sample (first 200 chars): {result[:200]}")
 
     return result
 
