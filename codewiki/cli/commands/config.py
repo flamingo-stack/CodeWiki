@@ -380,7 +380,9 @@ def config_show(output_json: bool):
                 "cluster_model": config.cluster_model if config else "",
                 "fallback_model": config.fallback_model if config else "glm-4p5",
                 "default_output": config.default_output if config else "docs",
-                "max_tokens": config.max_tokens if config else 32768,
+                "cluster_max_tokens": config.cluster_max_tokens if config else 128000,
+                "main_max_tokens": config.main_max_tokens if config else 128000,
+                "fallback_max_tokens": config.fallback_max_tokens if config else 64000,
                 "max_token_per_module": config.max_token_per_module if config else 36369,
                 "max_token_per_leaf_module": config.max_token_per_leaf_module if config else 16000,
                 "max_depth": config.max_depth if config else 2,
@@ -420,7 +422,9 @@ def config_show(output_json: bool):
             click.echo()
             click.secho("Token Settings", fg="cyan", bold=True)
             if config:
-                click.echo(f"  Max Tokens:              {config.max_tokens}")
+                click.echo(f"  Cluster Max Tokens:      {config.cluster_max_tokens}")
+                click.echo(f"  Main Max Tokens:         {config.main_max_tokens}")
+                click.echo(f"  Fallback Max Tokens:     {config.fallback_max_tokens}")
                 click.echo(f"  Max Token/Module:        {config.max_token_per_module}")
                 click.echo(f"  Max Token/Leaf Module:   {config.max_token_per_leaf_module}")
             

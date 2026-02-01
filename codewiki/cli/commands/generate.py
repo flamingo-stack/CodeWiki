@@ -343,7 +343,7 @@ def generate_command(
 
         # Log max token settings if verbose (from upstream)
         if verbose:
-            effective_max_tokens = max_tokens if max_tokens is not None else config.max_tokens
+            effective_max_tokens = max_tokens if max_tokens is not None else config.main_max_tokens
             effective_max_token_per_module = max_token_per_module if max_token_per_module is not None else config.max_token_per_module
             effective_max_token_per_leaf = max_token_per_leaf_module if max_token_per_leaf_module is not None else config.max_token_per_leaf_module
             effective_max_depth = max_depth if max_depth is not None else config.max_depth
@@ -379,7 +379,7 @@ def generate_command(
                 'api_key': api_key,
                 'agent_instructions': agent_instructions_dict,
                 # Max token settings (runtime overrides take precedence)
-                'max_tokens': max_tokens if max_tokens is not None else config.max_tokens,
+                'max_tokens': max_tokens if max_tokens is not None else config.main_max_tokens,
                 'max_token_per_module': max_token_per_module if max_token_per_module is not None else config.max_token_per_module,
                 'max_token_per_leaf_module': max_token_per_leaf_module if max_token_per_leaf_module is not None else config.max_token_per_leaf_module,
                 # Max depth setting (runtime override takes precedence)

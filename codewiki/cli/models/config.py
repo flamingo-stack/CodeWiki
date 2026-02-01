@@ -270,7 +270,7 @@ class Configuration:
             main_model=self.main_model,
             cluster_model=self.cluster_model,
             fallback_model=self.fallback_model,
-            max_tokens=self.max_tokens,
+            max_tokens=self.main_max_tokens,  # Use main model max tokens for backend
             max_token_per_module=self.max_token_per_module,
             max_token_per_leaf_module=self.max_token_per_leaf_module,
             max_depth=self.max_depth,
