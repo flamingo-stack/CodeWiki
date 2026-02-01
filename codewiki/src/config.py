@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 from dotenv import load_dotenv
+from codewiki.src.be.flamingo_guidelines import escape_format_braces
 load_dotenv()
 
 # Constants
@@ -132,7 +133,10 @@ class Config:
             additions.append(f"Pay special attention to and provide more detailed documentation for these modules: {', '.join(self.focus_modules)}")
 
         if self.custom_instructions:
-            additions.append(f"Additional instructions: {self.custom_instructions}")
+            # Escape curly braces to prevent KeyError when used with .format()
+            # This is critical when custom_instructions contain JSON (e.g., external_repos config)
+            escaped_instructions = escape_format_braces(self.custom_instructions)
+            additions.append(f"Additional instructions: {escaped_instructions}")
 
         return "\n".join(additions) if additions else ""
     
