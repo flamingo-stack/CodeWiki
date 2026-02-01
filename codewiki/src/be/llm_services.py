@@ -180,9 +180,17 @@ def call_llm(
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens_value = getattr(config, 'max_tokens', None) or get_max_output_tokens()
 
+    # Determine which stage we're in based on the model being used
+    # This ensures we use the correct max_token_field for each model
+    stage = 'generation'  # default
+    if model == config.cluster_model:
+        stage = 'cluster'
+    elif model == config.fallback_model:
+        stage = 'fallback'
+
     # Get the correct parameter name for max tokens (max_tokens vs max_completion_tokens)
-    # Reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
-    max_token_field = get_model_max_token_field('generation')
+    # GPT-5.2 and reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
+    max_token_field = get_model_max_token_field(stage)
 
     # Build kwargs with dynamic parameter name
     kwargs = {
