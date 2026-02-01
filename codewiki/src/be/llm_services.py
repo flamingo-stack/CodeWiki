@@ -89,9 +89,9 @@ def create_main_model(config: Config) -> OpenAIModel:
     """
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature
-    temperature = getattr(config, 'temperature', 0.0)
-    temperature_supported = getattr(config, 'temperature_supported', True)
+    # Check if model supports custom temperature (use per-provider field)
+    temperature = getattr(config, 'main_temperature', 0.0)
+    temperature_supported = getattr(config, 'main_temperature_supported', True)
 
     # Build settings dict - only include temperature if model supports it
     settings_dict = {'max_tokens': max_tokens}
@@ -112,9 +112,9 @@ def create_fallback_model(config: Config) -> OpenAIModel:
     """Create the fallback LLM model from configuration."""
     # Use config.max_tokens if available, otherwise fallback to env var
     max_tokens = getattr(config, 'max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature
-    temperature = getattr(config, 'temperature', 0.0)
-    temperature_supported = getattr(config, 'temperature_supported', True)
+    # Check if model supports custom temperature (use per-provider field)
+    temperature = getattr(config, 'fallback_temperature', 0.0)
+    temperature_supported = getattr(config, 'fallback_temperature_supported', True)
 
     # Build settings dict - only include temperature if model supports it
     settings_dict = {'max_tokens': max_tokens}
@@ -192,13 +192,24 @@ def call_llm(
     # GPT-5.2 and reasoning models (o3, o3-mini) use max_completion_tokens instead of max_tokens
     max_token_field = get_model_max_token_field(stage)
 
+    # Check if this model supports custom temperature (use per-provider field)
+    if stage == 'cluster':
+        temperature_supported = getattr(config, 'cluster_temperature_supported', True)
+    elif stage == 'fallback':
+        temperature_supported = getattr(config, 'fallback_temperature_supported', True)
+    else:  # generation/main
+        temperature_supported = getattr(config, 'main_temperature_supported', True)
+
     # Build kwargs with dynamic parameter name
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": temperature,
         max_token_field: max_tokens_value
     }
+
+    # Only add temperature if model supports it
+    if temperature_supported:
+        kwargs["temperature"] = temperature
 
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content
