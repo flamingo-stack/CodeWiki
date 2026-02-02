@@ -180,7 +180,32 @@ class CLIDocumentationGenerator:
                 # Optional diagrams directory
                 diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None
             )
-            
+
+            # Log configuration details in verbose mode
+            if self.verbose:
+                print()
+                print("📋 Generation Configuration:")
+                print(f"   ├─ Cluster Model: {backend_config.cluster_model}")
+                print(f"   │  └─ Base URL: {backend_config.cluster_base_url or '(default)'}")
+                print(f"   │  └─ Max Tokens: {backend_config.cluster_max_tokens}")
+                print(f"   ├─ Main Model: {backend_config.main_model}")
+                print(f"   │  └─ Base URL: {backend_config.main_base_url or '(default)'}")
+                print(f"   │  └─ Max Tokens: {backend_config.main_max_tokens}")
+                print(f"   ├─ Fallback Model: {backend_config.fallback_model}")
+                print(f"   │  └─ Base URL: {backend_config.fallback_base_url or '(default)'}")
+                print(f"   │  └─ Max Tokens: {backend_config.fallback_max_tokens}")
+                print(f"   ├─ Module Settings:")
+                print(f"   │  ├─ Max tokens/module: {backend_config.max_token_per_module}")
+                print(f"   │  ├─ Max tokens/leaf: {backend_config.max_token_per_leaf_module}")
+                print(f"   │  └─ Max depth: {backend_config.max_depth}")
+                if backend_config.agent_instructions:
+                    print(f"   └─ Agent Instructions: Configured")
+                    if backend_config.agent_instructions.get('custom_instructions'):
+                        custom = backend_config.agent_instructions['custom_instructions']
+                        preview = custom[:80] + '...' if len(custom) > 80 else custom
+                        print(f"      └─ Custom: {preview}")
+                print()
+
             # Run backend documentation generation
             asyncio.run(self._run_backend_generation(backend_config))
             
@@ -210,48 +235,66 @@ class CLIDocumentationGenerator:
         # Stage 1: Dependency Analysis
         self.progress_tracker.start_stage(1, "Dependency Analysis")
         if self.verbose:
-            self.progress_tracker.update_stage(0.2, "Initializing dependency analyzer...")
-        
+            self.progress_tracker.update_stage(0.1, "Initializing dependency analyzer...")
+            print(f"   ├─ Repository: {backend_config.repo_path}")
+            print(f"   └─ Output: {backend_config.output_dir}")
+
         # Create documentation generator
         doc_generator = DocumentationGenerator(backend_config)
-        
+
         if self.verbose:
-            self.progress_tracker.update_stage(0.5, "Parsing source files...")
-        
+            self.progress_tracker.update_stage(0.4, "Scanning repository for source files...")
+
         # Build dependency graph
         try:
+            if self.verbose:
+                self.progress_tracker.update_stage(0.7, "Building dependency graph...")
+
             components, leaf_nodes = doc_generator.graph_builder.build_dependency_graph()
             self.job.statistics.total_files_analyzed = len(components)
             self.job.statistics.leaf_nodes = len(leaf_nodes)
-            
+
             if self.verbose:
-                self.progress_tracker.update_stage(1.0, f"Found {len(leaf_nodes)} leaf nodes")
+                self.progress_tracker.update_stage(1.0, f"Analysis complete")
+                print(f"   ├─ Total components: {len(components)}")
+                print(f"   ├─ Leaf nodes: {len(leaf_nodes)}")
+                print(f"   └─ Files analyzed: {self.job.statistics.total_files_analyzed}")
         except Exception as e:
             raise APIError(f"Dependency analysis failed: {e}")
-        
+
         self.progress_tracker.complete_stage()
         
         # Stage 2: Module Clustering
         self.progress_tracker.start_stage(2, "Module Clustering")
-        if self.verbose:
-            self.progress_tracker.update_stage(0.5, "Clustering modules with LLM...")
-        
+
         # Import clustering function
         from codewiki.src.be.cluster_modules import cluster_modules
         from codewiki.src.utils import file_manager
         from codewiki.src.config import FIRST_MODULE_TREE_FILENAME, MODULE_TREE_FILENAME
-        
+
         working_dir = str(self.output_dir.absolute())
         file_manager.ensure_directory(working_dir)
         first_module_tree_path = os.path.join(working_dir, FIRST_MODULE_TREE_FILENAME)
         module_tree_path = os.path.join(working_dir, MODULE_TREE_FILENAME)
-        
+
         try:
             if os.path.exists(first_module_tree_path):
+                if self.verbose:
+                    self.progress_tracker.update_stage(0.3, "Loading cached module tree...")
+                    print(f"   └─ Cache file: {first_module_tree_path}")
                 module_tree = file_manager.load_json(first_module_tree_path)
             else:
+                if self.verbose:
+                    self.progress_tracker.update_stage(0.2, "Analyzing code structure...")
+                    print(f"   ├─ Leaf nodes to cluster: {len(leaf_nodes)}")
+                    print(f"   ├─ Using model: {backend_config.cluster_model}")
+                    print(f"   └─ Calling LLM for clustering...")
+
                 module_tree = cluster_modules(leaf_nodes, components, backend_config)
                 file_manager.save_json(module_tree, first_module_tree_path)
+
+                if self.verbose:
+                    self.progress_tracker.update_stage(0.7, f"Clustered into {len(module_tree)} modules")
 
             # === SYNTHETIC_MODULE_PATCH: Prevent context overflow ===
             # If module_tree is empty but we have leaf nodes, create synthetic modules
@@ -259,9 +302,14 @@ class CLIDocumentationGenerator:
             # IMPORTANT: Runs AFTER loading cached file too (fixes cache bypass bug)
             # See: https://github.com/flamingo-stack/CodeWiki - forked with this fix
             if len(module_tree) == 0 and len(leaf_nodes) > 0:
-                logging.warning("Module tree is empty - creating synthetic modules to prevent context overflow")
+                logging.warning("⚠️  Module tree is empty - creating synthetic modules to prevent context overflow")
                 max_per_module = int(os.environ.get('CODEWIKI_MAX_FILES_PER_MODULE', '5'))
                 synthetic_modules = {}
+
+                if self.verbose:
+                    print(f"   ├─ Creating synthetic modules...")
+                    print(f"   ├─ Files per module: {max_per_module}")
+                    print(f"   └─ Total leaf nodes: {len(leaf_nodes)}")
 
                 for i in range(0, len(leaf_nodes), max_per_module):
                     batch = leaf_nodes[i:i + max_per_module]
@@ -278,7 +326,7 @@ class CLIDocumentationGenerator:
                     }
 
                 module_tree = synthetic_modules
-                logging.info(f"Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
+                logging.info(f"✓ Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
                 # Update the cached file with synthetic modules
                 file_manager.save_json(module_tree, first_module_tree_path)
             # === END SYNTHETIC_MODULE_PATCH ===
@@ -287,7 +335,10 @@ class CLIDocumentationGenerator:
             self.job.module_count = len(module_tree)
 
             if self.verbose:
-                self.progress_tracker.update_stage(1.0, f"Created {len(module_tree)} modules")
+                self.progress_tracker.update_stage(1.0, f"Module tree ready")
+                print(f"   ├─ Total modules: {len(module_tree)}")
+                print(f"   └─ Module names: {', '.join(list(module_tree.keys())[:5])}" +
+                      (f" ... ({len(module_tree) - 5} more)" if len(module_tree) > 5 else ""))
         except Exception as e:
             raise APIError(f"Module clustering failed: {e}")
         
@@ -296,8 +347,12 @@ class CLIDocumentationGenerator:
         # Stage 3: Documentation Generation
         self.progress_tracker.start_stage(3, "Documentation Generation")
         if self.verbose:
-            self.progress_tracker.update_stage(0.1, "Generating module documentation...")
-        
+            self.progress_tracker.update_stage(0.1, "Starting documentation generation...")
+            print(f"   ├─ Modules to document: {len(module_tree)}")
+            print(f"   ├─ Using model: {backend_config.main_model}")
+            print(f"   └─ Fallback model: {backend_config.fallback_model}")
+            print()
+
         try:
             # Run the actual documentation generation
             await doc_generator.generate_module_documentation(components, leaf_nodes)

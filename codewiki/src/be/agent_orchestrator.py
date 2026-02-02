@@ -95,7 +95,10 @@ class AgentOrchestrator:
     async def process_module(self, module_name: str, components: Dict[str, Node],
                            core_component_ids: List[str], module_path: List[str], working_dir: str) -> Dict[str, Any]:
         """Process a single module and generate its documentation."""
-        logger.info(f"Processing module: {module_name}")
+        logger.info(f"📝 Processing module: {module_name}")
+        logger.info(f"   └─ Core components: {len(core_component_ids)}")
+        logger.info(f"   └─ Module path: {' > '.join(module_path) if module_path else '(root)'}")
+        logger.info(f"   └─ Working directory: {working_dir}")
 
         # Reset request counter for this module
         reset_request_counter(module_name)
@@ -105,8 +108,11 @@ class AgentOrchestrator:
         module_tree = file_manager.load_json(module_tree_path)
         
         # Create agent
+        is_complex = is_complex_module(components, core_component_ids)
+        agent_type = "Complex (with sub-modules)" if is_complex else "Leaf (single module)"
+        logger.info(f"   └─ Agent type: {agent_type}")
         agent = self.create_agent(module_name, components, core_component_ids)
-        
+
         # Create dependencies
         deps = CodeWikiDeps(
             absolute_docs_path=working_dir,
@@ -136,6 +142,9 @@ class AgentOrchestrator:
         
         # Run agent
         # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
+        logger.info(f"   └─ Starting agent execution...")
+        logger.info(f"   └─ Usage limits: 1000 requests max")
+
         try:
             result = await agent.run(
                 format_user_prompt(
@@ -150,11 +159,12 @@ class AgentOrchestrator:
 
             # Save updated module tree
             file_manager.save_json(deps.module_tree, module_tree_path)
-            logger.debug(f"Successfully processed module: {module_name}")
+            logger.info(f"✅ Successfully generated documentation for: {module_name}")
+            logger.info(f"   └─ Output: {docs_path}")
 
             return deps.module_tree
 
         except Exception as e:
-            logger.error(f"Error processing module {module_name}: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"❌ Error processing module {module_name}: {str(e)}")
+            logger.error(f"   └─ Traceback: {traceback.format_exc()}")
             raise
