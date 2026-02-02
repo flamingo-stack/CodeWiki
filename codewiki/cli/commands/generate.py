@@ -233,6 +233,11 @@ def generate_command(
 
         config = config_manager.get_config()
 
+        # Populate API keys from keyring (they're not stored in config.json for security)
+        config.cluster_api_key = config_manager.get_cluster_api_key()
+        config.main_api_key = config_manager.get_main_api_key()
+        config.fallback_api_key = config_manager.get_fallback_api_key()
+
         logger.success("Configuration valid")
         
         # Validate repository

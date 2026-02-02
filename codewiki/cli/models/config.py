@@ -111,6 +111,9 @@ class Configuration:
         main_model: Primary model for documentation generation (generation phase)
         cluster_model: Model for module clustering
         fallback_model: Fallback model for documentation generation
+        cluster_api_key: API key for cluster model (stored in keyring, runtime only)
+        main_api_key: API key for main/generation model (stored in keyring, runtime only)
+        fallback_api_key: API key for fallback model (stored in keyring, runtime only)
         default_output: Default output directory
         cluster_base_url: Base URL for cluster model API
         main_base_url: Base URL for main model API
@@ -138,6 +141,10 @@ class Configuration:
     main_model: str
     cluster_model: str
     fallback_model: str
+    # Runtime API keys (not persisted to config.json, fetched from keyring)
+    cluster_api_key: Optional[str] = None
+    main_api_key: Optional[str] = None
+    fallback_api_key: Optional[str] = None
     default_output: str = "docs"
     cluster_base_url: Optional[str] = None
     main_base_url: Optional[str] = None
