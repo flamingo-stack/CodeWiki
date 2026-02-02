@@ -186,10 +186,12 @@ def sanitize_and_escape_format_braces(text: str) -> str:
     # Now escape ALL braces (non-numeric content like {Decision}, {Component})
     result = text.replace("{", "{{").replace("}", "}}")
 
-    # STEP 4: RESTORE NUMERIC PLACEHOLDERS
-    # Put back the {0}, {1}, etc. as literal single braces
+    # STEP 4: RESTORE NUMERIC PLACEHOLDERS AS DOUBLE-ESCAPED
+    # Put back {0} as {{0}} so .format() converts it to {0} in final output
+    # Flow: {{0}} → (after .format()) → {0} (literal in final text)
     for marker, placeholder in numeric_placeholders.items():
-        result = result.replace(marker, placeholder)
+        escaped_placeholder = placeholder.replace('{', '{{').replace('}', '}}')
+        result = result.replace(marker, escaped_placeholder)
 
     # Count braces after escaping
     open_count_after = result.count('{')
@@ -314,9 +316,9 @@ def get_custom_instructions_section() -> str:
         return ""
 
     # CUSTOM_REPO_INSTRUCTIONS is already sanitized during load via sanitize_problematic_patterns()
-    # Here we only need to escape curly braces for .format() calls
-    # We double all braces so that .format() converts them back to single braces
-    escaped_instructions = CUSTOM_REPO_INSTRUCTIONS.replace("{", "{{").replace("}", "}}")
+    # Here we escape curly braces using the proper function that preserves numeric placeholders
+    # Use sanitize_and_escape_format_braces() instead of naive .replace() to handle {0}, {1}, etc.
+    escaped_instructions = sanitize_and_escape_format_braces(CUSTOM_REPO_INSTRUCTIONS)
 
     # Use string concatenation (no f-string needed here)
     # Escaped braces will be processed only once by .format() in prompt_template.py
