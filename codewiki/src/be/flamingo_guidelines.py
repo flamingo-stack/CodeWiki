@@ -91,31 +91,14 @@ def sanitize_problematic_patterns(text: str) -> str:
         if text == prev:
             break
 
-    # 2. Iteratively reduce excessive braces (handles all nesting levels)
-    # This handles: {{{...}}} → {{...}}, {{{{...}}}} → {{...}}, etc.
-    # Algorithm: Keep reducing 3+ consecutive braces to 2 until stable
-    max_iterations = 100  # Prevent infinite loops
-    iteration = 0
-    while iteration < max_iterations:
-        prev_text = text
-
-        # Reduce triple opening braces: {{{ → {{
-        text = text.replace('{{{', '{{')
-        # Reduce triple closing braces: }}} → }}
-        text = text.replace('}}}', '}}')
-
-        # Reduce quadruple opening braces: {{{{ → {{
-        text = text.replace('{{{{', '{{')
-        # Reduce quadruple closing braces: }}}} → }}
-        text = text.replace('}}}}', '}}')
-
-        # Check for convergence
-        if text == prev_text:
-            break
-        iteration += 1
-
-    if iteration >= max_iterations:
-        print(f"[WARNING] Sanitization exceeded max iterations ({max_iterations})")
+    # 2. DO NOT reduce escaped braces - they are intentional for .format() compatibility
+    # REMOVED: The brace reduction logic (lines 94-110) was destroying proper escaping
+    #
+    # Quadruple braces {{{{text}}}} are INTENTIONAL - they become {{text}} after .format()
+    # Triple braces {{{text}}} might be intentional for certain use cases
+    #
+    # Only GitHub Actions syntax should be sanitized (handled above)
+    # All other braces should be preserved as-is for downstream escaping logic
 
     # Count braces after sanitization
     open_count_after = text.count('{')
