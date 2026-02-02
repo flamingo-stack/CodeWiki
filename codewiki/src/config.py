@@ -41,7 +41,6 @@ def is_cli_context() -> bool:
 MAIN_MODEL = os.getenv('MAIN_MODEL', 'claude-sonnet-4')
 CLUSTER_MODEL = os.getenv('CLUSTER_MODEL', MAIN_MODEL)
 LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://0.0.0.0:4000/')
-LLM_API_KEY = os.getenv('LLM_API_KEY', 'sk-1234')
 
 @dataclass
 class Config:
@@ -167,10 +166,27 @@ class Config:
         if not fallback_model:
             raise ValueError("FALLBACK_MODEL environment variable is required")
 
-        # Get per-provider API keys from environment
-        cluster_api_key = os.getenv('CLUSTER_API_KEY') or LLM_API_KEY
-        main_api_key = os.getenv('MAIN_API_KEY') or LLM_API_KEY
-        fallback_api_key = os.getenv('FALLBACK_API_KEY') or LLM_API_KEY
+        # Get per-provider API keys from environment (REQUIRED)
+        cluster_api_key = os.getenv('CLUSTER_API_KEY')
+        main_api_key = os.getenv('MAIN_API_KEY')
+        fallback_api_key = os.getenv('FALLBACK_API_KEY')
+
+        # Validate all per-provider API keys are set
+        if not cluster_api_key:
+            raise ValueError(
+                "CLUSTER_API_KEY environment variable is required.\n"
+                "Set it to your cluster provider API key (OpenAI, Anthropic, etc.)"
+            )
+        if not main_api_key:
+            raise ValueError(
+                "MAIN_API_KEY environment variable is required.\n"
+                "Set it to your main/generation provider API key (OpenAI, Anthropic, etc.)"
+            )
+        if not fallback_api_key:
+            raise ValueError(
+                "FALLBACK_API_KEY environment variable is required.\n"
+                "Set it to your fallback provider API key (OpenAI, Anthropic, etc.)"
+            )
 
         return cls(
             repo_path=args.repo_path,
