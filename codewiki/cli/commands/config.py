@@ -706,7 +706,9 @@ def config_show(output_json: bool):
                 "main_api_key": mask_api_key(main_api_key) if main_api_key else "Not set",
                 "fallback_api_key": mask_api_key(fallback_api_key) if fallback_api_key else "Not set",
                 "api_key_storage": "keychain" if manager.keyring_available else "encrypted_file",
-                "base_url": config.base_url if config else "",
+                "cluster_base_url": config.cluster_base_url if config else "",
+                "main_base_url": config.main_base_url if config else "",
+                "fallback_base_url": config.fallback_base_url if config else "",
                 "main_model": config.main_model if config else "",
                 "cluster_model": config.cluster_model if config else "",
                 "fallback_model": config.fallback_model if config else "glm-4p5",
@@ -755,10 +757,12 @@ def config_show(output_json: bool):
             click.echo()
             click.secho("API Settings", fg="cyan", bold=True)
             if config:
-                click.echo(f"  Base URL:         {config.base_url or 'Not set'}")
-                click.echo(f"  Main Model:       {config.main_model or 'Not set'}")
-                click.echo(f"  Cluster Model:    {config.cluster_model or 'Not set'}")
-                click.echo(f"  Fallback Model:   {config.fallback_model or 'Not set'}")
+                click.echo(f"  Cluster Base URL:  {config.cluster_base_url or 'Not set'}")
+                click.echo(f"  Main Base URL:     {config.main_base_url or 'Not set'}")
+                click.echo(f"  Fallback Base URL: {config.fallback_base_url or 'Not set'}")
+                click.echo(f"  Main Model:        {config.main_model or 'Not set'}")
+                click.echo(f"  Cluster Model:     {config.cluster_model or 'Not set'}")
+                click.echo(f"  Fallback Model:    {config.fallback_model or 'Not set'}")
             else:
                 click.secho("  Not configured", fg="yellow")
             
@@ -909,26 +913,57 @@ def config_validate(quick: bool, verbose: bool):
         else:
             click.secho("✓ All API keys present (stored in keychain)", fg="green")
         
-        # Step 3: Check base URL
+        # Step 3: Check base URLs
         config = manager.get_config()
         if verbose:
             click.echo()
-            click.echo("[3/5] Checking base URL...")
-            click.echo(f"      URL: {config.base_url}")
-        
-        if not config.base_url:
-            click.secho("✗ Base URL not set", fg="red")
+            click.echo("[3/5] Checking base URLs...")
+            click.echo(f"      Cluster URL: {config.cluster_base_url}")
+            click.echo(f"      Main URL: {config.main_base_url}")
+            click.echo(f"      Fallback URL: {config.fallback_base_url}")
+
+        # Validate each per-provider base URL
+        url_errors = []
+
+        if not config.cluster_base_url:
+            url_errors.append("Cluster base URL not set")
+        else:
+            try:
+                validate_url(config.cluster_base_url)
+                if verbose:
+                    click.secho("      ✓ Cluster URL valid", fg="green")
+            except ConfigurationError as e:
+                url_errors.append(f"Invalid cluster base URL: {e.message}")
+
+        if not config.main_base_url:
+            url_errors.append("Main base URL not set")
+        else:
+            try:
+                validate_url(config.main_base_url)
+                if verbose:
+                    click.secho("      ✓ Main URL valid", fg="green")
+            except ConfigurationError as e:
+                url_errors.append(f"Invalid main base URL: {e.message}")
+
+        if not config.fallback_base_url:
+            url_errors.append("Fallback base URL not set")
+        else:
+            try:
+                validate_url(config.fallback_base_url)
+                if verbose:
+                    click.secho("      ✓ Fallback URL valid", fg="green")
+            except ConfigurationError as e:
+                url_errors.append(f"Invalid fallback base URL: {e.message}")
+
+        if url_errors:
+            for error in url_errors:
+                click.secho(f"✗ {error}", fg="red")
             sys.exit(EXIT_CONFIG_ERROR)
-        
-        try:
-            validate_url(config.base_url)
-            if verbose:
-                click.secho("      ✓ Valid HTTPS URL", fg="green")
-            else:
-                click.secho(f"✓ Base URL valid: {config.base_url}", fg="green")
-        except ConfigurationError as e:
-            click.secho(f"✗ Invalid base URL: {e.message}", fg="red")
-            sys.exit(EXIT_CONFIG_ERROR)
+
+        if not verbose:
+            click.secho(f"✓ Cluster base URL valid: {config.cluster_base_url}", fg="green")
+            click.secho(f"✓ Main base URL valid: {config.main_base_url}", fg="green")
+            click.secho(f"✓ Fallback base URL valid: {config.fallback_base_url}", fg="green")
         
         # Step 4: Check models
         if verbose:
@@ -958,44 +993,110 @@ def config_validate(quick: bool, verbose: bool):
         
         # Step 5: API connectivity test (unless --quick)
         if not quick:
-            try:
-                base_url_lower = config.base_url.lower()
+            if verbose:
+                click.echo()
+                click.echo("[5/5] Testing API connectivity for all providers...")
 
-                # Determine provider from base URL
-                if "anthropic.com" in base_url_lower:
-                    # Anthropic API - use Anthropic client
-                    if verbose:
-                        click.echo("[5/5] Testing Anthropic API connectivity...")
+            connectivity_errors = []
+
+            # Test cluster provider
+            try:
+                cluster_url_lower = config.cluster_base_url.lower()
+                if verbose:
+                    click.echo(f"      Testing cluster provider ({config.cluster_base_url})...")
+
+                if "anthropic.com" in cluster_url_lower:
                     from anthropic import Anthropic
-                    client = Anthropic(api_key=api_key)
-                    # Make a minimal messages call to verify API key
+                    client = Anthropic(api_key=cluster_api_key)
+                    response = client.messages.create(
+                        model=config.cluster_model,
+                        max_tokens=1,
+                        messages=[{"role": "user", "content": "test"}]
+                    )
+                elif "openai.com" in cluster_url_lower or "api.openai" in cluster_url_lower:
+                    from openai import OpenAI
+                    client = OpenAI(api_key=cluster_api_key, base_url=config.cluster_base_url)
+                    response = client.models.list()
+                else:
+                    from openai import OpenAI
+                    client = OpenAI(api_key=cluster_api_key, base_url=config.cluster_base_url)
+                    response = client.models.list()
+
+                if verbose:
+                    click.secho("      ✓ Cluster provider connectivity OK", fg="green")
+            except Exception as e:
+                connectivity_errors.append(f"Cluster provider: {e}")
+                if verbose:
+                    click.secho(f"      ✗ Cluster provider failed: {e}", fg="red")
+
+            # Test main provider
+            try:
+                main_url_lower = config.main_base_url.lower()
+                if verbose:
+                    click.echo(f"      Testing main provider ({config.main_base_url})...")
+
+                if "anthropic.com" in main_url_lower:
+                    from anthropic import Anthropic
+                    client = Anthropic(api_key=main_api_key)
                     response = client.messages.create(
                         model=config.main_model,
                         max_tokens=1,
                         messages=[{"role": "user", "content": "test"}]
                     )
-                elif "openai.com" in base_url_lower or "api.openai" in base_url_lower:
-                    # OpenAI API - use OpenAI client
-                    if verbose:
-                        click.echo("[5/5] Testing OpenAI API connectivity...")
+                elif "openai.com" in main_url_lower or "api.openai" in main_url_lower:
                     from openai import OpenAI
-                    client = OpenAI(api_key=api_key, base_url=config.base_url)
+                    client = OpenAI(api_key=main_api_key, base_url=config.main_base_url)
                     response = client.models.list()
                 else:
-                    # Generic OpenAI-compatible API (LiteLLM, vLLM, etc.)
-                    if verbose:
-                        click.echo("[5/5] Testing OpenAI-compatible API connectivity...")
                     from openai import OpenAI
-                    client = OpenAI(api_key=api_key, base_url=config.base_url)
+                    client = OpenAI(api_key=main_api_key, base_url=config.main_base_url)
                     response = client.models.list()
 
-                click.secho("✓ API connectivity test successful", fg="green")
-            except Exception as e:
                 if verbose:
-                    click.secho(f"✗ API connectivity test failed: {e}", fg="red")
+                    click.secho("      ✓ Main provider connectivity OK", fg="green")
+            except Exception as e:
+                connectivity_errors.append(f"Main provider: {e}")
+                if verbose:
+                    click.secho(f"      ✗ Main provider failed: {e}", fg="red")
+
+            # Test fallback provider
+            try:
+                fallback_url_lower = config.fallback_base_url.lower()
+                if verbose:
+                    click.echo(f"      Testing fallback provider ({config.fallback_base_url})...")
+
+                if "anthropic.com" in fallback_url_lower:
+                    from anthropic import Anthropic
+                    client = Anthropic(api_key=fallback_api_key)
+                    response = client.messages.create(
+                        model=config.fallback_model,
+                        max_tokens=1,
+                        messages=[{"role": "user", "content": "test"}]
+                    )
+                elif "openai.com" in fallback_url_lower or "api.openai" in fallback_url_lower:
+                    from openai import OpenAI
+                    client = OpenAI(api_key=fallback_api_key, base_url=config.fallback_base_url)
+                    response = client.models.list()
                 else:
-                    click.secho("✗ API connectivity test failed", fg="red")
+                    from openai import OpenAI
+                    client = OpenAI(api_key=fallback_api_key, base_url=config.fallback_base_url)
+                    response = client.models.list()
+
+                if verbose:
+                    click.secho("      ✓ Fallback provider connectivity OK", fg="green")
+            except Exception as e:
+                connectivity_errors.append(f"Fallback provider: {e}")
+                if verbose:
+                    click.secho(f"      ✗ Fallback provider failed: {e}", fg="red")
+
+            if connectivity_errors:
+                click.echo()
+                for error in connectivity_errors:
+                    click.secho(f"✗ API connectivity test failed - {error}", fg="red")
                 sys.exit(EXIT_CONFIG_ERROR)
+
+            if not verbose:
+                click.secho("✓ API connectivity test successful for all providers", fg="green")
         
         # Success
         click.echo()

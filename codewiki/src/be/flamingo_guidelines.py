@@ -54,61 +54,44 @@ def load_flamingo_guidelines() -> str:
 FLAMINGO_MARKDOWN_GUIDELINES = load_flamingo_guidelines()
 
 
-def sanitize_and_escape_format_braces(text: str) -> str:
+def sanitize_problematic_patterns(text: str) -> str:
     """
-    Sanitize problematic patterns and escape curly braces for use with Python's str.format().
+    Sanitize problematic patterns WITHOUT escaping for .format().
 
-    This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
-    that would be interpreted as format placeholders.
-
-    Sanitization (performed BEFORE escaping):
+    This function handles patterns that cause issues in prompts and shell processing:
     1. GitHub Actions syntax: ${{...}} → ${...}
     2. Triple braces: {{{...}}} → {{...}}
     3. Quadruple+ braces: Iteratively reduced to double braces
 
-    CRITICAL: Content goes through ONE formatting operation:
-    - F-string substitution does NOT process braces in variables (f"{var}" → var as-is)
-    - Only .format() call processes braces: {{ → {
-    Therefore we need DOUBLE (2x) braces to produce literal braces in final output.
-
-    Flow:
-    - Original: {0}
-    - After sanitization: {0} (no change for simple placeholders)
-    - After escape: {{0}}  (2 braces each side)
-    - After f-string in SYSTEM_PROMPT: {{0}}  (no change - braces in substituted text not processed)
-    - After .format(): {0}  (literal in output)
+    This is the ENTRY POINT for all text sanitization. Call this when loading
+    text from external sources (environment variables, files, etc.).
 
     Args:
-        text: Raw text that may contain curly braces
+        text: Raw text that may contain problematic patterns
 
     Returns:
-        Sanitized text with curly braces doubled (2 braces each)
+        Sanitized text with problematic patterns normalized
     """
     import re
 
-    # DEBUG: Print before and after to verify function is called
-    print(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
+    print(f"[DEBUG] sanitize_problematic_patterns called - input length: {len(text)}")
 
     # Count braces before sanitization
     open_count_before = text.count('{')
     close_count_before = text.count('}')
-    print(f"[DEBUG]   BEFORE SANITIZATION: {{ count={open_count_before}, }} count={close_count_before}")
+    print(f"[DEBUG]   BEFORE: {{ count={open_count_before}, }} count={close_count_before}")
 
-    # STEP 1: SANITIZATION (before escaping)
-    # This ensures problematic patterns are normalized before we double braces
-
-    # 1a. GitHub Actions syntax: ${{...}} → ${...}
+    # 1. GitHub Actions syntax: ${{...}} → ${...}
     # Use iterative approach for robustness with nested braces
     max_github_iterations = 10
     for _ in range(max_github_iterations):
         prev = text
         # Match ${{ followed by anything, then }}
-        # Simple greedy approach that handles most cases
         text = re.sub(r'\$\{\{(.*?)\}\}', r'${\1}', text)
         if text == prev:
             break
 
-    # 1b. Iteratively reduce excessive braces (handles all nesting levels)
+    # 2. Iteratively reduce excessive braces (handles all nesting levels)
     # This handles: {{{...}}} → {{...}}, {{{{...}}}} → {{...}}, etc.
     # Algorithm: Keep reducing 3+ consecutive braces to 2 until stable
     max_iterations = 100  # Prevent infinite loops
@@ -135,9 +118,47 @@ def sanitize_and_escape_format_braces(text: str) -> str:
         print(f"[WARNING] Sanitization exceeded max iterations ({max_iterations})")
 
     # Count braces after sanitization
-    open_count_sanitized = text.count('{')
-    close_count_sanitized = text.count('}')
-    print(f"[DEBUG]   AFTER SANITIZATION: {{ count={open_count_sanitized}, }} count={close_count_sanitized}")
+    open_count_after = text.count('{')
+    close_count_after = text.count('}')
+    print(f"[DEBUG]   AFTER: {{ count={open_count_after}, }} count={close_count_after}")
+    print(f"[DEBUG]   Sample (first 200 chars): {text[:200]}")
+
+    return text
+
+
+def sanitize_and_escape_format_braces(text: str) -> str:
+    """
+    Sanitize problematic patterns and escape curly braces for use with Python's str.format().
+
+    This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
+    that would be interpreted as format placeholders.
+
+    IMPORTANT: This function assumes input has already been sanitized via
+    sanitize_problematic_patterns(). If called on raw input, it will sanitize first.
+
+    CRITICAL: Content goes through ONE formatting operation:
+    - F-string substitution does NOT process braces in variables (f"{var}" → var as-is)
+    - Only .format() call processes braces: {{ → {
+    Therefore we need DOUBLE (2x) braces to produce literal braces in final output.
+
+    Flow:
+    - Original: {0}
+    - After sanitization: {0} (no change for simple placeholders)
+    - After escape: {{0}}  (2 braces each side)
+    - After f-string in SYSTEM_PROMPT: {{0}}  (no change - braces in substituted text not processed)
+    - After .format(): {0}  (literal in output)
+
+    Args:
+        text: Text that may contain curly braces (preferably pre-sanitized)
+
+    Returns:
+        Sanitized text with curly braces doubled (2 braces each)
+    """
+    print(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
+
+    # STEP 1: SANITIZATION (if not already done)
+    # This ensures problematic patterns are normalized before we double braces
+    text = sanitize_problematic_patterns(text)
 
     # STEP 2: ESCAPE (double all braces for .format())
     # F-string does NOT process braces in substituted variables
@@ -207,11 +228,20 @@ def load_custom_instructions() -> str:
     """
     Load repository-specific custom instructions from environment variable.
 
+    CRITICAL: Sanitizes ALL problematic patterns on input:
+    - GitHub Actions syntax: ${{...}} → ${...}
+    - Triple braces: {{{...}}} → {{...}}
+    - Quadruple+ braces: Iteratively reduced to double braces
+
+    This ensures that raw text from the environment is safe before being
+    used in prompts. Shell scripts should pass raw text without any
+    preprocessing - ALL sanitization happens here in Python.
+
     Environment Variable:
         CUSTOM_REPO_INSTRUCTIONS: Custom instructions text (passed directly, not a file path)
 
     Returns:
-        Custom instructions content string, or empty string if not available.
+        Sanitized custom instructions content string, or empty string if not available.
     """
     custom_instructions = os.environ.get(CUSTOM_INSTRUCTIONS_ENV_VAR, "")
 
@@ -220,7 +250,14 @@ def load_custom_instructions() -> str:
         return ""
 
     print(f"[CodeWiki] Loaded custom repo instructions ({len(custom_instructions)} chars)")
-    return custom_instructions
+
+    # CRITICAL: Sanitize on input - this is the ONLY place text sanitization should happen
+    # Shell scripts pass raw text, and we handle all sanitization here in Python
+    # This prevents double-sanitization and ensures consistent behavior
+    sanitized = sanitize_problematic_patterns(custom_instructions)
+    print(f"[CodeWiki] Sanitized custom instructions ({len(sanitized)} chars after sanitization)")
+
+    return sanitized
 
 
 # Load custom instructions at module import time
@@ -249,8 +286,10 @@ def get_custom_instructions_section() -> str:
     if not CUSTOM_REPO_INSTRUCTIONS:
         return ""
 
-    # Escape curly braces to prevent KeyError in .format() calls
-    escaped_instructions = escape_format_braces(CUSTOM_REPO_INSTRUCTIONS)
+    # CUSTOM_REPO_INSTRUCTIONS is already sanitized during load via sanitize_problematic_patterns()
+    # Here we only need to escape curly braces for .format() calls
+    # We double all braces so that .format() converts them back to single braces
+    escaped_instructions = CUSTOM_REPO_INSTRUCTIONS.replace("{", "{{").replace("}", "}}")
 
     # Use string concatenation (no f-string needed here)
     # Escaped braces will be processed only once by .format() in prompt_template.py
