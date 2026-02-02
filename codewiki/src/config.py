@@ -282,6 +282,23 @@ class Config:
         """
         # === VALIDATION BLOCK START ===
 
+        # 0. API KEY VALIDATION - CRITICAL: All API keys are required
+        if not cluster_api_key or (isinstance(cluster_api_key, str) and cluster_api_key.strip() == ''):
+            raise ValueError(
+                "cluster_api_key is required for clustering operations.\n"
+                "Provide a valid API key for your cluster provider (OpenAI, Anthropic, etc.)"
+            )
+        if not main_api_key or (isinstance(main_api_key, str) and main_api_key.strip() == ''):
+            raise ValueError(
+                "main_api_key is required for main/generation model operations.\n"
+                "Provide a valid API key for your main provider (OpenAI, Anthropic, etc.)"
+            )
+        if not fallback_api_key or (isinstance(fallback_api_key, str) and fallback_api_key.strip() == ''):
+            raise ValueError(
+                "fallback_api_key is required for fallback model operations.\n"
+                "Provide a valid API key for your fallback provider (OpenAI, Anthropic, etc.)"
+            )
+
         # 1. Base URL validation - CRITICAL: All base URLs are required
         if not cluster_base_url or cluster_base_url.strip() == '':
             raise ValueError("cluster_base_url is required for clustering operations")
