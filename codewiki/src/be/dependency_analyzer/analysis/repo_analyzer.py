@@ -29,16 +29,118 @@ class RepoAnalyzer:
             if exclude_patterns is not None
             else list(DEFAULT_IGNORE_PATTERNS)
         )
+        # Track namespaces when analyzing multiple paths
+        self._namespace_roots: Dict[str, str] = {}  # namespace -> repo_path
 
-    def analyze_repository_structure(self, repo_dir: str) -> Dict:
-        file_tree = self._build_file_tree(repo_dir)
+    def analyze_repository_structure(self, repo_dir: Union[str, List[str]]) -> Dict:
+        """
+        Analyze repository structure for one or multiple paths.
+
+        Args:
+            repo_dir: Single repository path or list of repository paths
+
+        Returns:
+            Dictionary with file_tree and summary. For multiple paths,
+            file_tree contains a merged tree with namespace-prefixed roots.
+        """
+        if isinstance(repo_dir, str):
+            # Single path - maintain backward compatibility
+            file_tree = self._build_file_tree(repo_dir)
+            return {
+                "file_tree": file_tree,
+                "summary": {
+                    "total_files": self._count_files(file_tree),
+                    "total_size_kb": self._calculate_size(file_tree),
+                },
+            }
+        else:
+            # Multiple paths - build merged tree
+            return self._analyze_multiple_repositories(repo_dir)
+
+    def _analyze_multiple_repositories(self, repo_dirs: List[str]) -> Dict:
+        """
+        Analyze multiple repositories and merge their structures.
+
+        Args:
+            repo_dirs: List of repository paths
+
+        Returns:
+            Dictionary with merged file_tree and combined summary
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"🔍 Analyzing {len(repo_dirs)} repository paths...")
+
+        merged_children = []
+        total_files = 0
+        total_size_kb = 0.0
+
+        for idx, repo_dir in enumerate(repo_dirs, 1):
+            namespace = self._get_namespace_from_path(repo_dir)
+            self._namespace_roots[namespace] = repo_dir
+
+            logger.info(f"   ├─ [{idx}/{len(repo_dirs)}] Building file tree for: {repo_dir}")
+            logger.info(f"   │  └─ Namespace: '{namespace}'")
+
+            file_tree = self._build_file_tree(repo_dir)
+
+            if file_tree:
+                # Wrap this tree with namespace prefix
+                namespaced_tree = {
+                    "type": "directory",
+                    "name": namespace,
+                    "path": namespace,
+                    "children": file_tree.get("children", []) if file_tree["type"] == "directory" else [file_tree],
+                    "_namespace": namespace,
+                    "_original_path": repo_dir
+                }
+                merged_children.append(namespaced_tree)
+
+                # Accumulate summary stats
+                files = self._count_files(file_tree)
+                size = self._calculate_size(file_tree)
+                total_files += files
+                total_size_kb += size
+
+                logger.info(f"   │  └─ Found {files} files ({size:.2f} KB)")
+            else:
+                logger.warning(f"   │  └─ ⚠️  No files found matching patterns")
+
+        # Create root container
+        merged_tree = {
+            "type": "directory",
+            "name": "multi-repo",
+            "path": ".",
+            "children": merged_children
+        }
+
+        logger.info(f"   └─ ✓ Merged {len(repo_dirs)} repositories:")
+        logger.info(f"      ├─ Total files: {total_files}")
+        logger.info(f"      ├─ Total size: {total_size_kb:.2f} KB")
+        logger.info(f"      └─ Namespaces: {', '.join(self._namespace_roots.keys())}")
+
         return {
-            "file_tree": file_tree,
+            "file_tree": merged_tree,
             "summary": {
-                "total_files": self._count_files(file_tree),
-                "total_size_kb": self._calculate_size(file_tree),
+                "total_files": total_files,
+                "total_size_kb": total_size_kb,
+                "repositories": len(repo_dirs),
+                "namespaces": list(self._namespace_roots.keys())
             },
         }
+
+    def _get_namespace_from_path(self, repo_path: str) -> str:
+        """
+        Generate a namespace prefix from a repository path.
+
+        Args:
+            repo_path: Path to repository
+
+        Returns:
+            Namespace string (e.g., 'openframe-frontend', 'ui-kit')
+        """
+        return os.path.basename(os.path.abspath(repo_path).rstrip(os.sep))
 
     def _build_file_tree(self, repo_dir: str) -> Dict:
         def build_tree(path: Path, base_path: Path) -> Optional[Dict]:
