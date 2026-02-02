@@ -344,24 +344,41 @@ class Configuration:
             self.fallback_model
         )
     
-    def to_backend_config(self, repo_path: str, output_dir: str, api_key: str, runtime_instructions: AgentInstructions = None):
+    def to_backend_config(self, repo_path: str, output_dir: str, cluster_api_key: str = None, main_api_key: str = None, fallback_api_key: str = None, runtime_instructions: AgentInstructions = None):
         """
         Convert CLI Configuration to Backend Config.
-        
+
         This method bridges the gap between persistent user settings (CLI Configuration)
         and runtime job configuration (Backend Config).
-        
+
         Args:
             repo_path: Path to the repository to document
             output_dir: Output directory for generated documentation
-            api_key: LLM API key (from keyring)
+            cluster_api_key: Optional cluster model API key (if not provided, fetched from keyring)
+            main_api_key: Optional main model API key (if not provided, fetched from keyring)
+            fallback_api_key: Optional fallback model API key (if not provided, fetched from keyring)
             runtime_instructions: Runtime agent instructions (override persistent settings)
-            
+
         Returns:
             Backend Config instance ready for documentation generation
+            
+        Note:
+            If API keys are not provided as arguments, they will be fetched from the system keyring
+            using the ConfigManager.
         """
         from codewiki.src.config import Config
-        
+
+        # Fetch API keys from keyring if not provided
+        if cluster_api_key is None or main_api_key is None or fallback_api_key is None:
+            from codewiki.cli.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            if cluster_api_key is None:
+                cluster_api_key = config_manager.get_cluster_api_key()
+            if main_api_key is None:
+                main_api_key = config_manager.get_main_api_key()
+            if fallback_api_key is None:
+                fallback_api_key = config_manager.get_fallback_api_key()
+
         # Merge runtime instructions with persistent settings
         # Runtime instructions take precedence
         final_instructions = self.agent_instructions
@@ -373,14 +390,16 @@ class Configuration:
                 doc_type=runtime_instructions.doc_type or self.agent_instructions.doc_type,
                 custom_instructions=runtime_instructions.custom_instructions or self.agent_instructions.custom_instructions,
             )
-        
+
         return Config.from_cli(
             repo_path=repo_path,
             output_dir=output_dir,
-            llm_api_key=api_key,
             main_model=self.main_model,
             cluster_model=self.cluster_model,
             fallback_model=self.fallback_model,
+            cluster_api_key=cluster_api_key,
+            main_api_key=main_api_key,
+            fallback_api_key=fallback_api_key,
             cluster_base_url=self.cluster_base_url,
             main_base_url=self.main_base_url,
             fallback_base_url=self.fallback_base_url,

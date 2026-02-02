@@ -695,12 +695,16 @@ def config_show(output_json: bool):
             sys.exit(EXIT_CONFIG_ERROR)
         
         config = manager.get_config()
-        api_key = manager.get_api_key()
-        
+        cluster_api_key = manager.get_cluster_api_key()
+        main_api_key = manager.get_main_api_key()
+        fallback_api_key = manager.get_fallback_api_key()
+
         if output_json:
             # JSON output
             output = {
-                "api_key": mask_api_key(api_key) if api_key else "Not set",
+                "cluster_api_key": mask_api_key(cluster_api_key) if cluster_api_key else "Not set",
+                "main_api_key": mask_api_key(main_api_key) if main_api_key else "Not set",
+                "fallback_api_key": mask_api_key(fallback_api_key) if fallback_api_key else "Not set",
                 "api_key_storage": "keychain" if manager.keyring_available else "encrypted_file",
                 "base_url": config.base_url if config else "",
                 "main_model": config.main_model if config else "",
@@ -729,13 +733,24 @@ def config_show(output_json: bool):
             click.secho("CodeWiki Configuration", fg="blue", bold=True)
             click.echo("━" * 40)
             click.echo()
-            
+
             click.secho("Credentials", fg="cyan", bold=True)
-            if api_key:
-                storage = "system keychain" if manager.keyring_available else "encrypted file"
-                click.echo(f"  API Key:          {mask_api_key(api_key)} (in {storage})")
+            storage = "system keychain" if manager.keyring_available else "encrypted file"
+
+            if cluster_api_key:
+                click.echo(f"  Cluster API Key:  {mask_api_key(cluster_api_key)} (in {storage})")
             else:
-                click.secho("  API Key:          Not set", fg="yellow")
+                click.secho("  Cluster API Key:  Not set", fg="yellow")
+
+            if main_api_key:
+                click.echo(f"  Main API Key:     {mask_api_key(main_api_key)} (in {storage})")
+            else:
+                click.secho("  Main API Key:     Not set", fg="yellow")
+
+            if fallback_api_key:
+                click.echo(f"  Fallback API Key: {mask_api_key(fallback_api_key)} (in {storage})")
+            else:
+                click.secho("  Fallback API Key: Not set", fg="yellow")
             
             click.echo()
             click.secho("API Settings", fg="cyan", bold=True)
@@ -858,25 +873,41 @@ def config_validate(quick: bool, verbose: bool):
         else:
             click.secho("✓ Configuration file exists", fg="green")
         
-        # Step 2: Check API key
+        # Step 2: Check API keys
         if verbose:
             click.echo()
-            click.echo("[2/5] Checking API key...")
+            click.echo("[2/5] Checking API keys...")
             storage = "system keychain" if manager.keyring_available else "encrypted file"
             click.echo(f"      Storage: {storage}")
-        
-        api_key = manager.get_api_key()
-        if not api_key:
-            click.secho("✗ API key missing", fg="red")
+
+        cluster_api_key = manager.get_cluster_api_key()
+        main_api_key = manager.get_main_api_key()
+        fallback_api_key = manager.get_fallback_api_key()
+
+        if not cluster_api_key:
+            click.secho("✗ Cluster API key missing", fg="red")
             click.echo()
-            click.echo("Error: API key not set. Run 'codewiki config set --api-key <key>'")
+            click.echo("Error: Cluster API key not set. Run 'codewiki config set --cluster-api-key <key>'")
             sys.exit(EXIT_CONFIG_ERROR)
-        
+
+        if not main_api_key:
+            click.secho("✗ Main API key missing", fg="red")
+            click.echo()
+            click.echo("Error: Main API key not set. Run 'codewiki config set --main-api-key <key>'")
+            sys.exit(EXIT_CONFIG_ERROR)
+
+        if not fallback_api_key:
+            click.secho("✗ Fallback API key missing", fg="red")
+            click.echo()
+            click.echo("Error: Fallback API key not set. Run 'codewiki config set --fallback-api-key <key>'")
+            sys.exit(EXIT_CONFIG_ERROR)
+
         if verbose:
-            click.secho(f"      ✓ API key retrieved", fg="green")
-            click.secho(f"      ✓ Length: {len(api_key)} characters", fg="green")
+            click.secho(f"      ✓ Cluster API key retrieved ({len(cluster_api_key)} characters)", fg="green")
+            click.secho(f"      ✓ Main API key retrieved ({len(main_api_key)} characters)", fg="green")
+            click.secho(f"      ✓ Fallback API key retrieved ({len(fallback_api_key)} characters)", fg="green")
         else:
-            click.secho("✓ API key present (stored in keychain)", fg="green")
+            click.secho("✓ All API keys present (stored in keychain)", fg="green")
         
         # Step 3: Check base URL
         config = manager.get_config()

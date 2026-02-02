@@ -52,14 +52,13 @@ class Config:
     docs_dir: str
     max_depth: int
     # LLM configuration
-    llm_api_key: str  # Shared API key (fallback/backward compatibility)
     main_model: str
     cluster_model: str
     fallback_model: str
-    # Per-provider API keys (optional - fallback to llm_api_key if not set)
-    cluster_api_key: Optional[str] = None
-    main_api_key: Optional[str] = None
-    fallback_api_key: Optional[str] = None
+    # Per-provider API keys (required)
+    cluster_api_key: str
+    main_api_key: str
+    fallback_api_key: str
     # Per-provider base URLs
     cluster_base_url: Optional[str] = None
     main_base_url: Optional[str] = None
@@ -168,16 +167,23 @@ class Config:
         if not fallback_model:
             raise ValueError("FALLBACK_MODEL environment variable is required")
 
+        # Get per-provider API keys from environment
+        cluster_api_key = os.getenv('CLUSTER_API_KEY') or LLM_API_KEY
+        main_api_key = os.getenv('MAIN_API_KEY') or LLM_API_KEY
+        fallback_api_key = os.getenv('FALLBACK_API_KEY') or LLM_API_KEY
+
         return cls(
             repo_path=args.repo_path,
             output_dir=OUTPUT_BASE_DIR,
             dependency_graph_dir=os.path.join(OUTPUT_BASE_DIR, DEPENDENCY_GRAPHS_DIR),
             docs_dir=os.path.join(OUTPUT_BASE_DIR, DOCS_DIR, f"{sanitized_repo_name}-docs"),
             max_depth=MAX_DEPTH,
-            llm_api_key=LLM_API_KEY,
             main_model=MAIN_MODEL,
             cluster_model=CLUSTER_MODEL,
             fallback_model=fallback_model,
+            cluster_api_key=cluster_api_key,
+            main_api_key=main_api_key,
+            fallback_api_key=fallback_api_key,
             # Per-provider base URLs default to LLM_BASE_URL from environment
             cluster_base_url=LLM_BASE_URL,
             main_base_url=LLM_BASE_URL,
@@ -189,16 +195,15 @@ class Config:
         cls,
         repo_path: str,
         output_dir: str,
-        llm_api_key: str,
         main_model: str,
         cluster_model: str,
         fallback_model: str,
+        cluster_api_key: str,
+        main_api_key: str,
+        fallback_api_key: str,
         cluster_base_url: Optional[str] = None,
         main_base_url: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
-        cluster_api_key: Optional[str] = None,
-        main_api_key: Optional[str] = None,
-        fallback_api_key: Optional[str] = None,
         cluster_api_version: Optional[str] = None,
         main_api_version: Optional[str] = None,
         fallback_api_version: Optional[str] = None,
@@ -226,16 +231,15 @@ class Config:
         Args:
             repo_path: Repository path
             output_dir: Output directory for generated docs
-            llm_api_key: LLM API key
             main_model: Primary model
             cluster_model: Clustering model
             fallback_model: Fallback model
+            cluster_api_key: Cluster model API key (required)
+            main_api_key: Main model API key (required)
+            fallback_api_key: Fallback model API key (required)
             cluster_base_url: Cluster model API base URL
             main_base_url: Main model API base URL
             fallback_base_url: Fallback model API base URL
-            cluster_api_key: Cluster model API key (optional, falls back to llm_api_key)
-            main_api_key: Main model API key (optional, falls back to llm_api_key)
-            fallback_api_key: Fallback model API key (optional, falls back to llm_api_key)
             cluster_api_version: Cluster model API version
             main_api_version: Main model API version
             fallback_api_version: Fallback model API version
@@ -416,16 +420,15 @@ class Config:
             dependency_graph_dir=os.path.join(base_output_dir, DEPENDENCY_GRAPHS_DIR),
             docs_dir=output_dir,
             max_depth=max_depth,
-            llm_api_key=llm_api_key,
             main_model=main_model,
             cluster_model=cluster_model,
             fallback_model=fallback_model,
-            cluster_base_url=cluster_base_url,
-            main_base_url=main_base_url,
-            fallback_base_url=fallback_base_url,
             cluster_api_key=cluster_api_key,
             main_api_key=main_api_key,
             fallback_api_key=fallback_api_key,
+            cluster_base_url=cluster_base_url,
+            main_base_url=main_base_url,
+            fallback_base_url=fallback_base_url,
             cluster_api_version=cluster_api_version,
             main_api_version=main_api_version,
             fallback_api_version=fallback_api_version,
@@ -445,4 +448,88 @@ class Config:
             fallback_max_token_field=fallback_max_token_field,
             agent_instructions=agent_instructions,
             diagrams_dir=diagrams_dir
+        )
+
+    @classmethod
+    def from_config_manager(
+        cls,
+        manager: 'ConfigManager',
+        repo_path: str,
+        output_dir: str
+    ) -> 'Config':
+        """
+        Create configuration from ConfigManager.
+
+        Args:
+            manager: ConfigManager instance with loaded configuration
+            repo_path: Repository path
+            output_dir: Output directory for generated docs
+
+        Returns:
+            Config instance
+
+        Raises:
+            ValueError: If required configuration is missing
+        """
+        from codewiki.cli.config_manager import ConfigManager
+
+        # Get configuration object
+        config_obj = manager.get_config()
+        if config_obj is None:
+            raise ValueError("ConfigManager has no configuration loaded")
+
+        # Get per-provider API keys (required)
+        cluster_api_key = manager.get_cluster_api_key()
+        main_api_key = manager.get_main_api_key()
+        fallback_api_key = manager.get_fallback_api_key()
+
+        # Validate all API keys are present
+        if not cluster_api_key:
+            raise ValueError("cluster_api_key is required. Run 'codewiki config set --cluster-api-key <key>'")
+        if not main_api_key:
+            raise ValueError("main_api_key is required. Run 'codewiki config set --main-api-key <key>'")
+        if not fallback_api_key:
+            raise ValueError("fallback_api_key is required. Run 'codewiki config set --fallback-api-key <key>'")
+
+        # Validate required models are set
+        if not config_obj.main_model:
+            raise ValueError("main_model is not configured")
+        if not config_obj.cluster_model:
+            raise ValueError("cluster_model is not configured")
+        if not config_obj.fallback_model:
+            raise ValueError("fallback_model is not configured")
+
+        # Use from_cli with all configuration from ConfigManager
+        return cls.from_cli(
+            repo_path=repo_path,
+            output_dir=output_dir,
+            main_model=config_obj.main_model,
+            cluster_model=config_obj.cluster_model,
+            fallback_model=config_obj.fallback_model,
+            cluster_api_key=cluster_api_key,
+            main_api_key=main_api_key,
+            fallback_api_key=fallback_api_key,
+            cluster_base_url=config_obj.cluster_base_url,
+            main_base_url=config_obj.main_base_url,
+            fallback_base_url=config_obj.fallback_base_url,
+            cluster_api_version=config_obj.cluster_api_version,
+            main_api_version=config_obj.main_api_version,
+            fallback_api_version=config_obj.fallback_api_version,
+            cluster_max_tokens=config_obj.cluster_max_tokens,
+            main_max_tokens=config_obj.main_max_tokens,
+            fallback_max_tokens=config_obj.fallback_max_tokens,
+            max_token_per_module=config_obj.max_token_per_module,
+            max_token_per_leaf_module=config_obj.max_token_per_leaf_module,
+            max_depth=config_obj.max_depth,
+            cluster_temperature=config_obj.cluster_temperature,
+            main_temperature=config_obj.main_temperature,
+            fallback_temperature=config_obj.fallback_temperature,
+            cluster_temperature_supported=config_obj.cluster_temperature_supported,
+            main_temperature_supported=config_obj.main_temperature_supported,
+            fallback_temperature_supported=config_obj.fallback_temperature_supported,
+            cluster_max_token_field=config_obj.cluster_max_token_field,
+            main_max_token_field=config_obj.main_max_token_field,
+            fallback_max_token_field=config_obj.fallback_max_token_field,
+            agent_instructions=config_obj.agent_instructions.to_dict() if config_obj.agent_instructions else None,
+            diagrams_dir=None
         )

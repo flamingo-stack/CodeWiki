@@ -230,10 +230,9 @@ def generate_command(
             raise ConfigurationError(
                 "Configuration is incomplete. Please run 'codewiki config validate'"
             )
-        
+
         config = config_manager.get_config()
-        api_key = config_manager.get_api_key()
-        
+
         logger.success("Configuration valid")
         
         # Validate repository

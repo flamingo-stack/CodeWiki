@@ -140,10 +140,13 @@ class CLIDocumentationGenerator:
             backend_config = BackendConfig.from_cli(
                 repo_path=str(self.repo_path),
                 output_dir=str(self.output_dir),
-                llm_api_key=self.config.get('api_key'),
                 main_model=self.config.get('main_model'),
                 cluster_model=self.config.get('cluster_model'),
                 fallback_model=self.config.get('fallback_model'),
+                # Per-provider API keys (required)
+                cluster_api_key=self.config.get('cluster_api_key'),
+                main_api_key=self.config.get('main_api_key'),
+                fallback_api_key=self.config.get('fallback_api_key'),
                 # Per-provider base URLs
                 cluster_base_url=self.config.get('cluster_base_url'),
                 main_base_url=self.config.get('main_base_url'),

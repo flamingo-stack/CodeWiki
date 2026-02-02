@@ -129,7 +129,7 @@ def create_main_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None
+            # default_headers removed - use http_client if needed
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -179,7 +179,7 @@ def create_fallback_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None
+            # default_headers removed - use http_client if needed
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -243,7 +243,7 @@ def create_cluster_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None
+            # default_headers removed - use http_client if needed
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -329,7 +329,7 @@ def create_openai_client(config: Config, model: str = None) -> OpenAI:
     return OpenAI(
         base_url=base_url,
         api_key=api_key,
-        default_headers=default_headers if default_headers else None
+        # default_headers removed - use http_client if needed
     )
 
 

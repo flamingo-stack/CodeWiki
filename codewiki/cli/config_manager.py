@@ -15,7 +15,6 @@ from codewiki.cli.utils.fs import ensure_directory, safe_write, safe_read
 
 # Keyring configuration
 KEYRING_SERVICE = "codewiki"
-KEYRING_API_KEY_ACCOUNT = "api_key"  # Shared API key (fallback)
 KEYRING_CLUSTER_API_KEY_ACCOUNT = "cluster_api_key"
 KEYRING_MAIN_API_KEY_ACCOUNT = "main_api_key"
 KEYRING_FALLBACK_API_KEY_ACCOUNT = "fallback_api_key"
@@ -38,7 +37,6 @@ class ConfigManager:
     
     def __init__(self):
         """Initialize the configuration manager."""
-        self._api_key: Optional[str] = None  # Shared API key (fallback)
         self._cluster_api_key: Optional[str] = None
         self._main_api_key: Optional[str] = None
         self._fallback_api_key: Optional[str] = None
@@ -299,7 +297,8 @@ class ConfigManager:
             except KeyringError:
                 pass
         return self._fallback_api_key
-    
+
+
     def get_config(self) -> Optional[Configuration]:
         """
         Get current configuration.
