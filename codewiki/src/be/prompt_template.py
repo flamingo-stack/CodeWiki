@@ -819,7 +819,14 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
         
         core_component_codes += "```\n\n"
         
-    return USER_PROMPT.format(module_name=module_name, formatted_core_component_codes=core_component_codes, module_tree=formatted_module_tree)
+    # FIXED: Use manual string replacement instead of .format()
+    # formatted_core_component_codes might contain code with curly braces (JSON, TypeScript, etc.)
+    # which .format() tries to interpret as placeholders
+    result = USER_PROMPT
+    result = result.replace('{module_name}', module_name)
+    result = result.replace('{formatted_core_component_codes}', core_component_codes)
+    result = result.replace('{module_tree}', formatted_module_tree)
+    return result
 
 
 
@@ -849,10 +856,18 @@ def format_cluster_prompt(potential_core_components: str, module_tree: dict[str,
     formatted_module_tree = "\n".join(lines)
 
 
+    # FIXED: Use manual string replacement instead of .format()
+    # potential_core_components might contain code with curly braces
     if module_tree == {}:
-        return CLUSTER_REPO_PROMPT.format(potential_core_components=potential_core_components)
+        result = CLUSTER_REPO_PROMPT
+        result = result.replace('{potential_core_components}', potential_core_components)
+        return result
     else:
-        return CLUSTER_MODULE_PROMPT.format(potential_core_components=potential_core_components, module_tree=formatted_module_tree, module_name=module_name)
+        result = CLUSTER_MODULE_PROMPT
+        result = result.replace('{potential_core_components}', potential_core_components)
+        result = result.replace('{module_tree}', formatted_module_tree)
+        result = result.replace('{module_name}', module_name)
+        return result
 
 
 def format_system_prompt(module_name: str, custom_instructions: str = None) -> str:
