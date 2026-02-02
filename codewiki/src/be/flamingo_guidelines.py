@@ -133,36 +133,63 @@ def sanitize_and_escape_format_braces(text: str) -> str:
     This prevents KeyError when guidelines contain patterns like {Decision}, {Component}
     that would be interpreted as format placeholders.
 
-    IMPORTANT: This function assumes input has already been sanitized via
-    sanitize_problematic_patterns(). If called on raw input, it will sanitize first.
+    IMPORTANT: Numeric placeholders like {0}, {1}, {2} are PRESERVED as literal text,
+    not escaped, because they appear in guidelines content and are NOT format placeholders
+    for .format() (which only receives named arguments like module_name, custom_instructions).
 
     CRITICAL: Content goes through ONE formatting operation:
     - F-string substitution does NOT process braces in variables (f"{var}" → var as-is)
     - Only .format() call processes braces: {{ → {
     Therefore we need DOUBLE (2x) braces to produce literal braces in final output.
 
-    Flow:
+    Flow for non-numeric braces:
+    - Original: {Decision}
+    - After escape: {{Decision}}  (2 braces each side)
+    - After f-string in SYSTEM_PROMPT: {{Decision}}  (no change - braces in substituted text not processed)
+    - After .format(): {Decision}  (literal in output)
+
+    Flow for numeric braces (PRESERVED):
     - Original: {0}
-    - After sanitization: {0} (no change for simple placeholders)
-    - After escape: {{0}}  (2 braces each side)
-    - After f-string in SYSTEM_PROMPT: {{0}}  (no change - braces in substituted text not processed)
-    - After .format(): {0}  (literal in output)
+    - After escape: {0}  (NO CHANGE - left as-is)
+    - After f-string in SYSTEM_PROMPT: {0}  (no change)
+    - After .format(): {0}  (literal in output - .format() doesn't try to use as positional arg)
 
     Args:
         text: Text that may contain curly braces (preferably pre-sanitized)
 
     Returns:
-        Sanitized text with curly braces doubled (2 braces each)
+        Sanitized text with curly braces doubled EXCEPT numeric placeholders like {0}, {1}
     """
+    import re
+
     print(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
 
     # STEP 1: SANITIZATION (if not already done)
-    # This ensures problematic patterns are normalized before we double braces
+    # This ensures problematic patterns are normalized before we escape braces
     text = sanitize_problematic_patterns(text)
 
-    # STEP 2: ESCAPE (double all braces for .format())
-    # F-string does NOT process braces in substituted variables
+    # STEP 2: PRESERVE NUMERIC PLACEHOLDERS
+    # Temporarily replace {0}, {1}, {2}, etc. with unique markers
+    # These are LITERAL TEXT in guidelines, not format() placeholders
+    numeric_placeholders = {}
+    def preserve_numeric(match):
+        placeholder = match.group(0)  # e.g., "{0}"
+        marker = f"__NUMERIC_PLACEHOLDER_{len(numeric_placeholders)}__"
+        numeric_placeholders[marker] = placeholder
+        return marker
+
+    # Replace all {digit} patterns with markers
+    text = re.sub(r'\{(\d+)\}', preserve_numeric, text)
+    print(f"[DEBUG]   Preserved {len(numeric_placeholders)} numeric placeholders: {list(numeric_placeholders.values())}")
+
+    # STEP 3: ESCAPE ALL REMAINING BRACES
+    # Now escape ALL braces (non-numeric content like {Decision}, {Component})
     result = text.replace("{", "{{").replace("}", "}}")
+
+    # STEP 4: RESTORE NUMERIC PLACEHOLDERS
+    # Put back the {0}, {1}, etc. as literal single braces
+    for marker, placeholder in numeric_placeholders.items():
+        result = result.replace(marker, placeholder)
 
     # Count braces after escaping
     open_count_after = result.count('{')
