@@ -5,7 +5,7 @@ from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
 from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_tool
 from codewiki.src.be.llm_services import create_fallback_models
-from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt
+from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
 from codewiki.src.be.cluster_modules import format_potential_core_components
 
@@ -61,7 +61,7 @@ async def generate_sub_module_documentation(
                 model=fallback_models,
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
-                system_prompt=SYSTEM_PROMPT.format(module_name=sub_module_name, custom_instructions=ctx.deps.custom_instructions),
+                system_prompt=format_system_prompt(sub_module_name, ctx.deps.custom_instructions),
                 tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool],
                 retries=3,
             )
@@ -70,7 +70,7 @@ async def generate_sub_module_documentation(
                 model=fallback_models,
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
-                system_prompt=LEAF_SYSTEM_PROMPT.format(module_name=sub_module_name, custom_instructions=ctx.deps.custom_instructions),
+                system_prompt=format_leaf_system_prompt(sub_module_name, ctx.deps.custom_instructions),
                 tools=[read_code_components_tool, str_replace_editor_tool],
                 retries=3,
             )

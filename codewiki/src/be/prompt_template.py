@@ -924,3 +924,43 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     result = result.replace('{module_name}', module_name)
     result = result.replace('{custom_instructions}', custom_section)
     return result.strip()
+
+
+def format_repo_overview_prompt(repo_name: str, repo_structure: str) -> str:
+    """
+    Format the repository overview prompt with repo name and structure.
+
+    Args:
+        repo_name: Name of the repository
+        repo_structure: JSON string of repository structure (contains curly braces)
+
+    Returns:
+        Formatted repository overview prompt string
+    """
+    # FIXED: Use manual string replacement instead of .format()
+    # repo_structure is JSON which contains lots of curly braces
+    # .format() would try to interpret these as placeholders
+    result = REPO_OVERVIEW_PROMPT
+    result = result.replace('{repo_name}', repo_name)
+    result = result.replace('{repo_structure}', repo_structure)
+    return result
+
+
+def format_module_overview_prompt(module_name: str, repo_structure: str) -> str:
+    """
+    Format the module overview prompt with module name and structure.
+
+    Args:
+        module_name: Name of the module
+        repo_structure: JSON string of repository structure (contains curly braces)
+
+    Returns:
+        Formatted module overview prompt string
+    """
+    # FIXED: Use manual string replacement instead of .format()
+    # repo_structure is JSON which contains lots of curly braces
+    # .format() would try to interpret these as placeholders
+    result = MODULE_OVERVIEW_PROMPT
+    result = result.replace('{module_name}', module_name)
+    result = result.replace('{repo_structure}', repo_structure)
+    return result
