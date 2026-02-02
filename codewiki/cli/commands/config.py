@@ -45,6 +45,44 @@ def parse_bool_string(ctx, param, value):
     return bool(value)
 
 
+def _validate_no_deprecated_options(ctx, param, value):
+    """
+    Callback to catch deprecated option usage and provide helpful migration message.
+
+    This prevents users from using removed single-provider options and directs them
+    to the new per-provider configuration system.
+    """
+    if value is not None:
+        # Map deprecated options to their replacements
+        deprecated_map = {
+            'base_url': '--cluster-base-url, --main-base-url, --fallback-base-url',
+            'api_path': 'Removed (no longer needed - use base URLs only)',
+            'api_version': '--cluster-api-version, --main-api-version, --fallback-api-version',
+            'max_token_field': '--cluster-max-token-field, --main-max-token-field, --fallback-max-token-field',
+            'max_tokens': '--cluster-max-tokens, --main-max-tokens, --fallback-max-tokens'
+        }
+
+        if param.name in deprecated_map:
+            replacement = deprecated_map[param.name]
+            raise click.UsageError(
+                f"\n{'='*70}\n"
+                f"ERROR: The option '--{param.name.replace('_', '-')}' is DEPRECATED and has been removed.\n\n"
+                f"CodeWiki now uses per-provider LLM configuration to support different models\n"
+                f"for clustering, main generation, and fallback.\n\n"
+                f"Use instead: {replacement}\n\n"
+                f"Example migration:\n"
+                f"  OLD: codewiki config set --base-url https://api.anthropic.com/v1 \\\n"
+                f"                           --max-tokens 128000\n\n"
+                f"  NEW: codewiki config set --cluster-base-url https://api.anthropic.com/v1 \\\n"
+                f"                           --main-base-url https://api.anthropic.com/v1 \\\n"
+                f"                           --cluster-max-tokens 128000 \\\n"
+                f"                           --main-max-tokens 128000\n\n"
+                f"See migration guide: https://github.com/flamingo-stack/CodeWiki#migration\n"
+                f"{'='*70}\n"
+            )
+    return value
+
+
 @click.group(name="config")
 def config_group():
     """Manage CodeWiki configuration (API credentials and settings)."""
@@ -52,6 +90,43 @@ def config_group():
 
 
 @config_group.command(name="set")
+# Hidden deprecated options - catch usage and show helpful error
+@click.option(
+    '--base-url',
+    hidden=True,
+    callback=_validate_no_deprecated_options,
+    expose_value=False,
+    help='DEPRECATED: Use --cluster-base-url, --main-base-url, --fallback-base-url instead'
+)
+@click.option(
+    '--api-path',
+    hidden=True,
+    callback=_validate_no_deprecated_options,
+    expose_value=False,
+    help='DEPRECATED: Removed (no longer needed)'
+)
+@click.option(
+    '--api-version',
+    hidden=True,
+    callback=_validate_no_deprecated_options,
+    expose_value=False,
+    help='DEPRECATED: Use --cluster-api-version, --main-api-version, --fallback-api-version instead'
+)
+@click.option(
+    '--max-token-field',
+    hidden=True,
+    callback=_validate_no_deprecated_options,
+    expose_value=False,
+    help='DEPRECATED: Use --cluster-max-token-field, --main-max-token-field, --fallback-max-token-field instead'
+)
+@click.option(
+    '--max-tokens',
+    hidden=True,
+    callback=_validate_no_deprecated_options,
+    expose_value=False,
+    help='DEPRECATED: Use --cluster-max-tokens, --main-max-tokens, --fallback-max-tokens instead'
+)
+# Active options
 @click.option(
     "--api-key",
     type=str,
@@ -206,36 +281,87 @@ def config_set(
 ):
     """
     Set configuration values for CodeWiki.
-    
+
     API keys are stored securely in your system keychain:
       • macOS: Keychain Access
-      • Windows: Credential Manager  
+      • Windows: Credential Manager
       • Linux: Secret Service (GNOME Keyring, KWallet)
-    
+
+    MIGRATION NOTICE:
+    CodeWiki now uses per-provider LLM configuration. If you previously used:
+      --base-url      → --cluster-base-url, --main-base-url, --fallback-base-url
+      --max-tokens    → --cluster-max-tokens, --main-max-tokens, --fallback-max-tokens
+      --api-version   → --cluster-api-version, --main-api-version, --fallback-api-version
+      --max-token-field → --cluster-max-token-field, --main-max-token-field, --fallback-max-token-field
+      --api-path      → Removed (no longer needed)
+
     Examples:
-    
+
     \b
-    # Set all configuration
-    $ codewiki config set --api-key sk-abc123 --base-url https://api.anthropic.com \\
-        --main-model claude-sonnet-4 --cluster-model claude-sonnet-4 --fallback-model glm-4p5
-    
+    # Set all configuration with per-provider URLs
+    $ codewiki config set --api-key sk-abc123 \\
+        --cluster-base-url https://api.anthropic.com/v1 \\
+        --main-base-url https://api.anthropic.com/v1 \\
+        --fallback-base-url https://api.anthropic.com/v1 \\
+        --cluster-model claude-sonnet-4 \\
+        --main-model claude-sonnet-4 \\
+        --fallback-model glm-4p5
+
     \b
     # Update only API key
     $ codewiki config set --api-key sk-new-key
-    
+
     \b
-    # Set max tokens for LLM response
-    $ codewiki config set --max-tokens 16384
-    
+    # Set per-provider max tokens
+    $ codewiki config set --cluster-max-tokens 128000 \\
+        --main-max-tokens 128000 --fallback-max-tokens 64000
+
     \b
     # Set all max token settings
-    $ codewiki config set --max-tokens 32768 --max-token-per-module 40000 --max-token-per-leaf-module 20000
-    
+    $ codewiki config set --cluster-max-tokens 128000 --main-max-tokens 128000 \\
+        --max-token-per-module 40000 --max-token-per-leaf-module 20000
+
     \b
     # Set max depth for hierarchical decomposition
     $ codewiki config set --max-depth 3
     """
     try:
+        # Check for old config file with deprecated structure
+        from pathlib import Path
+        config_path = Path.home() / '.codewiki' / 'config.json'
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    old_config = json.load(f)
+                    deprecated_fields = []
+                    if 'base_url' in old_config:
+                        deprecated_fields.append('base_url')
+                    if 'api_path' in old_config:
+                        deprecated_fields.append('api_path')
+                    if 'api_version' in old_config:
+                        deprecated_fields.append('api_version')
+                    if 'max_token_field' in old_config:
+                        deprecated_fields.append('max_token_field')
+                    if 'max_tokens' in old_config:
+                        deprecated_fields.append('max_tokens')
+
+                    if deprecated_fields:
+                        click.echo()
+                        click.secho("⚠️  WARNING: Your config file contains deprecated fields:", fg='yellow', bold=True)
+                        for field in deprecated_fields:
+                            click.secho(f"   • {field}", fg='yellow')
+                        click.echo()
+                        click.secho("   Please update to per-provider configuration.", fg='yellow')
+                        click.secho("   The old fields will be ignored by CodeWiki.", fg='yellow')
+                        click.echo()
+                        click.secho("   Quick fix: Delete ~/.codewiki/config.json and run:", fg='cyan')
+                        click.secho("   $ codewiki config set --api-key <key> --cluster-base-url <url> \\", fg='cyan')
+                        click.secho("                         --main-base-url <url> --cluster-model <model> \\", fg='cyan')
+                        click.secho("                         --main-model <model> --fallback-model <model>", fg='cyan')
+                        click.echo()
+            except (json.JSONDecodeError, IOError):
+                pass  # Ignore if can't read config file
+
         # Check if at least one option is provided
         if not any([api_key, main_model, cluster_model, fallback_model,
                     cluster_max_tokens, main_max_tokens, fallback_max_tokens,
