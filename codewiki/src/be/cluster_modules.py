@@ -17,11 +17,34 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
     """
     # Filter out any invalid leaf nodes that don't exist in components
     valid_leaf_nodes = []
+    skipped_count = 0
     for leaf_node in leaf_nodes:
         if leaf_node in components:
             valid_leaf_nodes.append(leaf_node)
         else:
-            logger.warning(f"Skipping invalid leaf node '{leaf_node}' - not found in components")
+            skipped_count += 1
+            # Extract file path if present in the leaf node name (usually "file.ClassName" format)
+            file_hint = ""
+            if '.' in leaf_node:
+                parts = leaf_node.split('.')
+                # Check if any part looks like a file path
+                for part in parts:
+                    if '/' in part or '\\' in part:
+                        file_hint = f" (from {part})"
+                        break
+
+            logger.warning(
+                f"Skipping invalid leaf node '{leaf_node}'{file_hint}\n"
+                f"   └─ Reason: Component not found in components dictionary\n"
+                f"   └─ Possible causes:\n"
+                f"      • File was excluded by filters (tests, specs, node_modules, etc.)\n"
+                f"      • Parsing failed for this component\n"
+                f"      • Component is from a dependency/external library\n"
+                f"      • File extension not supported"
+            )
+
+    if skipped_count > 0:
+        logger.info(f"📊 Leaf node filtering: {len(valid_leaf_nodes)} valid, {skipped_count} skipped ({len(leaf_nodes)} total)")
     
     #group leaf nodes by file
     leaf_nodes_by_file = defaultdict(list)
@@ -106,11 +129,21 @@ def cluster_modules(
         
         # Filter sub_leaf_nodes to ensure they exist in components
         valid_sub_leaf_nodes = []
+        sub_skipped = 0
         for node in sub_leaf_nodes:
             if node in components:
                 valid_sub_leaf_nodes.append(node)
             else:
-                logger.warning(f"Skipping invalid sub leaf node '{node}' in module '{module_name}' - not found in components")
+                sub_skipped += 1
+                logger.warning(
+                    f"Skipping invalid sub leaf node '{node}' in module '{module_name}'\n"
+                    f"   └─ Reason: Component not found in components dictionary\n"
+                    f"   └─ This node was suggested by LLM clustering but doesn't exist\n"
+                    f"   └─ Possible causes: Parsing failure, excluded file, or LLM hallucination"
+                )
+
+        if sub_skipped > 0:
+            logger.info(f"📊 Sub-module '{module_name}': {len(valid_sub_leaf_nodes)} valid nodes, {sub_skipped} skipped")
         
         current_module_path.append(module_name)
         module_info["children"] = {}

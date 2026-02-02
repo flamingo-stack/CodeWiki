@@ -168,12 +168,32 @@ class DocumentationGenerator:
                     
                     # Process the module
                     if self.is_leaf_module(module_info):
+                        component_list = module_info["components"]
                         logger.info(f"📄 Processing leaf module: {module_key}")
+                        logger.info(f"   └─ Leaf nodes ({len(component_list)}): {', '.join(component_list[:5])}" +
+                                   (f" ... and {len(component_list) - 5} more" if len(component_list) > 5 else ""))
+
+                        # Log file breakdown
+                        files_with_components = {}
+                        for comp_name in component_list:
+                            if comp_name in components:
+                                file_path = components[comp_name].relative_path
+                                if file_path not in files_with_components:
+                                    files_with_components[file_path] = []
+                                files_with_components[file_path].append(comp_name)
+
+                        logger.info(f"   └─ Files involved ({len(files_with_components)}):")
+                        for file_path, comps in list(files_with_components.items())[:3]:
+                            logger.info(f"      • {file_path} ({len(comps)} component{'s' if len(comps) > 1 else ''})")
+                        if len(files_with_components) > 3:
+                            logger.info(f"      • ... and {len(files_with_components) - 3} more files")
+
                         final_module_tree = await self.agent_orchestrator.process_module(
                             module_name, components, module_info["components"], module_path, working_dir
                         )
                     else:
                         logger.info(f"📁 Processing parent module: {module_key}")
+                        logger.info(f"   └─ Aggregating {len(module_info.get('children', {}))} child modules")
                         final_module_tree = await self.generate_parent_module_docs(
                             module_path, working_dir
                         )
