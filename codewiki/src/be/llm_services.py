@@ -114,11 +114,21 @@ def create_main_model(config: Config) -> OpenAIModel:
     if api_version:
         default_headers['anthropic-version'] = api_version
 
+    # Get per-provider API key
+    api_key = getattr(config, 'main_api_key', None)
+    if not api_key:
+        raise ValueError(
+            "main_api_key is required in configuration for main/generation model.\n"
+            f"Model: {config.main_model}\n"
+            "Please set via CLI: --main-api-key <key>\n"
+            "Different AI providers require different API keys."
+        )
+
     return OpenAIModel(
         model_name=config.main_model,
         provider=OpenAIProvider(
             base_url=base_url,
-            api_key=config.llm_api_key,
+            api_key=api_key,
             default_headers=default_headers if default_headers else None
         ),
         settings=OpenAIModelSettings(**settings_dict)
@@ -154,11 +164,21 @@ def create_fallback_model(config: Config) -> OpenAIModel:
     if api_version:
         default_headers['anthropic-version'] = api_version
 
+    # Get per-provider API key
+    api_key = getattr(config, 'fallback_api_key', None)
+    if not api_key:
+        raise ValueError(
+            "fallback_api_key is required in configuration for fallback model.\n"
+            f"Model: {config.fallback_model}\n"
+            "Please set via CLI: --fallback-api-key <key>\n"
+            "Different AI providers require different API keys."
+        )
+
     return OpenAIModel(
         model_name=config.fallback_model,
         provider=OpenAIProvider(
             base_url=base_url,
-            api_key=config.llm_api_key,
+            api_key=api_key,
             default_headers=default_headers if default_headers else None
         ),
         settings=OpenAIModelSettings(**settings_dict)
@@ -208,11 +228,21 @@ def create_cluster_model(config: Config) -> OpenAIModel:
     if api_version:
         default_headers['anthropic-version'] = api_version
 
+    # Get per-provider API key
+    api_key = getattr(config, 'cluster_api_key', None)
+    if not api_key:
+        raise ValueError(
+            "cluster_api_key is required in configuration for clustering operations.\n"
+            f"Model: {config.cluster_model}\n"
+            "Please set via CLI: --cluster-api-key <key>\n"
+            "Different AI providers require different API keys."
+        )
+
     return OpenAIModel(
         model_name=config.cluster_model,
         provider=OpenAIProvider(
             base_url=base_url,
-            api_key=config.llm_api_key,
+            api_key=api_key,
             default_headers=default_headers if default_headers else None
         ),
         settings=OpenAIModelSettings(**settings_dict)
@@ -254,28 +284,41 @@ def create_openai_client(config: Config, model: str = None) -> OpenAI:
     if model is None:
         model = config.main_model
 
-    # Select base_url and api_version based on model
+    # Select base_url, api_version, and api_key based on model
     model_stage = "main/generation"
     if model == config.cluster_model:
         base_url = getattr(config, 'cluster_base_url', None)
         api_version = getattr(config, 'cluster_api_version', None)
+        api_key = getattr(config, 'cluster_api_key', None)
         model_stage = "cluster"
         config_field = "cluster_base_url"
+        api_key_field = "cluster_api_key"
     elif model == config.fallback_model:
         base_url = getattr(config, 'fallback_base_url', None)
         api_version = getattr(config, 'fallback_api_version', None)
+        api_key = getattr(config, 'fallback_api_key', None)
         model_stage = "fallback"
         config_field = "fallback_base_url"
+        api_key_field = "fallback_api_key"
     else:  # main/generation model
         base_url = getattr(config, 'main_base_url', None)
         api_version = getattr(config, 'main_api_version', None)
+        api_key = getattr(config, 'main_api_key', None)
         config_field = "main_base_url"
+        api_key_field = "main_api_key"
 
     if not base_url:
         raise ValueError(
             f"base_url not configured for {model_stage} model '{model}'.\n"
             f"Please set via CLI: --{config_field.replace('_', '-')} <url>\n"
             f"Or in config file: {config_field} = '<url>'"
+        )
+
+    if not api_key:
+        raise ValueError(
+            f"api_key not configured for {model_stage} model '{model}'.\n"
+            f"Please set via CLI: --{api_key_field.replace('_', '-')} <key>\n"
+            "Different AI providers require different API keys."
         )
 
     # Prepare default headers for API version (Anthropic models)
@@ -285,7 +328,7 @@ def create_openai_client(config: Config, model: str = None) -> OpenAI:
 
     return OpenAI(
         base_url=base_url,
-        api_key=config.llm_api_key,
+        api_key=api_key,
         default_headers=default_headers if default_headers else None
     )
 

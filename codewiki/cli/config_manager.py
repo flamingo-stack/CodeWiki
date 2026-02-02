@@ -15,7 +15,10 @@ from codewiki.cli.utils.fs import ensure_directory, safe_write, safe_read
 
 # Keyring configuration
 KEYRING_SERVICE = "codewiki"
-KEYRING_API_KEY_ACCOUNT = "api_key"
+KEYRING_API_KEY_ACCOUNT = "api_key"  # Shared API key (fallback)
+KEYRING_CLUSTER_API_KEY_ACCOUNT = "cluster_api_key"
+KEYRING_MAIN_API_KEY_ACCOUNT = "main_api_key"
+KEYRING_FALLBACK_API_KEY_ACCOUNT = "fallback_api_key"
 
 # Configuration file location
 CONFIG_DIR = Path.home() / ".codewiki"
@@ -35,7 +38,10 @@ class ConfigManager:
     
     def __init__(self):
         """Initialize the configuration manager."""
-        self._api_key: Optional[str] = None
+        self._api_key: Optional[str] = None  # Shared API key (fallback)
+        self._cluster_api_key: Optional[str] = None
+        self._main_api_key: Optional[str] = None
+        self._fallback_api_key: Optional[str] = None
         self._config: Optional[Configuration] = None
         self._keyring_available = self._check_keyring_available()
     
@@ -69,21 +75,25 @@ class ConfigManager:
                 pass
             
             self._config = Configuration.from_dict(data)
-            
-            # Load API key from keyring
+
+            # Load per-provider API keys from keyring
             try:
-                self._api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_API_KEY_ACCOUNT)
+                self._cluster_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_CLUSTER_API_KEY_ACCOUNT)
+                self._main_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_MAIN_API_KEY_ACCOUNT)
+                self._fallback_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_FALLBACK_API_KEY_ACCOUNT)
             except KeyringError:
-                # Keyring unavailable, API key will be None
+                # Keyring unavailable, API keys will be None
                 pass
-            
+
             return True
         except (json.JSONDecodeError, FileSystemError) as e:
             raise ConfigurationError(f"Failed to load configuration: {e}")
     
     def save(
         self,
-        api_key: Optional[str] = None,
+        cluster_api_key: Optional[str] = None,
+        main_api_key: Optional[str] = None,
+        fallback_api_key: Optional[str] = None,
         main_model: Optional[str] = None,
         cluster_model: Optional[str] = None,
         fallback_model: Optional[str] = None,
@@ -114,7 +124,9 @@ class ConfigManager:
         Save configuration to file and keyring.
 
         Args:
-            api_key: API key (stored in keyring)
+            cluster_api_key: API key for cluster model provider (stored in keyring)
+            main_api_key: API key for main/generation model provider (stored in keyring)
+            fallback_api_key: API key for fallback model provider (stored in keyring)
             main_model: Primary model
             cluster_model: Clustering model
             fallback_model: Fallback model
@@ -230,19 +242,26 @@ class ConfigManager:
         # Validate configuration (only if base fields are set)
         if self._config.main_model and self._config.cluster_model:
             self._config.validate()
-        
-        # Save API key to keyring
-        if api_key is not None:
-            self._api_key = api_key
-            try:
-                keyring.set_password(KEYRING_SERVICE, KEYRING_API_KEY_ACCOUNT, api_key)
-            except KeyringError as e:
-                # Fallback: warn about keyring unavailability
-                raise ConfigurationError(
-                    f"System keychain unavailable: {e}\n"
-                    f"Please ensure your system keychain is properly configured."
-                )
-        
+
+        # Save per-provider API keys to keyring
+        try:
+            if cluster_api_key is not None:
+                self._cluster_api_key = cluster_api_key
+                keyring.set_password(KEYRING_SERVICE, KEYRING_CLUSTER_API_KEY_ACCOUNT, cluster_api_key)
+
+            if main_api_key is not None:
+                self._main_api_key = main_api_key
+                keyring.set_password(KEYRING_SERVICE, KEYRING_MAIN_API_KEY_ACCOUNT, main_api_key)
+
+            if fallback_api_key is not None:
+                self._fallback_api_key = fallback_api_key
+                keyring.set_password(KEYRING_SERVICE, KEYRING_FALLBACK_API_KEY_ACCOUNT, fallback_api_key)
+        except KeyringError as e:
+            raise ConfigurationError(
+                f"System keychain unavailable: {e}\n"
+                f"Please ensure your system keychain is properly configured."
+            )
+
         # Save non-sensitive config to JSON
         config_data = {
             "version": CONFIG_VERSION,
@@ -254,20 +273,32 @@ class ConfigManager:
         except FileSystemError as e:
             raise ConfigurationError(f"Failed to save configuration: {e}")
     
-    def get_api_key(self) -> Optional[str]:
-        """
-        Get API key from keyring.
-        
-        Returns:
-            API key or None if not set
-        """
-        if self._api_key is None:
+    def get_cluster_api_key(self) -> Optional[str]:
+        """Get cluster model API key from keyring."""
+        if self._cluster_api_key is None:
             try:
-                self._api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_API_KEY_ACCOUNT)
+                self._cluster_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_CLUSTER_API_KEY_ACCOUNT)
             except KeyringError:
                 pass
-        
-        return self._api_key
+        return self._cluster_api_key
+
+    def get_main_api_key(self) -> Optional[str]:
+        """Get main/generation model API key from keyring."""
+        if self._main_api_key is None:
+            try:
+                self._main_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_MAIN_API_KEY_ACCOUNT)
+            except KeyringError:
+                pass
+        return self._main_api_key
+
+    def get_fallback_api_key(self) -> Optional[str]:
+        """Get fallback model API key from keyring."""
+        if self._fallback_api_key is None:
+            try:
+                self._fallback_api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_FALLBACK_API_KEY_ACCOUNT)
+            except KeyringError:
+                pass
+        return self._fallback_api_key
     
     def get_config(self) -> Optional[Configuration]:
         """
@@ -281,39 +312,45 @@ class ConfigManager:
     def is_configured(self) -> bool:
         """
         Check if configuration is complete and valid.
-        
+
         Returns:
             True if configured, False otherwise
         """
         if self._config is None:
             return False
-        
-        # Check if API key is set
-        if self.get_api_key() is None:
+
+        # Check if per-provider API keys are set
+        if not all([self.get_cluster_api_key(), self.get_main_api_key(), self.get_fallback_api_key()]):
             return False
-        
+
         # Check if config is complete
         return self._config.is_complete()
-    
-    def delete_api_key(self):
-        """Delete API key from keyring."""
+
+    def delete_api_keys(self):
+        """Delete all per-provider API keys from keyring."""
         try:
-            keyring.delete_password(KEYRING_SERVICE, KEYRING_API_KEY_ACCOUNT)
-            self._api_key = None
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_CLUSTER_API_KEY_ACCOUNT)
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_MAIN_API_KEY_ACCOUNT)
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_FALLBACK_API_KEY_ACCOUNT)
+            self._cluster_api_key = None
+            self._main_api_key = None
+            self._fallback_api_key = None
         except KeyringError:
             pass
     
     def clear(self):
         """Clear all configuration (file and keyring)."""
-        # Delete API key from keyring
-        self.delete_api_key()
-        
+        # Delete all per-provider API keys from keyring
+        self.delete_api_keys()
+
         # Delete config file
         if CONFIG_FILE.exists():
             CONFIG_FILE.unlink()
-        
+
         self._config = None
-        self._api_key = None
+        self._cluster_api_key = None
+        self._main_api_key = None
+        self._fallback_api_key = None
     
     @property
     def keyring_available(self) -> bool:

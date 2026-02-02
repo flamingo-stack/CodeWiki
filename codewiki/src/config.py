@@ -52,10 +52,14 @@ class Config:
     docs_dir: str
     max_depth: int
     # LLM configuration
-    llm_api_key: str
+    llm_api_key: str  # Shared API key (fallback/backward compatibility)
     main_model: str
     cluster_model: str
     fallback_model: str
+    # Per-provider API keys (optional - fallback to llm_api_key if not set)
+    cluster_api_key: Optional[str] = None
+    main_api_key: Optional[str] = None
+    fallback_api_key: Optional[str] = None
     # Per-provider base URLs
     cluster_base_url: Optional[str] = None
     main_base_url: Optional[str] = None
@@ -192,6 +196,9 @@ class Config:
         cluster_base_url: Optional[str] = None,
         main_base_url: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
+        cluster_api_key: Optional[str] = None,
+        main_api_key: Optional[str] = None,
+        fallback_api_key: Optional[str] = None,
         cluster_api_version: Optional[str] = None,
         main_api_version: Optional[str] = None,
         fallback_api_version: Optional[str] = None,
@@ -226,6 +233,9 @@ class Config:
             cluster_base_url: Cluster model API base URL
             main_base_url: Main model API base URL
             fallback_base_url: Fallback model API base URL
+            cluster_api_key: Cluster model API key (optional, falls back to llm_api_key)
+            main_api_key: Main model API key (optional, falls back to llm_api_key)
+            fallback_api_key: Fallback model API key (optional, falls back to llm_api_key)
             cluster_api_version: Cluster model API version
             main_api_version: Main model API version
             fallback_api_version: Fallback model API version
@@ -413,6 +423,9 @@ class Config:
             cluster_base_url=cluster_base_url,
             main_base_url=main_base_url,
             fallback_base_url=fallback_base_url,
+            cluster_api_key=cluster_api_key,
+            main_api_key=main_api_key,
+            fallback_api_key=fallback_api_key,
             cluster_api_version=cluster_api_version,
             main_api_version=main_api_version,
             fallback_api_version=fallback_api_version,

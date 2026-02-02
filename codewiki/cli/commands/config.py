@@ -126,11 +126,21 @@ def config_group():
     expose_value=False,
     help='DEPRECATED: Use --cluster-max-tokens, --main-max-tokens, --fallback-max-tokens instead'
 )
-# Active options
+# Active options - Per-provider API keys (NO shared fallback)
 @click.option(
-    "--api-key",
+    "--cluster-api-key",
     type=str,
-    help="LLM API key (stored securely in system keychain)"
+    help="API key for cluster model provider (REQUIRED with --cluster-base-url)"
+)
+@click.option(
+    "--main-api-key",
+    type=str,
+    help="API key for main/generation model provider (REQUIRED with --main-base-url)"
+)
+@click.option(
+    "--fallback-api-key",
+    type=str,
+    help="API key for fallback model provider (REQUIRED with --fallback-base-url)"
 )
 @click.option(
     "--main-model",
@@ -253,7 +263,9 @@ def config_group():
     help="Parameter name for fallback model max tokens ('max_tokens' or 'max_completion_tokens')"
 )
 def config_set(
-    api_key: Optional[str],
+    cluster_api_key: Optional[str],
+    main_api_key: Optional[str],
+    fallback_api_key: Optional[str],
     main_model: Optional[str],
     cluster_model: Optional[str],
     fallback_model: Optional[str],
@@ -363,7 +375,8 @@ def config_set(
                 pass  # Ignore if can't read config file
 
         # Check if at least one option is provided
-        if not any([api_key, main_model, cluster_model, fallback_model,
+        if not any([cluster_api_key, main_api_key, fallback_api_key,
+                    main_model, cluster_model, fallback_model,
                     cluster_max_tokens, main_max_tokens, fallback_max_tokens,
                     max_token_per_module, max_token_per_leaf_module, max_depth,
                     cluster_temperature is not None, main_temperature is not None, fallback_temperature is not None,
@@ -376,9 +389,15 @@ def config_set(
         
         # Validate inputs before saving
         validated_data = {}
-        
-        if api_key:
-            validated_data['api_key'] = validate_api_key(api_key)
+
+        if cluster_api_key:
+            validated_data['cluster_api_key'] = validate_api_key(cluster_api_key)
+
+        if main_api_key:
+            validated_data['main_api_key'] = validate_api_key(main_api_key)
+
+        if fallback_api_key:
+            validated_data['fallback_api_key'] = validate_api_key(fallback_api_key)
 
         if main_model:
             validated_data['main_model'] = validate_model_name(main_model)
@@ -479,12 +498,48 @@ def config_set(
                 raise ConfigurationError("fallback_max_token_field must be 'max_tokens' or 'max_completion_tokens'")
             validated_data['fallback_max_token_field'] = fallback_max_token_field
 
-        # Create config manager and save
+        # FAIL-FAST VALIDATION: Require per-provider API keys when per-provider base URLs are set
+        # Load existing config to check combined state
         manager = ConfigManager()
-        manager.load()  # Load existing config if present
+        manager.load()
+        existing_config = manager.get_config()
 
+        # Determine final state after this update
+        final_cluster_base_url = validated_data.get('cluster_base_url') or (existing_config.cluster_base_url if existing_config else None)
+        final_main_base_url = validated_data.get('main_base_url') or (existing_config.main_base_url if existing_config else None)
+        final_fallback_base_url = validated_data.get('fallback_base_url') or (existing_config.fallback_base_url if existing_config else None)
+
+        final_cluster_api_key = validated_data.get('cluster_api_key') or (existing_config.cluster_api_key if existing_config else None)
+        final_main_api_key = validated_data.get('main_api_key') or (existing_config.main_api_key if existing_config else None)
+        final_fallback_api_key = validated_data.get('fallback_api_key') or (existing_config.fallback_api_key if existing_config else None)
+
+        # Fail-fast checks
+        if final_cluster_base_url and not final_cluster_api_key:
+            raise ConfigurationError(
+                "cluster_api_key is REQUIRED when cluster_base_url is set.\n"
+                "Different providers require different API keys.\n"
+                "Use: --cluster-api-key <key>"
+            )
+
+        if final_main_base_url and not final_main_api_key:
+            raise ConfigurationError(
+                "main_api_key is REQUIRED when main_base_url is set.\n"
+                "Different providers require different API keys.\n"
+                "Use: --main-api-key <key>"
+            )
+
+        if final_fallback_base_url and not final_fallback_api_key:
+            raise ConfigurationError(
+                "fallback_api_key is REQUIRED when fallback_base_url is set.\n"
+                "Different providers require different API keys.\n"
+                "Use: --fallback-api-key <key>"
+            )
+
+        # Save configuration with per-provider API keys
         manager.save(
-            api_key=validated_data.get('api_key'),
+            cluster_api_key=validated_data.get('cluster_api_key'),
+            main_api_key=validated_data.get('main_api_key'),
+            fallback_api_key=validated_data.get('fallback_api_key'),
             main_model=validated_data.get('main_model'),
             cluster_model=validated_data.get('cluster_model'),
             fallback_model=validated_data.get('fallback_model'),
@@ -513,15 +568,24 @@ def config_set(
         
         # Display success messages
         click.echo()
-        if api_key:
+        if cluster_api_key:
             if manager.keyring_available:
-                click.secho("✓ API key saved to system keychain", fg="green")
+                click.secho("✓ Cluster API key saved to system keychain", fg="green")
             else:
-                click.secho(
-                    "⚠️  System keychain unavailable. API key stored in encrypted file.",
-                    fg="yellow"
-                )
-        
+                click.secho("⚠️  Cluster API key stored in encrypted file.", fg="yellow")
+
+        if main_api_key:
+            if manager.keyring_available:
+                click.secho("✓ Main API key saved to system keychain", fg="green")
+            else:
+                click.secho("⚠️  Main API key stored in encrypted file.", fg="yellow")
+
+        if fallback_api_key:
+            if manager.keyring_available:
+                click.secho("✓ Fallback API key saved to system keychain", fg="green")
+            else:
+                click.secho("⚠️  Fallback API key stored in encrypted file.", fg="yellow")
+
         if cluster_base_url:
             click.secho(f"✓ Cluster base URL: {cluster_base_url}", fg="green")
 
