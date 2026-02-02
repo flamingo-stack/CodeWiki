@@ -375,7 +375,10 @@ def generate_command(
                 'main_model': config.main_model,
                 'cluster_model': config.cluster_model,
                 'fallback_model': config.fallback_model,
-                'api_key': api_key,
+                # Per-provider API keys
+                'cluster_api_key': config.cluster_api_key,
+                'main_api_key': config.main_api_key,
+                'fallback_api_key': config.fallback_api_key,
                 # Per-provider base URLs
                 'cluster_base_url': config.cluster_base_url,
                 'main_base_url': config.main_base_url,
