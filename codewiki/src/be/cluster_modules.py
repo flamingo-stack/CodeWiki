@@ -86,6 +86,55 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
     return potential_core_components, potential_core_components_with_code
 
 
+def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
+    """
+    Build mapping from short component IDs to FQDNs.
+
+    This handles cases where LLM returns short IDs (e.g., "AuthService")
+    instead of full FQDNs (e.g., "main-repo.src/auth.py::AuthService").
+
+    Args:
+        components: Dictionary with FQDN keys and Node values
+
+    Returns:
+        Dictionary mapping short_id → fqdn
+    """
+    mapping = {}
+    collisions = defaultdict(list)
+
+    for fqdn, node in components.items():
+        # Extract short ID from node or derive from FQDN
+        # Priority: node.short_id > last segment after :: > last segment after .
+        short_id = node.short_id
+
+        if not short_id:
+            # Fallback: extract from FQDN
+            if '::' in fqdn:
+                short_id = fqdn.split('::')[-1]
+            else:
+                short_id = fqdn.split('.')[-1]
+
+        # Track collisions for debugging
+        if short_id in mapping:
+            collisions[short_id].append(fqdn)
+            if mapping[short_id] not in collisions[short_id]:
+                collisions[short_id].insert(0, mapping[short_id])
+        else:
+            mapping[short_id] = fqdn
+
+    # Log collisions
+    if collisions:
+        logger.debug(f"🔀 Short ID collisions detected:")
+        for short_id, fqdns in collisions.items():
+            logger.debug(f"   ├─ '{short_id}' maps to {len(fqdns)} components:")
+            for fqdn in fqdns:
+                logger.debug(f"   │  └─ {fqdn}")
+        logger.debug(f"   └─ Using first match for each collision")
+
+    logger.debug(f"📋 Built short_id → FQDN mapping: {len(mapping)} entries")
+    return mapping
+
+
 def cluster_modules(
     leaf_nodes: List[str],
     components: Dict[str, Node],
@@ -135,18 +184,61 @@ def cluster_modules(
         if "<GROUPED_COMPONENTS>" not in response or "</GROUPED_COMPONENTS>" not in response:
             logger.error(f"Invalid LLM response format - missing component tags: {response[:200]}...")
             return {}
-        
+
         response_content = response.split("<GROUPED_COMPONENTS>")[1].split("</GROUPED_COMPONENTS>")[0]
         module_tree = eval(response_content)
-        
+
         if not isinstance(module_tree, dict):
             logger.error(f"Invalid module tree format - expected dict, got {type(module_tree)}")
             return {}
-            
+
     except Exception as e:
         logger.error(f"Failed to parse LLM response: {e}. Response: {response[:200]}...")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return {}
+
+    # Build reverse mapping: short_id → FQDN
+    logger.info(f"🔄 Normalizing component IDs in clustering response")
+    short_to_fqdn = build_short_id_to_fqdn_map(components)
+
+    # Normalize all component IDs in module_tree
+    total_normalized = 0
+    total_failed = 0
+
+    for module_name, module_data in module_tree.items():
+        original_components = module_data.get('components', [])
+        normalized_components = []
+
+        for comp_id in original_components:
+            # Try exact FQDN match first
+            if comp_id in components:
+                normalized_components.append(comp_id)
+            # Try reverse mapping from short ID
+            elif comp_id in short_to_fqdn:
+                fqdn = short_to_fqdn[comp_id]
+                normalized_components.append(fqdn)
+                total_normalized += 1
+                logger.debug(f"   ✅ Normalized '{comp_id}' → '{fqdn}'")
+            else:
+                # Keep original (will fail validation later with helpful error)
+                normalized_components.append(comp_id)
+                total_failed += 1
+
+                # Show helpful debug info
+                logger.warning(
+                    f"   ❌ Failed to normalize '{comp_id}' in module '{module_name}'\n"
+                    f"      ├─ Not found as exact FQDN in components\n"
+                    f"      ├─ Not found in short_id → FQDN mapping\n"
+                    f"      └─ Available similar short IDs: {[k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]}"
+                )
+
+        module_data['components'] = normalized_components
+
+    if total_normalized > 0:
+        logger.info(f"   ✅ Normalized {total_normalized} short IDs to FQDNs")
+    if total_failed > 0:
+        logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs")
+    logger.info("")
 
     # check if the module tree is valid
     if len(module_tree) <= 1:
@@ -172,7 +264,7 @@ def cluster_modules(
 
     for module_name, module_info in module_tree.items():
         sub_leaf_nodes = module_info.get("components", [])
-        
+
         # Filter sub_leaf_nodes to ensure they exist in components
         valid_sub_leaf_nodes = []
         sub_skipped = 0
@@ -188,19 +280,28 @@ def cluster_modules(
                     namespace = node.split('.')[0]
                     is_deps = namespace.startswith('deps/')
 
+                # Check if normalization was attempted (short_to_fqdn should still be in scope)
+                attempted_mapping = node in short_to_fqdn
+                mapping_result = f"Mapped to: {short_to_fqdn[node]}" if attempted_mapping else "No mapping found"
+
+                # Show available FQDNs with same short ID for debugging
+                possible_matches = [fqdn for fqdn in components.keys() if node in fqdn][:3]
+
                 logger.warning(
                     f"Skipping invalid sub leaf node '{node}' in module '{module_name}'\n"
                     f"   ├─ FQDN format: {node}\n"
                     f"   ├─ Namespace: {namespace or '(unknown)'}\n"
                     f"   ├─ Source: {'dependency repo' if is_deps else 'main repo'}\n"
-                    f"   └─ Reason: Component not found in components dictionary\n"
+                    f"   ├─ Normalization: {mapping_result}\n"
+                    f"   ├─ Possible matches in components: {possible_matches if possible_matches else 'None'}\n"
+                    f"   └─ Reason: Component not found after normalization\n"
                     f"   └─ This node was suggested by LLM clustering but doesn't exist\n"
                     f"   └─ Possible causes: Parsing failure, excluded file, or LLM hallucination"
                 )
 
         if sub_skipped > 0:
             logger.info(f"📊 Sub-module '{module_name}': {len(valid_sub_leaf_nodes)} valid nodes, {sub_skipped} skipped")
-        
+
         current_module_path.append(module_name)
         module_info["children"] = {}
         module_info["children"] = cluster_modules(valid_sub_leaf_nodes, components, config, current_module_tree, module_name, current_module_path)
