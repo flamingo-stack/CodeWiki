@@ -93,6 +93,9 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     This handles cases where LLM returns short IDs (e.g., "AuthService")
     instead of full FQDNs (e.g., "main-repo.src/auth.py::AuthService").
 
+    Creates MULTIPLE mapping entries for each component to handle various
+    LLM output formats (class name, package.class, full path, etc.).
+
     Args:
         components: Dictionary with FQDN keys and Node values
 
@@ -103,35 +106,68 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     collisions = defaultdict(list)
 
     for fqdn, node in components.items():
-        # Extract short ID from node or derive from FQDN
-        # Priority: node.short_id > last segment after :: > last segment after .
-        short_id = node.short_id
+        # Strategy: Create multiple mapping entries for each component
+        # This handles LLM returning different levels of specificity
+
+        # Get base short_id from node
+        short_id = getattr(node, 'short_id', None) or ""
 
         if not short_id:
             # Fallback: extract from FQDN
+            # Handle both :: (file::class) and . (package.class) separators
             if '::' in fqdn:
-                short_id = fqdn.split('::')[-1]
+                # Format: "namespace.path/file.ext::ClassName"
+                after_colon = fqdn.split('::')[-1]
+                # Handle nested classes: "ClassName.InnerClass" → "InnerClass"
+                short_id = after_colon.split('.')[-1] if '.' in after_colon else after_colon
             else:
+                # Format: "namespace.package.class.method"
                 short_id = fqdn.split('.')[-1]
 
-        # Track collisions for debugging
-        if short_id in mapping:
-            collisions[short_id].append(fqdn)
-            if mapping[short_id] not in collisions[short_id]:
-                collisions[short_id].insert(0, mapping[short_id])
-        else:
-            mapping[short_id] = fqdn
+        # ENHANCEMENT: Create mappings for multiple formats
+        # This significantly improves LLM output matching
+
+        mapping_variants = set()
+        mapping_variants.add(short_id)  # 1. Just class name: "LogDetails"
+
+        # 2. Extract additional variants from FQDN
+        parts = fqdn.replace('::', '.').split('.')
+
+        # Add last 2 segments: "dto.LogDetails"
+        if len(parts) >= 2:
+            mapping_variants.add('.'.join(parts[-2:]))
+
+        # Add last 3 segments: "openframe.dto.LogDetails"
+        if len(parts) >= 3:
+            mapping_variants.add('.'.join(parts[-3:]))
+
+        # Add last 4 segments for deeply nested packages
+        if len(parts) >= 4:
+            mapping_variants.add('.'.join(parts[-4:]))
+
+        # Add all variants to mapping
+        for variant in mapping_variants:
+            if variant and variant != fqdn:  # Don't map FQDN to itself
+                if variant in mapping:
+                    # Collision detected
+                    collisions[variant].append(fqdn)
+                    if mapping[variant] not in collisions[variant]:
+                        collisions[variant].insert(0, mapping[variant])
+                else:
+                    mapping[variant] = fqdn
 
     # Log collisions
     if collisions:
         logger.debug(f"🔀 Short ID collisions detected:")
         for short_id, fqdns in collisions.items():
             logger.debug(f"   ├─ '{short_id}' maps to {len(fqdns)} components:")
-            for fqdn in fqdns:
+            for fqdn in fqdns[:3]:  # Show first 3 only
                 logger.debug(f"   │  └─ {fqdn}")
+            if len(fqdns) > 3:
+                logger.debug(f"   │  └─ ... and {len(fqdns) - 3} more")
         logger.debug(f"   └─ Using first match for each collision")
 
-    logger.debug(f"📋 Built short_id → FQDN mapping: {len(mapping)} entries")
+    logger.debug(f"📋 Built short_id → FQDN mapping: {len(mapping)} entries (from {len(components)} components)")
     return mapping
 
 
