@@ -61,6 +61,28 @@ NEVER use bare ``` without a language. If unsure, use ```text.
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
 Based on official Mermaid documentation and tested LLM patterns.
 
+**SUPPORTED DIAGRAM TYPES:**
+ONLY use these diagram types (unsupported types will fail validation):
+- ✅ `graph` or `flowchart` (TD, LR, RL, BT directions)
+- ✅ `sequenceDiagram` (sequence diagrams)
+- ✅ `classDiagram` (class relationships)
+- ✅ `stateDiagram` or `stateDiagram-v2` (state machines)
+- ✅ `erDiagram` (entity-relationship diagrams)
+- ✅ `gantt` (project timelines)
+- ✅ `pie` (pie charts)
+- ✅ `journey` (user journey maps)
+- ✅ `gitgraph` (git branch visualization)
+
+❌ DO NOT USE (unsupported/experimental):
+- ❌ `pyramid` (custom extension, not in core Mermaid)
+- ❌ `mindmap` (experimental, validation fails)
+- ❌ `timeline` (experimental, not widely supported)
+- ❌ `quadrantChart` (experimental)
+- ❌ `xychart` (experimental)
+- ❌ `sankey` (experimental)
+
+If you need an unsupported diagram, use `flowchart` or `graph` instead.
+
 1. **Diagram Declaration**: ALWAYS start with diagram type:
    - ✅ `flowchart TD` or `flowchart LR` (top-down or left-right)
    - ✅ `graph TD` (alternative syntax)
@@ -367,6 +389,13 @@ NEVER use bare ``` without a language. If unsure, use ```text.
 <MERMAID_SYNTAX_RULES>
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
 Based on official Mermaid documentation and tested LLM patterns.
+
+**SUPPORTED DIAGRAM TYPES:**
+ONLY use these diagram types (unsupported types will fail validation):
+- ✅ `graph` or `flowchart` (TD, LR, RL, BT directions)
+- ✅ `sequenceDiagram`, `classDiagram`, `stateDiagram`, `erDiagram`, `gantt`, `pie`, `journey`, `gitgraph`
+
+❌ DO NOT USE: `pyramid`, `mindmap`, `timeline`, `quadrantChart`, `xychart`, `sankey` (unsupported/experimental)
 
 1. **Diagram Declaration**: ALWAYS start with diagram type:
    - ✅ `flowchart TD` or `flowchart LR` (top-down or left-right)
