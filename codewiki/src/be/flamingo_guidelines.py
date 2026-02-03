@@ -17,6 +17,7 @@ from pathlib import Path
 
 GUIDELINES_ENV_VAR = "FLAMINGO_MARKDOWN_GUIDELINES_PATH"
 CUSTOM_INSTRUCTIONS_ENV_VAR = "CUSTOM_REPO_INSTRUCTIONS"
+VALIDATION_RULES_ENV_VAR = "VALIDATION_RULES_PATH"
 
 
 def load_flamingo_guidelines() -> str:
@@ -274,6 +275,69 @@ def load_custom_instructions() -> str:
 
 # Load custom instructions at module import time
 CUSTOM_REPO_INSTRUCTIONS = load_custom_instructions()
+
+
+def load_validation_rules() -> str:
+    """
+    Load markdown validation rules from file path specified in env var.
+
+    Environment Variable:
+        VALIDATION_RULES_PATH: Path to the validation rules markdown file
+                                           (downloaded during GitHub Actions workflow)
+
+    Returns:
+        Validation rules content string, or empty string if not available.
+    """
+    rules_path = os.environ.get(VALIDATION_RULES_ENV_VAR)
+
+    if not rules_path:
+        print(f"[CodeWiki] {VALIDATION_RULES_ENV_VAR} not set - continuing without validation rules injection")
+        return ""
+
+    try:
+        path = Path(rules_path)
+        if not path.exists():
+            print(f"[CodeWiki] Validation rules file not found: {rules_path}")
+            return ""
+
+        content = path.read_text(encoding='utf-8')
+        print(f"[CodeWiki] Loaded markdown validation rules ({len(content)} chars)")
+        return content
+    except Exception as e:
+        print(f"[CodeWiki] Failed to load validation rules: {e}")
+        return ""
+
+
+# Load validation rules at module import time
+MARKDOWN_VALIDATION_RULES = load_validation_rules()
+
+
+def get_validation_rules_section() -> str:
+    """
+    Get formatted validation rules section for LLM prompts.
+
+    Returns:
+        Formatted validation rules ready for injection into prompts, or empty string if not available.
+
+    Note:
+        Curly braces in rules are escaped ({{ }}) to prevent KeyError
+        when the prompt template is used with .format(module_name=...).
+
+    Example:
+        >>> from codewiki.src.be.flamingo_guidelines import get_validation_rules_section
+        >>> prompt = f'''
+        ... {get_validation_rules_section()}
+        ... Generate documentation for the following code...
+        ... '''
+    """
+    if not MARKDOWN_VALIDATION_RULES:
+        return ""
+
+    # Escape curly braces to prevent KeyError in .format() calls
+    escaped_rules = escape_format_braces(MARKDOWN_VALIDATION_RULES)
+
+    # Return rules with minimal formatting (rules already have their own headings)
+    return escaped_rules + "\n\n---\n"
 
 
 def get_custom_instructions_section() -> str:
