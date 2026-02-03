@@ -7,7 +7,7 @@ from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_to
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
-from codewiki.src.be.cluster_modules import format_potential_core_components
+from codewiki.src.be.cluster_modules import format_potential_core_components, build_short_id_to_fqdn_map
 
 import logging
 logger = logging.getLogger(__name__)
@@ -26,7 +26,44 @@ async def generate_sub_module_documentation(
 
     deps = ctx.deps
     previous_module_name = deps.current_module_name
-    
+
+    # CRITICAL FIX: Normalize component IDs from short IDs to FQDNs
+    # The LLM may return short IDs (e.g., "AuthService") but we need FQDNs
+    logger.info(f"🔄 Normalizing sub-module component IDs")
+    short_to_fqdn = build_short_id_to_fqdn_map(deps.components)
+
+    normalized_specs = {}
+    total_normalized = 0
+    total_failed = 0
+
+    for sub_module_name, component_ids in sub_module_specs.items():
+        normalized_ids = []
+        for comp_id in component_ids:
+            # Try exact FQDN match first
+            if comp_id in deps.components:
+                normalized_ids.append(comp_id)
+            # Try reverse mapping from short ID to FQDN
+            elif comp_id in short_to_fqdn:
+                fqdn = short_to_fqdn[comp_id]
+                normalized_ids.append(fqdn)
+                total_normalized += 1
+                logger.debug(f"   ✅ Normalized '{comp_id}' → '{fqdn}'")
+            else:
+                # Keep original (will fail validation later)
+                normalized_ids.append(comp_id)
+                total_failed += 1
+                logger.warning(f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'")
+
+        normalized_specs[sub_module_name] = normalized_ids
+
+    if total_normalized > 0:
+        logger.info(f"   ✅ Normalized {total_normalized} short IDs to FQDNs")
+    if total_failed > 0:
+        logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs")
+
+    # Replace original specs with normalized specs
+    sub_module_specs = normalized_specs
+
     # Create fallback models from config
     fallback_models = create_fallback_models(deps.config)
 
