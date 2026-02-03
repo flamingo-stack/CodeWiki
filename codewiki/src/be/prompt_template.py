@@ -1,9 +1,14 @@
 # Import Flamingo markdown guidelines and custom instructions (dynamically loaded from env vars)
-from codewiki.src.be.flamingo_guidelines import get_guidelines_section, get_custom_instructions_section
+from codewiki.src.be.flamingo_guidelines import (
+    get_guidelines_section,
+    get_custom_instructions_section,
+    get_validation_rules_section
+)
 
 # Get sections for prompt injection (empty string if not available)
 _CUSTOM_INSTRUCTIONS_SECTION = get_custom_instructions_section()
 _GUIDELINES_SECTION = get_guidelines_section()
+_VALIDATION_RULES_SECTION = get_validation_rules_section()
 
 # DEBUG: Check what's in the sections at module import time
 if _CUSTOM_INSTRUCTIONS_SECTION and ("{0}" in _CUSTOM_INSTRUCTIONS_SECTION or "{1}" in _CUSTOM_INSTRUCTIONS_SECTION):
@@ -14,7 +19,7 @@ if _CUSTOM_INSTRUCTIONS_SECTION and ("{0}" in _CUSTOM_INSTRUCTIONS_SECTION or "{
     print(f"[DEBUG] All curly brace patterns found: {braces}")
 
 SYSTEM_PROMPT = f"""
-{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}<ROLE>
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -44,20 +49,7 @@ Generate documentation following this structure:
    - Process flow diagrams where relevant
 </DOCUMENTATION_STRUCTURE>
 
-<CODE_BLOCK_RULES>
-CRITICAL: ALL code blocks MUST include a language identifier:
-
-- ✅ ```python
-- ✅ ```javascript
-- ✅ ```bash
-- ✅ ```json
-- ✅ ```text (for plain text or generic output)
-- ❌ ``` (bare code blocks without language are NOT allowed)
-
-NEVER use bare ``` without a language. If unsure, use ```text.
-</CODE_BLOCK_RULES>
-
-<MERMAID_SYNTAX_RULES>
+<DETAILED_MERMAID_SYNTAX>
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
 Based on official Mermaid documentation and tested LLM patterns.
 
@@ -249,54 +241,7 @@ sequenceDiagram
 - [ ] No spaces before/after pipes in edge labels
 - [ ] Subgraph IDs are simple (no spaces)
 - [ ] Code block closes with ``` on new line
-</MERMAID_SYNTAX_RULES>
-
-<LATEX_MATH_RULES>
-CRITICAL: ALWAYS wrap dollar sign variables in backticks when in prose/markdown text.
-
-**Common shell variables that MUST be wrapped:**
-- `$HOME`, `$PATH`, `$USER`, `$PWD`, `$SHELL`
-- `$JAVA_HOME`, `$MAVEN_HOME`, `$NODE_ENV`
-- `$KUBECONFIG`, `$DOCKER_HOST`, `$API_KEY`
-- `$DATABASE_URL`, `$PORT`, `$HOST`
-- ANY variable starting with $ MUST be in backticks
-
-**Correct usage in prose:**
-✅ "The application reads the `$DATABASE_URL` environment variable"
-✅ "Configure `$JAVA_HOME` to point to your JDK installation"
-✅ "Set `$PORT` to 8080 in your environment"
-
-**WRONG - triggers validation error:**
-❌ "The application reads the $DATABASE_URL environment variable"
-❌ "Configure $JAVA_HOME to point to your JDK installation"
-❌ "Set $PORT to 8080 in your environment"
-
-**Inside code blocks, bare $ is fine:**
-```bash
-export DATABASE_URL=$DATABASE_URL
-echo $HOME
-mvn clean install -DJAVA_HOME=$JAVA_HOME
-```
-
-**BEFORE YOU WRITE ANYTHING:**
-- Scan your output for any $VARIABLE in prose
-- If found outside code blocks, wrap in backticks: `$VARIABLE`
-- Never write bare $ followed by letters in regular markdown text
-</LATEX_MATH_RULES>
-
-<PRE_OUTPUT_VALIDATION>
-BEFORE generating ANY markdown, verify:
-1. ALL code blocks have language hints: ```bash, ```java, ```python, ```text
-2. ALL $VARIABLES in prose are wrapped in backticks: `$HOME`, `$PATH`
-3. ALL Mermaid edge labels with special chars are quoted: -->|"@Autowired"|
-4. Reserved keyword "end" is capitalized: ["End"] not [end]
-5. Close ALL mermaid blocks with ``` on new line
-
-NEVER output:
-- ❌ ``` (bare code block)
-- ❌ $HOME in prose (triggers LATEX_MATH error)
-- ❌ -->|@Service| (triggers Mermaid parse error)
-</PRE_OUTPUT_VALIDATION>
+</DETAILED_MERMAID_SYNTAX>
 
 <CRITICAL_LINKING_RULES>
 **ABSOLUTE RULE: ONLY link to files you have VERIFIED exist or are generating.**
@@ -355,7 +300,7 @@ WRONG - Development docs with hallucinated links:
 """.strip()
 
 LEAF_SYSTEM_PROMPT = f"""
-{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}<ROLE>
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}<ROLE>
 You are an AI documentation assistant. Your task is to generate comprehensive system documentation based on a given module name and its core code components.
 </ROLE>
 
@@ -373,20 +318,7 @@ Generate documentation following the following requirements:
 3. References: Link to other module documentation instead of duplicating information
 </DOCUMENTATION_REQUIREMENTS>
 
-<CODE_BLOCK_RULES>
-CRITICAL: ALL code blocks MUST include a language identifier:
-
-- ✅ ```python
-- ✅ ```javascript
-- ✅ ```bash
-- ✅ ```json
-- ✅ ```text (for plain text or generic output)
-- ❌ ``` (bare code blocks without language are NOT allowed)
-
-NEVER use bare ``` without a language. If unsure, use ```text.
-</CODE_BLOCK_RULES>
-
-<MERMAID_SYNTAX_RULES>
+<DETAILED_MERMAID_SYNTAX>
 CRITICAL: Follow these mermaid syntax rules exactly to avoid parse errors.
 Based on official Mermaid documentation and tested LLM patterns.
 
@@ -460,54 +392,7 @@ flowchart TD
     A["Controller"] -->|"@Autowired"| B["Service"]
     B -->|"getUser()"| C["Repository"]
 ```
-</MERMAID_SYNTAX_RULES>
-
-<LATEX_MATH_RULES>
-CRITICAL: ALWAYS wrap dollar sign variables in backticks when in prose/markdown text.
-
-**Common shell variables that MUST be wrapped:**
-- `$HOME`, `$PATH`, `$USER`, `$PWD`, `$SHELL`
-- `$JAVA_HOME`, `$MAVEN_HOME`, `$NODE_ENV`
-- `$KUBECONFIG`, `$DOCKER_HOST`, `$API_KEY`
-- `$DATABASE_URL`, `$PORT`, `$HOST`
-- ANY variable starting with $ MUST be in backticks
-
-**Correct usage in prose:**
-✅ "The application reads the `$DATABASE_URL` environment variable"
-✅ "Configure `$JAVA_HOME` to point to your JDK installation"
-✅ "Set `$PORT` to 8080 in your environment"
-
-**WRONG - triggers validation error:**
-❌ "The application reads the $DATABASE_URL environment variable"
-❌ "Configure $JAVA_HOME to point to your JDK installation"
-❌ "Set $PORT to 8080 in your environment"
-
-**Inside code blocks, bare $ is fine:**
-```bash
-export DATABASE_URL=$DATABASE_URL
-echo $HOME
-mvn clean install -DJAVA_HOME=$JAVA_HOME
-```
-
-**BEFORE YOU WRITE ANYTHING:**
-- Scan your output for any $VARIABLE in prose
-- If found outside code blocks, wrap in backticks: `$VARIABLE`
-- Never write bare $ followed by letters in regular markdown text
-</LATEX_MATH_RULES>
-
-<PRE_OUTPUT_VALIDATION>
-BEFORE generating ANY markdown, verify:
-1. ALL code blocks have language hints: ```bash, ```java, ```python, ```text
-2. ALL $VARIABLES in prose are wrapped in backticks: `$HOME`, `$PATH`
-3. ALL Mermaid edge labels with special chars are quoted: -->|"@Autowired"|
-4. Reserved keyword "end" is capitalized: ["End"] not [end]
-5. Close ALL mermaid blocks with ``` on new line
-
-NEVER output:
-- ❌ ``` (bare code block)
-- ❌ $HOME in prose (triggers LATEX_MATH error)
-- ❌ -->|@Service| (triggers Mermaid parse error)
-</PRE_OUTPUT_VALIDATION>
+</DETAILED_MERMAID_SYNTAX>
 
 <CRITICAL_LINKING_RULES>
 **ABSOLUTE RULE: ONLY link to files you have VERIFIED exist or are generating.**
