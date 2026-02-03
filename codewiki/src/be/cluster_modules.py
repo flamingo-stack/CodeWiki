@@ -139,15 +139,34 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
 
         # Add last 2 segments: "dto.LogDetails"
         if len(parts) >= 2:
-            mapping_variants.add('.'.join(parts[-2:]))
+            last_two = '.'.join(parts[-2:])
+            mapping_variants.add(last_two)
+
+            # FIX: Handle duplicated class names (ClassName.ClassName)
+            # Java/TypeScript pattern where file name = class name
+            # E.g., "LogEvent.LogEvent" → also add "LogEvent"
+            if len(parts) >= 2 and parts[-1] == parts[-2]:
+                mapping_variants.add(parts[-1])  # Add de-duplicated version
 
         # Add last 3 segments: "openframe.dto.LogDetails"
         if len(parts) >= 3:
-            mapping_variants.add('.'.join(parts[-3:]))
+            last_three = '.'.join(parts[-3:])
+            mapping_variants.add(last_three)
+
+            # FIX: Handle duplicated class names in last 3 segments
+            # E.g., "audit.LogEvent.LogEvent" → also add "audit.LogEvent"
+            if len(parts) >= 3 and parts[-1] == parts[-2]:
+                mapping_variants.add('.'.join(parts[-3:-1]))  # Remove last duplicate
 
         # Add last 4 segments for deeply nested packages
         if len(parts) >= 4:
-            mapping_variants.add('.'.join(parts[-4:]))
+            last_four = '.'.join(parts[-4:])
+            mapping_variants.add(last_four)
+
+            # FIX: Handle duplicated class names in last 4 segments
+            # E.g., "dto.audit.LogEvent.LogEvent" → also add "dto.audit.LogEvent"
+            if len(parts) >= 4 and parts[-1] == parts[-2]:
+                mapping_variants.add('.'.join(parts[-4:-1]))  # Remove last duplicate
 
         # DIAGNOSTIC: Capture first 3 examples for debugging
         if sample_count < 3:
