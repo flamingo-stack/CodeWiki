@@ -105,6 +105,10 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     mapping = {}
     collisions = defaultdict(list)
 
+    # DIAGNOSTIC: Track sample variants for debugging
+    sample_variants = {}
+    sample_count = 0
+
     for fqdn, node in components.items():
         # Strategy: Create multiple mapping entries for each component
         # This handles LLM returning different levels of specificity
@@ -145,6 +149,11 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
         if len(parts) >= 4:
             mapping_variants.add('.'.join(parts[-4:]))
 
+        # DIAGNOSTIC: Capture first 3 examples for debugging
+        if sample_count < 3:
+            sample_variants[fqdn] = list(mapping_variants)
+            sample_count += 1
+
         # Add all variants to mapping
         for variant in mapping_variants:
             if variant and variant != fqdn:  # Don't map FQDN to itself
@@ -155,6 +164,13 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
                         collisions[variant].insert(0, mapping[variant])
                 else:
                     mapping[variant] = fqdn
+
+    # Log sample mappings for debugging
+    logger.debug(f"📝 Sample mapping variants created:")
+    for fqdn, variants in sample_variants.items():
+        logger.debug(f"   FQDN: {fqdn}")
+        for v in variants:
+            logger.debug(f"      → '{v}'")
 
     # Log collisions
     if collisions:
@@ -260,12 +276,17 @@ def cluster_modules(
                 normalized_components.append(comp_id)
                 total_failed += 1
 
+                # ENHANCED DIAGNOSTICS: Search for similar components
+                similar_mapping_keys = [k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]
+                similar_fqdns = [fqdn for fqdn in components.keys() if comp_id.lower() in fqdn.lower()][:5]
+
                 # Show helpful debug info
                 logger.warning(
                     f"   ❌ Failed to normalize '{comp_id}' in module '{module_name}'\n"
-                    f"      ├─ Not found as exact FQDN in components\n"
-                    f"      ├─ Not found in short_id → FQDN mapping\n"
-                    f"      └─ Available similar short IDs: {[k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]}"
+                    f"      ├─ Not found as exact FQDN in components dictionary\n"
+                    f"      ├─ Not found in short_id → FQDN mapping ({len(short_to_fqdn)} entries)\n"
+                    f"      ├─ Similar mapping keys: {similar_mapping_keys if similar_mapping_keys else 'None found'}\n"
+                    f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
                 )
 
         module_data['components'] = normalized_components

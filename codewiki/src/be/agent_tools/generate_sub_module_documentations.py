@@ -52,7 +52,18 @@ async def generate_sub_module_documentation(
                 # Keep original (will fail validation later)
                 normalized_ids.append(comp_id)
                 total_failed += 1
-                logger.warning(f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'")
+
+                # ENHANCED DIAGNOSTICS: Search for similar components
+                similar_mapping_keys = [k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]
+                similar_fqdns = [fqdn for fqdn in deps.components.keys() if comp_id.lower() in fqdn.lower()][:5]
+
+                logger.warning(
+                    f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'\n"
+                    f"      ├─ Not found as exact FQDN in components dictionary\n"
+                    f"      ├─ Not found in short_id → FQDN mapping ({len(short_to_fqdn)} entries)\n"
+                    f"      ├─ Similar mapping keys: {similar_mapping_keys if similar_mapping_keys else 'None found'}\n"
+                    f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
+                )
 
         normalized_specs[sub_module_name] = normalized_ids
 
