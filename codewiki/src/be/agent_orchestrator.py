@@ -59,11 +59,22 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 
 class AgentOrchestrator:
     """Orchestrates the AI agents for documentation generation."""
-    
+
     def __init__(self, config: Config):
+        import logging
+        logger = logging.getLogger(__name__)
+
         self.config = config
         self.fallback_models = create_fallback_models(config)
         self.custom_instructions = config.get_prompt_addition() if config else None
+
+        # Log custom instructions status for debugging
+        if self.custom_instructions:
+            logger.info("🔧 AgentOrchestrator initialized with custom instructions")
+            logger.info(f"   ├─ Combined instructions length: {len(self.custom_instructions)} chars")
+            logger.info(f"   └─ Preview: {self.custom_instructions[:100]}...")
+        else:
+            logger.info("🔧 AgentOrchestrator initialized without custom instructions")
     
     def create_agent(self, module_name: str, components: Dict[str, Any],
                     core_component_ids: List[str]) -> Agent:

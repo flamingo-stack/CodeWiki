@@ -917,7 +917,7 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
 
     Args:
         module_name: Name of the module to document
-        custom_instructions: Optional custom instructions to append
+        custom_instructions: Optional custom instructions to append (combined string from config.get_prompt_addition())
 
     Returns:
         Formatted system prompt string
@@ -930,15 +930,15 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
     logger.info(f"   ├─ Module name: {module_name}")
 
     custom_section = ""
-    if custom_instructions:
+    if custom_instructions and custom_instructions.strip():
         # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
         # F-strings do NOT process braces in substituted variables, so no double-escape needed.
         # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
-        logger.info(f"   ├─ Custom instructions: {len(custom_instructions)} chars")
+        logger.info(f"   ├─ Runtime custom instructions: {len(custom_instructions)} chars")
         logger.info(f"   │  └─ Preview: {custom_instructions[:100]}...")
     else:
-        logger.info(f"   ├─ Custom instructions: None")
+        logger.info(f"   ├─ Runtime custom instructions: None")
 
     # Log injected sections from flamingo_guidelines
     logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")
@@ -969,7 +969,7 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
 
     Args:
         module_name: Name of the module to document
-        custom_instructions: Optional custom instructions to append
+        custom_instructions: Optional custom instructions to append (combined string from config.get_prompt_addition())
 
     Returns:
         Formatted leaf system prompt string
@@ -982,15 +982,15 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     logger.info(f"   ├─ Module name: {module_name}")
 
     custom_section = ""
-    if custom_instructions:
+    if custom_instructions and custom_instructions.strip():
         # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
         # F-strings do NOT process braces in substituted variables, so no double-escape needed.
         # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
-        logger.info(f"   ├─ Custom instructions: {len(custom_instructions)} chars")
+        logger.info(f"   ├─ Runtime custom instructions: {len(custom_instructions)} chars")
         logger.info(f"   │  └─ Preview: {custom_instructions[:100]}...")
     else:
-        logger.info(f"   ├─ Custom instructions: None")
+        logger.info(f"   ├─ Runtime custom instructions: None")
 
     # Log injected sections from flamingo_guidelines
     logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")

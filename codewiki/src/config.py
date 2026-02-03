@@ -126,7 +126,14 @@ class Config:
     def custom_instructions(self) -> Optional[str]:
         """Get custom instructions from agent instructions."""
         if self.agent_instructions:
-            return self.agent_instructions.get('custom_instructions')
+            # Handle both dict and object with to_dict() method
+            if hasattr(self.agent_instructions, 'to_dict'):
+                instructions_dict = self.agent_instructions.to_dict()
+            elif isinstance(self.agent_instructions, dict):
+                instructions_dict = self.agent_instructions
+            else:
+                return None
+            return instructions_dict.get('custom_instructions')
         return None
 
     @property
@@ -210,8 +217,14 @@ class Config:
 
     def get_prompt_addition(self) -> str:
         """Generate prompt additions based on agent instructions."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not self.agent_instructions:
+            logger.debug("📋 get_prompt_addition: No agent_instructions configured")
             return ""
+
+        logger.debug("📋 get_prompt_addition: Building combined instructions")
 
         additions = []
 
@@ -224,19 +237,28 @@ class Config:
             }
             if self.doc_type.lower() in doc_type_instructions:
                 additions.append(doc_type_instructions[self.doc_type.lower()])
+                logger.debug(f"   ├─ Added doc_type: {self.doc_type}")
             else:
                 additions.append(f"Focus on generating {self.doc_type} documentation.")
+                logger.debug(f"   ├─ Added custom doc_type: {self.doc_type}")
 
         if self.focus_modules:
             additions.append(f"Pay special attention to and provide more detailed documentation for these modules: {', '.join(self.focus_modules)}")
+            logger.debug(f"   ├─ Added focus_modules: {len(self.focus_modules)} modules")
 
         if self.custom_instructions:
             # Escape curly braces to prevent KeyError when used with .format()
             # This is critical when custom_instructions contain JSON (e.g., external_repos config)
             escaped_instructions = escape_format_braces(self.custom_instructions)
             additions.append(f"Additional instructions: {escaped_instructions}")
+            logger.debug(f"   ├─ Added custom_instructions: {len(self.custom_instructions)} chars")
+            logger.debug(f"   │  └─ Preview: {self.custom_instructions[:100]}...")
+        else:
+            logger.debug(f"   └─ No custom_instructions field present")
 
-        return "\n".join(additions) if additions else ""
+        result = "\n".join(additions) if additions else ""
+        logger.debug(f"   └─ Total combined: {len(result)} chars")
+        return result
     
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> 'Config':
