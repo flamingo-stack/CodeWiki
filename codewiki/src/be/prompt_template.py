@@ -754,33 +754,45 @@ EXTENSION_TO_LANGUAGE = {
 def format_user_prompt(module_name: str, core_component_ids: list[str], components: Dict[str, Any], module_tree: dict[str, any]) -> str:
     """
     Format the user prompt with module name and organized core component codes.
-    
+
     Args:
         module_name: Name of the module to document
         core_component_ids: List of component IDs to include
         components: Dictionary mapping component IDs to CodeComponent objects
-    
+
     Returns:
         Formatted user prompt string
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("📝 Prompt Assembly Stage - USER_PROMPT")
+    logger.info(f"   ├─ Template: USER_PROMPT")
+    logger.info(f"   ├─ Module name: {module_name}")
+    logger.info(f"   ├─ Core component IDs: {len(core_component_ids)} components")
+    logger.info(f"   │  └─ Components: {', '.join(core_component_ids[:5])}" +
+                (f" ... and {len(core_component_ids) - 5} more" if len(core_component_ids) > 5 else ""))
 
     # format module tree
     lines = []
-    
+
     def _format_module_tree(module_tree: dict[str, any], indent: int = 0):
         for key, value in module_tree.items():
             if key == module_name:
                 lines.append(f"{'  ' * indent}{key} (current module)")
             else:
                 lines.append(f"{'  ' * indent}{key}")
-            
+
             lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value.get('components', []))}")
             if ("children" in value) and isinstance(value["children"], dict) and len(value["children"]) > 0:
                 lines.append(f"{'  ' * (indent + 1)} Children:")
                 _format_module_tree(value["children"], indent + 2)
-    
+
     _format_module_tree(module_tree, 0)
     formatted_module_tree = "\n".join(lines)
+
+    logger.info(f"   ├─ Module tree context: {len(formatted_module_tree)} chars")
+    logger.info(f"   │  └─ Preview: {formatted_module_tree[:100]}...")
 
     # print(f"Formatted module tree:\n{formatted_module_tree}")
 
@@ -819,6 +831,9 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
         
         core_component_codes += "```\n\n"
         
+    logger.info(f"   ├─ Core component codes: {len(core_component_codes)} chars")
+    logger.info(f"   │  └─ Files included: {len(grouped_components)} files")
+
     # FIXED: Use manual string replacement instead of .format()
     # formatted_core_component_codes might contain code with curly braces (JSON, TypeScript, etc.)
     # which .format() tries to interpret as placeholders
@@ -826,6 +841,11 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
     result = result.replace('{module_name}', module_name)
     result = result.replace('{formatted_core_component_codes}', core_component_codes)
     result = result.replace('{module_tree}', formatted_module_tree)
+
+    logger.info(f"   ├─ Base USER_PROMPT length: {len(USER_PROMPT)} chars")
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
     return result
 
 
@@ -834,19 +854,32 @@ def format_cluster_prompt(potential_core_components: str, module_tree: dict[str,
     """
     Format the cluster prompt with potential core components and module tree.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Determine which template we're using
+    is_repo_level = module_tree == {}
+    template_name = "CLUSTER_REPO_PROMPT" if is_repo_level else "CLUSTER_MODULE_PROMPT"
+
+    logger.info(f"📝 Prompt Assembly Stage - {template_name}")
+    logger.info(f"   ├─ Template: {template_name}")
+    if module_name:
+        logger.info(f"   ├─ Module name: {module_name}")
+    logger.info(f"   ├─ Potential core components: {len(potential_core_components)} chars")
+    logger.info(f"   │  └─ Preview: {potential_core_components[:100]}...")
 
     # format module tree
     lines = []
 
     # print(f"Module tree:\n{json.dumps(module_tree, indent=2)}")
-    
+
     def _format_module_tree(module_tree: dict[str, any], indent: int = 0):
         for key, value in module_tree.items():
             if key == module_name:
                 lines.append(f"{'  ' * indent}{key} (current module)")
             else:
                 lines.append(f"{'  ' * indent}{key}")
-            
+
             lines.append(f"{'  ' * (indent + 1)} Core components: {', '.join(value.get('components', []))}")
             if ("children" in value) and isinstance(value["children"], dict) and len(value["children"]) > 0:
                 lines.append(f"{'  ' * (indent + 1)} Children:")
@@ -855,19 +888,27 @@ def format_cluster_prompt(potential_core_components: str, module_tree: dict[str,
     _format_module_tree(module_tree, 0)
     formatted_module_tree = "\n".join(lines)
 
+    if not is_repo_level:
+        logger.info(f"   ├─ Module tree context: {len(formatted_module_tree)} chars")
+        logger.info(f"   │  └─ Preview: {formatted_module_tree[:100]}...")
 
     # FIXED: Use manual string replacement instead of .format()
     # potential_core_components might contain code with curly braces
     if module_tree == {}:
         result = CLUSTER_REPO_PROMPT
         result = result.replace('{potential_core_components}', potential_core_components)
-        return result
+        logger.info(f"   ├─ Base CLUSTER_REPO_PROMPT length: {len(CLUSTER_REPO_PROMPT)} chars")
     else:
         result = CLUSTER_MODULE_PROMPT
         result = result.replace('{potential_core_components}', potential_core_components)
         result = result.replace('{module_tree}', formatted_module_tree)
         result = result.replace('{module_name}', module_name)
-        return result
+        logger.info(f"   ├─ Base CLUSTER_MODULE_PROMPT length: {len(CLUSTER_MODULE_PROMPT)} chars")
+
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
+    return result
 
 
 def format_system_prompt(module_name: str, custom_instructions: str = None) -> str:
@@ -881,12 +922,31 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
     Returns:
         Formatted system prompt string
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("📝 Prompt Assembly Stage - SYSTEM_PROMPT (complex modules)")
+    logger.info(f"   ├─ Template: SYSTEM_PROMPT (complex modules)")
+    logger.info(f"   ├─ Module name: {module_name}")
+
     custom_section = ""
     if custom_instructions:
         # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
         # F-strings do NOT process braces in substituted variables, so no double-escape needed.
         # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
+        logger.info(f"   ├─ Custom instructions: {len(custom_instructions)} chars")
+        logger.info(f"   │  └─ Preview: {custom_instructions[:100]}...")
+    else:
+        logger.info(f"   ├─ Custom instructions: None")
+
+    # Log injected sections from flamingo_guidelines
+    logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")
+    if _CUSTOM_INSTRUCTIONS_SECTION:
+        logger.info(f"   │  └─ Preview: {_CUSTOM_INSTRUCTIONS_SECTION[:100]}...")
+    logger.info(f"   ├─ Flamingo guidelines section: {len(_GUIDELINES_SECTION)} chars")
+    if _GUIDELINES_SECTION:
+        logger.info(f"   │  └─ Preview: {_GUIDELINES_SECTION[:100]}...")
 
     # FIXED: Use manual string replacement instead of .format()
     # This avoids ALL .format() complexity with curly braces in guidelines content
@@ -895,6 +955,11 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
     result = SYSTEM_PROMPT
     result = result.replace('{module_name}', module_name)
     result = result.replace('{custom_instructions}', custom_section)
+
+    logger.info(f"   ├─ Base system prompt length: {len(SYSTEM_PROMPT)} chars")
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
     return result.strip()
 
 
@@ -909,12 +974,31 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     Returns:
         Formatted leaf system prompt string
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("📝 Prompt Assembly Stage - LEAF_SYSTEM_PROMPT")
+    logger.info(f"   ├─ Template: LEAF_SYSTEM_PROMPT (leaf modules)")
+    logger.info(f"   ├─ Module name: {module_name}")
+
     custom_section = ""
     if custom_instructions:
         # NOTE: Braces already escaped in config.py:151 via escape_format_braces()
         # F-strings do NOT process braces in substituted variables, so no double-escape needed.
         # See flamingo_guidelines.py:64-73 for the escape strategy explanation.
         custom_section = f"\n\n<CUSTOM_INSTRUCTIONS>\n{custom_instructions}\n</CUSTOM_INSTRUCTIONS>"
+        logger.info(f"   ├─ Custom instructions: {len(custom_instructions)} chars")
+        logger.info(f"   │  └─ Preview: {custom_instructions[:100]}...")
+    else:
+        logger.info(f"   ├─ Custom instructions: None")
+
+    # Log injected sections from flamingo_guidelines
+    logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")
+    if _CUSTOM_INSTRUCTIONS_SECTION:
+        logger.info(f"   │  └─ Preview: {_CUSTOM_INSTRUCTIONS_SECTION[:100]}...")
+    logger.info(f"   ├─ Flamingo guidelines section: {len(_GUIDELINES_SECTION)} chars")
+    if _GUIDELINES_SECTION:
+        logger.info(f"   │  └─ Preview: {_GUIDELINES_SECTION[:100]}...")
 
     # FIXED: Use manual string replacement instead of .format()
     # This avoids ALL .format() complexity with curly braces in guidelines content
@@ -923,6 +1007,11 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     result = LEAF_SYSTEM_PROMPT
     result = result.replace('{module_name}', module_name)
     result = result.replace('{custom_instructions}', custom_section)
+
+    logger.info(f"   ├─ Base system prompt length: {len(LEAF_SYSTEM_PROMPT)} chars")
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
     return result.strip()
 
 
@@ -937,12 +1026,30 @@ def format_repo_overview_prompt(repo_name: str, repo_structure: str) -> str:
     Returns:
         Formatted repository overview prompt string
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("📝 Prompt Assembly Stage - REPO_OVERVIEW_PROMPT")
+    logger.info(f"   ├─ Template: REPO_OVERVIEW_PROMPT")
+    logger.info(f"   ├─ Repository name: {repo_name}")
+    logger.info(f"   ├─ Repository structure: {len(repo_structure)} chars")
+    logger.info(f"   │  └─ Preview: {repo_structure[:100]}...")
+
+    # Log injected sections from flamingo_guidelines
+    logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")
+    logger.info(f"   ├─ Flamingo guidelines section: {len(_GUIDELINES_SECTION)} chars")
+
     # FIXED: Use manual string replacement instead of .format()
     # repo_structure is JSON which contains lots of curly braces
     # .format() would try to interpret these as placeholders
     result = REPO_OVERVIEW_PROMPT
     result = result.replace('{repo_name}', repo_name)
     result = result.replace('{repo_structure}', repo_structure)
+
+    logger.info(f"   ├─ Base REPO_OVERVIEW_PROMPT length: {len(REPO_OVERVIEW_PROMPT)} chars")
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
     return result
 
 
@@ -957,10 +1064,28 @@ def format_module_overview_prompt(module_name: str, repo_structure: str) -> str:
     Returns:
         Formatted module overview prompt string
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("📝 Prompt Assembly Stage - MODULE_OVERVIEW_PROMPT")
+    logger.info(f"   ├─ Template: MODULE_OVERVIEW_PROMPT")
+    logger.info(f"   ├─ Module name: {module_name}")
+    logger.info(f"   ├─ Repository structure: {len(repo_structure)} chars")
+    logger.info(f"   │  └─ Preview: {repo_structure[:100]}...")
+
+    # Log injected sections from flamingo_guidelines
+    logger.info(f"   ├─ Flamingo custom instructions section: {len(_CUSTOM_INSTRUCTIONS_SECTION)} chars")
+    logger.info(f"   ├─ Flamingo guidelines section: {len(_GUIDELINES_SECTION)} chars")
+
     # FIXED: Use manual string replacement instead of .format()
     # repo_structure is JSON which contains lots of curly braces
     # .format() would try to interpret these as placeholders
     result = MODULE_OVERVIEW_PROMPT
     result = result.replace('{module_name}', module_name)
     result = result.replace('{repo_structure}', repo_structure)
+
+    logger.info(f"   ├─ Base MODULE_OVERVIEW_PROMPT length: {len(MODULE_OVERVIEW_PROMPT)} chars")
+    logger.info(f"   ├─ Total assembled prompt: {len(result)} chars (~{len(result) // 4} tokens)")
+    logger.info(f"   └─ ✅ Prompt ready for LLM invocation")
+
     return result

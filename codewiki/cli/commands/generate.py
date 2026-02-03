@@ -225,9 +225,15 @@ def generate_command(
     try:
         # Pre-generation checks
         logger.step("Validating configuration...", 1, 4)
-        
+
+        if verbose:
+            logger.debug("🔍 Stage 1.1: Configuration Validation")
+
         # Load configuration
         config_manager = ConfigManager()
+        if verbose:
+            logger.debug("├─ Loading configuration from ~/.codewiki/config.json")
+
         if not config_manager.load():
             raise ConfigurationError(
                 "Configuration not found or invalid.\n\n"
@@ -236,7 +242,7 @@ def generate_command(
                 "    --main-model <model> --cluster-model <model>\n\n"
                 "For more help: codewiki config --help"
             )
-        
+
         if not config_manager.is_configured():
             raise ConfigurationError(
                 "Configuration is incomplete. Please run 'codewiki config validate'"
@@ -244,22 +250,43 @@ def generate_command(
 
         config = config_manager.get_config()
 
+        if verbose:
+            logger.debug(f"├─ Main model: {config.main_model}")
+            logger.debug(f"├─ Cluster model: {config.cluster_model}")
+            logger.debug(f"└─ Fallback model: {config.fallback_model or '(none)'}")
+
         # Populate API keys from keyring (they're not stored in config.json for security)
         config.cluster_api_key = config_manager.get_cluster_api_key()
         config.main_api_key = config_manager.get_main_api_key()
         config.fallback_api_key = config_manager.get_fallback_api_key()
 
+        if verbose:
+            logger.debug("├─ API keys loaded from secure keyring")
+            logger.debug(f"   ├─ Cluster API key: {'✓' if config.cluster_api_key else '✗'}")
+            logger.debug(f"   ├─ Main API key: {'✓' if config.main_api_key else '✗'}")
+            logger.debug(f"   └─ Fallback API key: {'✓' if config.fallback_api_key else '✗'}")
+
         logger.success("Configuration valid")
         
         # Validate repository
         logger.step("Validating repository...", 2, 4)
-        
+
+        if verbose:
+            logger.debug("🔍 Stage 1.2: Repository Validation")
+
         repo_path = Path.cwd()
+        if verbose:
+            logger.debug(f"├─ Working directory: {repo_path}")
+
         repo_path, languages = validate_repository(repo_path)
-        
+
         logger.success(f"Repository valid: {repo_path.name}")
         if verbose:
-            logger.debug(f"Detected languages: {', '.join(f'{lang} ({count} files)' for lang, count in languages)}")
+            logger.debug(f"├─ Repository path (resolved): {repo_path}")
+            logger.debug(f"├─ Detected {len(languages)} language(s)")
+            for lang, count in languages:
+                logger.debug(f"│  ├─ {lang}: {count} files")
+            logger.debug(f"└─ Total detected: {sum(count for _, count in languages)} files")
         
         # Check git repository
         if not is_git_repository(repo_path):
@@ -359,7 +386,15 @@ def generate_command(
         # Validate and parse additional paths
         additional_paths_list = None
         if additional_paths:
+            if verbose:
+                logger.debug("🔍 Stage 1.3: Additional Paths Validation")
+
             additional_paths_list = parse_patterns(additional_paths)
+
+            if verbose:
+                logger.debug(f"├─ Parsed {len(additional_paths_list)} additional path(s)")
+                for i, path in enumerate(additional_paths_list, 1):
+                    logger.debug(f"│  ├─ Path #{i}: {path}")
 
             # Validate that paths exist
             invalid_paths = []
@@ -367,8 +402,13 @@ def generate_command(
                 full_path = repo_path / path
                 if not full_path.exists():
                     invalid_paths.append(path)
+                elif verbose:
+                    logger.debug(f"│  └─ ✓ {path} (exists)")
 
             if invalid_paths:
+                if verbose:
+                    for path in invalid_paths:
+                        logger.debug(f"│  └─ ✗ {path} (not found)")
                 raise RepositoryError(
                     f"Additional paths not found:\n"
                     f"  {', '.join(invalid_paths)}\n\n"
@@ -376,6 +416,9 @@ def generate_command(
                     f"  Repository: {repo_path}\n"
                     f"  Invalid paths: {invalid_paths}"
                 )
+
+            if verbose:
+                logger.debug(f"└─ All additional paths validated")
 
         # Log max token settings if verbose (from upstream)
         if verbose:

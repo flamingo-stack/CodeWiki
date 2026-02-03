@@ -235,11 +235,20 @@ class AnalysisService:
         exclude_patterns: Optional[List[str]],
     ) -> Dict[str, Any]:
         """Analyze repository file structure with filtering."""
-        logger.debug(
-            f"Initializing RepoAnalyzer with include: {include_patterns}, exclude: {exclude_patterns}"
-        )
+        logger.debug("🔍 Stage 2.1.1: Repository Structure Analysis")
+        logger.debug(f"├─ Repository: {repo_dir}")
+        if include_patterns:
+            logger.debug(f"├─ Include patterns: {', '.join(include_patterns)}")
+        if exclude_patterns:
+            logger.debug(f"├─ Exclude patterns: {', '.join(exclude_patterns)}")
+
+        logger.debug("└─ Initializing RepoAnalyzer...")
         repo_analyzer = RepoAnalyzer(include_patterns, exclude_patterns)
-        return repo_analyzer.analyze_repository_structure(repo_dir)
+        result = repo_analyzer.analyze_repository_structure(repo_dir)
+
+        logger.debug(f"   ├─ Files found: {result.get('summary', {}).get('total_files', 0)}")
+        logger.debug(f"   └─ Languages detected: {', '.join(result.get('summary', {}).get('languages', []))}")
+        return result
 
     def _read_readme_file(self, repo_dir: str) -> Optional[str]:
         """Find and read the README file from the repository root."""
@@ -279,17 +288,37 @@ class AnalysisService:
         - JavaScript/TypeScript AST analysis (planned)
         - Additional language support (future)
         """
-        logger.debug("Extracting code files from file tree...")
+        logger.debug("🔍 Stage 2.2.1: Call Graph Analysis")
+        logger.debug("├─ Extracting code files from file tree...")
         code_files = self.call_graph_analyzer.extract_code_files(file_tree)
+        logger.debug(f"│  └─ Extracted {len(code_files)} code files")
 
-        logger.debug(f"Found {len(code_files)} total code files. Filtering for supported languages.")
+        logger.debug("├─ Filtering for supported languages...")
         supported_files = self._filter_supported_languages(code_files)
-        logger.debug(f"Analyzing {len(supported_files)} supported files.")
+        unsupported_count = len(code_files) - len(supported_files)
+        logger.debug(f"│  ├─ Supported: {len(supported_files)} files")
+        if unsupported_count > 0:
+            logger.debug(f"│  └─ Unsupported: {unsupported_count} files (skipped)")
 
+        # Count by language
+        lang_counts = {}
+        for f in supported_files:
+            lang = f.get('language', 'unknown')
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+
+        if lang_counts:
+            logger.debug("├─ Files by language:")
+            for lang, count in sorted(lang_counts.items(), key=lambda x: x[1], reverse=True):
+                logger.debug(f"│  ├─ {lang}: {count}")
+
+        logger.debug(f"└─ Analyzing {len(supported_files)} files with AST parsers...")
         result = self.call_graph_analyzer.analyze_code_files(supported_files, repo_dir)
 
         result["call_graph"]["supported_languages"] = self._get_supported_languages()
-        result["call_graph"]["unsupported_files"] = len(code_files) - len(supported_files)
+        result["call_graph"]["unsupported_files"] = unsupported_count
+
+        logger.debug(f"   ├─ Functions extracted: {len(result.get('functions', []))}")
+        logger.debug(f"   └─ Relationships found: {len(result.get('relationships', []))}")
 
         return result
 

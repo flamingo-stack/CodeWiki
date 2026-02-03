@@ -134,17 +134,28 @@ class DocumentationGenerator:
 
     async def generate_module_documentation(self, components: Dict[str, Any], leaf_nodes: List[str]) -> str:
         """Generate documentation for all modules using dynamic programming approach."""
+        logger.info("📝 Stage 3.1: Module Documentation Generation")
+
         # Prepare output directory
         working_dir = os.path.abspath(self.config.docs_dir)
         file_manager.ensure_directory(working_dir)
+        logger.debug(f"├─ Working directory: {working_dir}")
 
         module_tree_path = os.path.join(working_dir, MODULE_TREE_FILENAME)
         first_module_tree_path = os.path.join(working_dir, FIRST_MODULE_TREE_FILENAME)
+        logger.debug(f"├─ Loading module trees...")
+        logger.debug(f"│  ├─ Module tree: {MODULE_TREE_FILENAME}")
+        logger.debug(f"│  └─ First module tree: {FIRST_MODULE_TREE_FILENAME}")
+
         module_tree = file_manager.load_json(module_tree_path)
         first_module_tree = file_manager.load_json(first_module_tree_path)
-        
+
+        logger.info(f"├─ Module tree loaded: {len(module_tree)} top-level modules")
+
         # Get processing order (leaf modules first)
+        logger.debug("├─ Calculating processing order (topological sort: leaf modules first)...")
         processing_order = self.get_processing_order(first_module_tree)
+        logger.info(f"│  └─ Processing order: {len(processing_order)} modules total")
 
         
         # Process modules in dependency order
@@ -152,7 +163,8 @@ class DocumentationGenerator:
         processed_modules = set()
 
         if len(module_tree) > 0:
-            for module_path, module_name in processing_order:
+            logger.info(f"├─ Processing {len(processing_order)} modules...")
+            for idx, (module_path, module_name) in enumerate(processing_order, 1):
                 try:
                     # Get the module info from the tree
                     module_info = module_tree
@@ -160,17 +172,19 @@ class DocumentationGenerator:
                         module_info = module_info[path_part]
                         if path_part != module_path[-1]:  # Not the last part
                             module_info = module_info.get("children", {})
-                    
+
                     # Skip if already processed
                     module_key = "/".join(module_path)
                     if module_key in processed_modules:
+                        logger.debug(f"│  ├─ [{idx}/{len(processing_order)}] Skipping {module_key} (already processed)")
                         continue
-                    
+
                     # Process the module
                     if self.is_leaf_module(module_info):
                         component_list = module_info["components"]
-                        logger.info(f"📄 Processing leaf module: {module_key}")
-                        logger.info(f"   └─ Leaf nodes ({len(component_list)}): {', '.join(component_list[:5])}" +
+                        logger.info(f"│  ├─ [{idx}/{len(processing_order)}] 📄 Leaf module: {module_key}")
+                        logger.info(f"│  │  ├─ Components: {len(component_list)}")
+                        logger.info(f"│  │  │  └─ {', '.join(component_list[:5])}" +
                                    (f" ... and {len(component_list) - 5} more" if len(component_list) > 5 else ""))
 
                         # Log file breakdown
@@ -182,50 +196,77 @@ class DocumentationGenerator:
                                     files_with_components[file_path] = []
                                 files_with_components[file_path].append(comp_name)
 
-                        logger.info(f"   └─ Files involved ({len(files_with_components)}):")
+                        logger.info(f"│  │  └─ Files: {len(files_with_components)}")
                         for file_path, comps in list(files_with_components.items())[:3]:
-                            logger.info(f"      • {file_path} ({len(comps)} component{'s' if len(comps) > 1 else ''})")
+                            logger.debug(f"│  │     ├─ {file_path} ({len(comps)} component{'s' if len(comps) > 1 else ''})")
                         if len(files_with_components) > 3:
-                            logger.info(f"      • ... and {len(files_with_components) - 3} more files")
+                            logger.debug(f"│  │     └─ ... and {len(files_with_components) - 3} more files")
 
+                        logger.debug(f"│  │  └─ Calling LLM for leaf module documentation...")
+                        import time
+                        start_time = time.time()
                         final_module_tree = await self.agent_orchestrator.process_module(
                             module_name, components, module_info["components"], module_path, working_dir
                         )
+                        elapsed = time.time() - start_time
+                        logger.info(f"│  │     └─ ✅ Generated in {elapsed:.2f}s")
                     else:
-                        logger.info(f"📁 Processing parent module: {module_key}")
-                        logger.info(f"   └─ Aggregating {len(module_info.get('children', {}))} child modules")
+                        logger.info(f"│  ├─ [{idx}/{len(processing_order)}] 📁 Parent module: {module_key}")
+                        logger.info(f"│  │  ├─ Children: {len(module_info.get('children', {}))} sub-modules")
+                        logger.debug(f"│  │  └─ Calling LLM for parent module overview...")
+                        import time
+                        start_time = time.time()
                         final_module_tree = await self.generate_parent_module_docs(
                             module_path, working_dir
                         )
-                    
+                        elapsed = time.time() - start_time
+                        logger.info(f"│  │     └─ ✅ Generated in {elapsed:.2f}s")
+
                     processed_modules.add(module_key)
-                    
+
                 except Exception as e:
-                    logger.error(f"Failed to process module {module_key}: {str(e)}")
-                    logger.error(f"Full traceback:\n{traceback.format_exc()}")
+                    logger.error(f"│  ├─ [{idx}/{len(processing_order)}] ❌ Failed: {module_key}")
+                    logger.error(f"│  │  └─ Error: {str(e)}")
+                    logger.error(f"│  │  └─ Traceback:\n{traceback.format_exc()}")
                     # Continue processing other modules (graceful degradation)
                     continue
 
             # Generate repo overview
-            logger.info(f"📚 Generating repository overview")
+            logger.info(f"├─ 📚 Generating repository overview...")
+            import time
+            start_time = time.time()
             final_module_tree = await self.generate_parent_module_docs(
                 [], working_dir
             )
+            elapsed = time.time() - start_time
+            logger.info(f"│  └─ ✅ Repository overview generated in {elapsed:.2f}s")
         else:
-            logger.info(f"Processing whole repo because repo can fit in the context window")
+            logger.info(f"└─ ⚡ Small repository: Processing entire repo in single pass")
             repo_name = os.path.basename(os.path.normpath(self.config.repo_path))
+            logger.info(f"   ├─ Repository name: {repo_name}")
+            logger.info(f"   ├─ Components: {len(components)}")
+            logger.info(f"   └─ Leaf nodes: {len(leaf_nodes)}")
+
+            logger.debug(f"   └─ Calling LLM for complete repository documentation...")
+            import time
+            start_time = time.time()
             final_module_tree = await self.agent_orchestrator.process_module(
                 repo_name, components, leaf_nodes, [], working_dir
             )
+            elapsed = time.time() - start_time
+            logger.info(f"      └─ ✅ Generated in {elapsed:.2f}s")
 
             # save final_module_tree to module_tree.json
             file_manager.save_json(final_module_tree, os.path.join(working_dir, MODULE_TREE_FILENAME))
+            logger.debug(f"   └─ Saved module tree to {MODULE_TREE_FILENAME}")
 
             # rename repo_name.md to overview.md
             repo_overview_path = os.path.join(working_dir, f"{repo_name}.md")
             if os.path.exists(repo_overview_path):
                 os.rename(repo_overview_path, os.path.join(working_dir, OVERVIEW_FILENAME))
-        
+                logger.debug(f"   └─ Renamed {repo_name}.md to {OVERVIEW_FILENAME}")
+
+        logger.info(f"└─ ✅ Module documentation generation complete")
         return working_dir
 
     async def generate_parent_module_docs(self, module_path: List[str], 
@@ -257,6 +298,14 @@ class DocumentationGenerator:
         # FIXED: Use formatting functions instead of .format()
         # repo_structure is JSON which contains curly braces that .format() would interpret
         repo_structure_json = json.dumps(repo_structure, indent=4)
+
+        logger.info("📄 Generating Parent Module Documentation")
+        logger.info(f"   ├─ Module name: {module_name}")
+        logger.info(f"   ├─ Module path: {' > '.join(module_path) if module_path else '(repository overview)'}")
+        logger.info(f"   ├─ Repo structure JSON: {len(repo_structure_json)} chars")
+        logger.info(f"   └─ Prompt type: {'MODULE_OVERVIEW' if len(module_path) >= 1 else 'REPO_OVERVIEW'}")
+        logger.info("")
+
         prompt = format_module_overview_prompt(
             module_name,
             repo_structure_json
@@ -264,7 +313,12 @@ class DocumentationGenerator:
             module_name,
             repo_structure_json
         )
-        
+
+        logger.info("🤖 Calling documentation generation LLM for parent module")
+        logger.info(f"   ├─ Model: {self.config.main_model}")
+        logger.info(f"   └─ Generating overview documentation...")
+        logger.info("")
+
         try:
             parent_docs = call_llm(prompt, self.config)
 

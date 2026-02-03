@@ -255,41 +255,73 @@ class CLIDocumentationGenerator:
     
     async def _run_backend_generation(self, backend_config: BackendConfig):
         """Run the backend documentation generation with progress tracking."""
-        
+
         # Stage 1: Dependency Analysis
         self.progress_tracker.start_stage(1, "Dependency Analysis")
         if self.verbose:
+            logger = logging.getLogger(__name__)
+            logger.info("🔍 Stage 1: Repository Dependency Analysis")
             self.progress_tracker.update_stage(0.1, "Initializing dependency analyzer...")
             print(f"   ├─ Repository: {backend_config.repo_path}")
             print(f"   └─ Output: {backend_config.output_dir}")
 
+            if backend_config.additional_source_paths:
+                print(f"   ├─ Additional paths: {len(backend_config.additional_source_paths)}")
+                for i, path in enumerate(backend_config.additional_source_paths, 1):
+                    print(f"   │  └─ Path #{i}: {path}")
+
         # Create documentation generator
+        if self.verbose:
+            logger.info("├─ Initializing DocumentationGenerator...")
         doc_generator = DocumentationGenerator(backend_config)
 
         if self.verbose:
             self.progress_tracker.update_stage(0.4, "Scanning repository for source files...")
+            logger.info("├─ Starting file discovery and AST parsing...")
 
         # Build dependency graph
         try:
             if self.verbose:
                 self.progress_tracker.update_stage(0.7, "Building dependency graph...")
 
+            import time
+            start_time = time.time()
             components, leaf_nodes = doc_generator.graph_builder.build_dependency_graph()
+            elapsed = time.time() - start_time
+
             self.job.statistics.total_files_analyzed = len(components)
             self.job.statistics.leaf_nodes = len(leaf_nodes)
 
             if self.verbose:
-                self.progress_tracker.update_stage(1.0, f"Analysis complete")
+                self.progress_tracker.update_stage(1.0, f"Analysis complete ({elapsed:.2f}s)")
+                logger.info(f"└─ ✅ Dependency graph built in {elapsed:.2f}s:")
                 print(f"   ├─ Total components: {len(components)}")
                 print(f"   ├─ Leaf nodes: {len(leaf_nodes)}")
                 print(f"   └─ Files analyzed: {self.job.statistics.total_files_analyzed}")
+
+                # Show component type breakdown
+                type_counts = {}
+                for comp in components.values():
+                    comp_type = comp.component_type
+                    type_counts[comp_type] = type_counts.get(comp_type, 0) + 1
+
+                if type_counts:
+                    print(f"   └─ Component types:")
+                    for comp_type, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+                        print(f"      ├─ {comp_type}: {count}")
         except Exception as e:
+            if self.verbose:
+                logger.error(f"❌ Dependency analysis failed: {e}")
             raise APIError(f"Dependency analysis failed: {e}")
 
         self.progress_tracker.complete_stage()
         
         # Stage 2: Module Clustering
         self.progress_tracker.start_stage(2, "Module Clustering")
+
+        if self.verbose:
+            logger = logging.getLogger(__name__)
+            logger.info("🔍 Stage 2: Module Clustering with LLM")
 
         # Import clustering function
         from codewiki.src.be.cluster_modules import cluster_modules
@@ -305,17 +337,33 @@ class CLIDocumentationGenerator:
             if os.path.exists(first_module_tree_path):
                 if self.verbose:
                     self.progress_tracker.update_stage(0.3, "Loading cached module tree...")
+                    logger.info(f"├─ Found cached module tree")
                     print(f"   └─ Cache file: {first_module_tree_path}")
+                import time
+                start_time = time.time()
                 module_tree = file_manager.load_json(first_module_tree_path)
+                elapsed = time.time() - start_time
+                if self.verbose:
+                    logger.info(f"│  └─ Loaded in {elapsed:.2f}s")
             else:
                 if self.verbose:
                     self.progress_tracker.update_stage(0.2, "Analyzing code structure...")
+                    logger.info(f"├─ No cached module tree found - calling LLM")
                     print(f"   ├─ Leaf nodes to cluster: {len(leaf_nodes)}")
                     print(f"   ├─ Using model: {backend_config.cluster_model}")
+                    print(f"   │  └─ Base URL: {backend_config.cluster_base_url or '(default)'}")
+                    print(f"   │  └─ Max tokens: {backend_config.cluster_max_tokens}")
                     print(f"   └─ Calling LLM for clustering...")
 
+                import time
+                start_time = time.time()
                 module_tree = cluster_modules(leaf_nodes, components, backend_config)
+                elapsed = time.time() - start_time
+
                 file_manager.save_json(module_tree, first_module_tree_path)
+
+                if self.verbose:
+                    logger.info(f"│  └─ LLM clustering completed in {elapsed:.2f}s")
 
                 if self.verbose:
                     self.progress_tracker.update_stage(0.7, f"Clustered into {len(module_tree)} modules")
@@ -326,7 +374,12 @@ class CLIDocumentationGenerator:
             # IMPORTANT: Runs AFTER loading cached file too (fixes cache bypass bug)
             # See: https://github.com/flamingo-stack/CodeWiki - forked with this fix
             if len(module_tree) == 0 and len(leaf_nodes) > 0:
-                logging.warning("⚠️  Module tree is empty - creating synthetic modules to prevent context overflow")
+                if self.verbose:
+                    logger.warning("⚠️  Module tree is empty - creating synthetic modules")
+                    logger.info("├─ Fallback: Creating synthetic modules to prevent context overflow")
+                else:
+                    logging.warning("⚠️  Module tree is empty - creating synthetic modules to prevent context overflow")
+
                 max_per_module = int(os.environ.get('CODEWIKI_MAX_FILES_PER_MODULE', '5'))
                 synthetic_modules = {}
 
@@ -350,7 +403,10 @@ class CLIDocumentationGenerator:
                     }
 
                 module_tree = synthetic_modules
-                logging.info(f"✓ Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
+                if self.verbose:
+                    logger.info(f"│  └─ Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
+                else:
+                    logging.info(f"✓ Created {len(module_tree)} synthetic modules ({max_per_module} files each)")
                 # Update the cached file with synthetic modules
                 file_manager.save_json(module_tree, first_module_tree_path)
             # === END SYNTHETIC_MODULE_PATCH ===
@@ -360,10 +416,18 @@ class CLIDocumentationGenerator:
 
             if self.verbose:
                 self.progress_tracker.update_stage(1.0, f"Module tree ready")
+                logger.info(f"└─ ✅ Module clustering complete:")
                 print(f"   ├─ Total modules: {len(module_tree)}")
                 print(f"   └─ Module names: {', '.join(list(module_tree.keys())[:5])}" +
                       (f" ... ({len(module_tree) - 5} more)" if len(module_tree) > 5 else ""))
+
+                # Show module size distribution
+                if module_tree:
+                    sizes = [len(mod.get('components', [])) for mod in module_tree.values()]
+                    print(f"   └─ Module sizes: min={min(sizes)}, max={max(sizes)}, avg={sum(sizes)/len(sizes):.1f}")
         except Exception as e:
+            if self.verbose:
+                logger.error(f"❌ Module clustering failed: {e}")
             raise APIError(f"Module clustering failed: {e}")
         
         self.progress_tracker.complete_stage()
@@ -371,26 +435,49 @@ class CLIDocumentationGenerator:
         # Stage 3: Documentation Generation
         self.progress_tracker.start_stage(3, "Documentation Generation")
         if self.verbose:
+            logger = logging.getLogger(__name__)
+            logger.info("🔍 Stage 3: LLM-Powered Documentation Generation")
             self.progress_tracker.update_stage(0.1, "Starting documentation generation...")
             print(f"   ├─ Modules to document: {len(module_tree)}")
             print(f"   ├─ Using model: {backend_config.main_model}")
+            print(f"   │  └─ Base URL: {backend_config.main_base_url or '(default)'}")
+            print(f"   │  └─ Max tokens: {backend_config.main_max_tokens}")
             print(f"   └─ Fallback model: {backend_config.fallback_model}")
+            print(f"      └─ Base URL: {backend_config.fallback_base_url or '(default)'}")
             print()
 
         try:
             # Run the actual documentation generation
-            await doc_generator.generate_module_documentation(components, leaf_nodes)
-            
             if self.verbose:
+                logger.info("├─ Generating module documentation (calling LLM for each module)...")
+
+            import time
+            start_time = time.time()
+            await doc_generator.generate_module_documentation(components, leaf_nodes)
+            elapsed = time.time() - start_time
+
+            if self.verbose:
+                logger.info(f"│  └─ Module documentation complete in {elapsed:.2f}s")
                 self.progress_tracker.update_stage(0.9, "Creating repository overview...")
-            
+                logger.info("├─ Creating repository overview...")
+
             # Create metadata
             doc_generator.create_documentation_metadata(working_dir, components, len(leaf_nodes))
-            
+
             # Collect generated files
+            md_files = []
+            json_files = []
             for file_path in os.listdir(working_dir):
-                if file_path.endswith('.md') or file_path.endswith('.json'):
+                if file_path.endswith('.md'):
+                    md_files.append(file_path)
                     self.job.files_generated.append(file_path)
+                elif file_path.endswith('.json'):
+                    json_files.append(file_path)
+                    self.job.files_generated.append(file_path)
+
+            if self.verbose:
+                logger.info(f"│  ├─ Generated {len(md_files)} markdown files")
+                logger.info(f"│  └─ Generated {len(json_files)} metadata files")
 
             # Extract Mermaid diagrams to separate directory if configured
             if backend_config.diagrams_dir:
@@ -398,6 +485,7 @@ class CLIDocumentationGenerator:
 
                 if self.verbose:
                     self.progress_tracker.update_stage(0.95, "Extracting Mermaid diagrams...")
+                    logger.info("├─ Extracting Mermaid diagrams...")
 
                 all_diagram_files = []
                 for file_path in os.listdir(working_dir):
@@ -409,9 +497,17 @@ class CLIDocumentationGenerator:
                 # Create README index for diagrams
                 if all_diagram_files:
                     create_diagrams_readme(backend_config.diagrams_dir, all_diagram_files)
-                    logging.info(f"Extracted {len(all_diagram_files)} Mermaid diagrams to {backend_config.diagrams_dir}")
+                    if self.verbose:
+                        logger.info(f"│  └─ Extracted {len(all_diagram_files)} diagrams to {backend_config.diagrams_dir}")
+                    else:
+                        logging.info(f"Extracted {len(all_diagram_files)} Mermaid diagrams to {backend_config.diagrams_dir}")
+
+            if self.verbose:
+                logger.info(f"└─ ✅ Documentation generation complete")
 
         except Exception as e:
+            if self.verbose:
+                logger.error(f"❌ Documentation generation failed: {e}")
             raise APIError(f"Documentation generation failed: {e}")
 
         self.progress_tracker.complete_stage()

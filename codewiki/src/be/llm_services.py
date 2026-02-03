@@ -376,6 +376,15 @@ def call_llm(
     else:  # main/generation
         base_url = getattr(config, 'main_base_url', 'not configured')
 
+    # Log LLM invocation details
+    logger.info("🤖 LLM API Invocation")
+    logger.info(f"   ├─ Stage: {model_stage_name}")
+    logger.info(f"   ├─ Model: {model}")
+    logger.info(f"   ├─ Base URL: {base_url}")
+    logger.info(f"   ├─ Prompt length: {len(prompt)} chars (~{len(prompt) // 4} tokens)")
+    logger.info(f"   │  └─ Preview: {prompt[:150]}...")
+    logger.info(f"   ├─ Temperature: {temperature}")
+
     try:
         client = create_openai_client(config, model=model)
 
@@ -410,8 +419,20 @@ def call_llm(
         if temperature_supported:
             kwargs["temperature"] = temperature
 
+        logger.info(f"   ├─ Max tokens: {max_tokens_value} (field: {max_token_field})")
+        logger.info(f"   ├─ Temperature supported: {temperature_supported}")
+        logger.info(f"   └─ 🚀 Sending request to LLM API...")
+
         response = client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content
+
+        response_content = response.choices[0].message.content
+        response_tokens = len(response_content) // 4  # Approximate token count
+
+        logger.info(f"   ✅ LLM Response Received")
+        logger.info(f"   ├─ Response length: {len(response_content)} chars (~{response_tokens} tokens)")
+        logger.info(f"   └─ Preview: {response_content[:150]}...")
+
+        return response_content
 
     except OpenAIError as e:
         # Add context to OpenAI SDK errors

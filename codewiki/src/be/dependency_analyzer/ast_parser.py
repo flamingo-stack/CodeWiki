@@ -53,37 +53,50 @@ class DependencyParser:
         Returns:
             Dictionary mapping component IDs to Node objects
         """
+        logger.info("🔍 Stage 2: AST Parsing & Dependency Analysis")
+        logger.info(f"├─ Repository paths: {len(self.repo_paths)}")
+
         if len(self.repo_paths) == 1:
+            logger.info(f"│  └─ Single-path mode: {self.repo_paths[0]}")
             # Single path - maintain backward compatibility
             return self._parse_single_repository(self.repo_paths[0], filtered_folders)
         else:
+            logger.info(f"│  └─ Multi-path mode: {len(self.repo_paths)} sources")
             # Multiple paths - use multi-path parsing
             return self._parse_multiple_repositories(filtered_folders)
 
     def _parse_single_repository(self, repo_path: str, filtered_folders: List[str] = None) -> Dict[str, Node]:
         """Parse a single repository (backward compatible)."""
-        logger.debug(f"Parsing repository at {repo_path}")
+        logger.info(f"📂 Parsing repository: {repo_path}")
 
         # Log custom patterns if set
         if self.include_patterns:
-            logger.info(f"Using custom include patterns: {self.include_patterns}")
+            logger.info(f"├─ Custom include patterns: {', '.join(self.include_patterns)}")
         if self.exclude_patterns:
-            logger.info(f"Using custom exclude patterns: {self.exclude_patterns}")
+            logger.info(f"├─ Custom exclude patterns: {', '.join(self.exclude_patterns)}")
 
+        logger.info("├─ Step 2.1: Analyzing file structure...")
         structure_result = self.analysis_service._analyze_structure(
             repo_path,
             include_patterns=self.include_patterns,
             exclude_patterns=self.exclude_patterns
         )
+        logger.info(f"│  └─ Found {structure_result.get('summary', {}).get('total_files', 0)} files to analyze")
 
+        logger.info("├─ Step 2.2: Building call graph...")
         call_graph_result = self.analysis_service._analyze_call_graph(
             structure_result["file_tree"],
             repo_path
         )
+        logger.info(f"│  ├─ Extracted {len(call_graph_result.get('functions', []))} functions/classes")
+        logger.info(f"│  └─ Found {len(call_graph_result.get('relationships', []))} relationships")
 
+        logger.info("├─ Step 2.3: Building component graph...")
         self._build_components_from_analysis(call_graph_result)
 
-        logger.debug(f"Found {len(self.components)} components across {len(self.modules)} modules")
+        logger.info(f"└─ ✅ AST parsing complete:")
+        logger.info(f"   ├─ Total components: {len(self.components)}")
+        logger.info(f"   └─ Total modules: {len(self.modules)}")
         return self.components
 
     def _parse_multiple_repositories(self, filtered_folders: List[str] = None) -> Dict[str, Node]:

@@ -144,15 +144,25 @@ class AgentOrchestrator:
         # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
         logger.info(f"   └─ Starting agent execution...")
         logger.info(f"   └─ Usage limits: 1000 requests max")
+        logger.info("")
+
+        # Format and log the user prompt
+        user_prompt = format_user_prompt(
+            module_name=module_name,
+            core_component_ids=core_component_ids,
+            components=components,
+            module_tree=deps.module_tree
+        )
+        logger.info(f"📨 Agent Execution - User Prompt Ready")
+        logger.info(f"   ├─ Module: {module_name}")
+        logger.info(f"   ├─ Agent type: {agent_type}")
+        logger.info(f"   ├─ User prompt length: {len(user_prompt)} chars (~{len(user_prompt) // 4} tokens)")
+        logger.info(f"   └─ 🚀 Invoking agent with formatted prompts...")
+        logger.info("")
 
         try:
             result = await agent.run(
-                format_user_prompt(
-                    module_name=module_name,
-                    core_component_ids=core_component_ids,
-                    components=components,
-                    module_tree=deps.module_tree
-                ),
+                user_prompt,
                 deps=deps,
                 usage_limits=UsageLimits(request_limit=1000),
             )

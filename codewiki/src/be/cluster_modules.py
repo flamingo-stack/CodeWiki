@@ -75,14 +75,38 @@ def cluster_modules(
     """
     Cluster the potential core components into modules.
     """
+    logger.info("🗂️  Module Clustering Operation")
+    logger.info(f"   ├─ Current module: {current_module_name or '(repository level)'}")
+    logger.info(f"   ├─ Module path: {' > '.join(current_module_path) if current_module_path else '(root)'}")
+    logger.info(f"   ├─ Leaf nodes to cluster: {len(leaf_nodes)}")
+    logger.info(f"   └─ Components dictionary size: {len(components)} components")
+    logger.info("")
+
     potential_core_components, potential_core_components_with_code = format_potential_core_components(leaf_nodes, components)
 
-    if count_tokens(potential_core_components_with_code) <= config.max_token_per_module:
-        logger.debug(f"Skipping clustering for {current_module_name} because the potential core components are too few: {count_tokens(potential_core_components_with_code)} tokens")
+    token_count = count_tokens(potential_core_components_with_code)
+    logger.info(f"   ├─ Potential components (with code): {token_count} tokens")
+    logger.info(f"   ├─ Max token per module: {config.max_token_per_module}")
+
+    if token_count <= config.max_token_per_module:
+        logger.info(f"   └─ ⏭️  Skipping clustering - components fit in single module ({token_count} ≤ {config.max_token_per_module})")
         return {}
 
+    logger.info(f"   └─ ✅ Proceeding with clustering - components exceed threshold")
+    logger.info("")
+
     prompt = format_cluster_prompt(potential_core_components, current_module_tree, current_module_name)
+    logger.info(f"🤖 Calling clustering LLM")
+    logger.info(f"   ├─ Model: {config.cluster_model}")
+    logger.info(f"   └─ Prompt assembled via format_cluster_prompt()")
+    logger.info("")
+
     response = call_llm(prompt, config, model=config.cluster_model)
+
+    logger.info(f"   ✅ Clustering LLM response received")
+    logger.info(f"   ├─ Response length: {len(response)} chars")
+    logger.info(f"   └─ Preview: {response[:150]}...")
+    logger.info("")
 
     #parse the response
     try:
