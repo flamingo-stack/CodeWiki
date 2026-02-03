@@ -14,7 +14,19 @@ from codewiki.src.be.prompt_template import format_cluster_prompt
 def format_potential_core_components(leaf_nodes: List[str], components: Dict[str, Node]) -> tuple[str, str]:
     """
     Format the potential core components into a string that can be used in the prompt.
+
+    Args:
+        leaf_nodes: List of component FQDNs (fully qualified domain names)
+        components: Dictionary mapping FQDNs to Node objects
+
+    Returns:
+        Tuple of (potential_core_components, potential_core_components_with_code)
     """
+    logger.debug(f"📋 Formatting components:")
+    logger.debug(f"   ├─ Leaf nodes format: FQDN (e.g., 'main-repo.src/services/auth.py::AuthService')")
+    logger.debug(f"   ├─ Components dict keys: FQDN (node.id)")
+    logger.debug(f"   └─ Input: {len(leaf_nodes)} leaf nodes, {len(components)} components")
+
     # Filter out any invalid leaf nodes that don't exist in components
     valid_leaf_nodes = []
     skipped_count = 0
@@ -23,18 +35,24 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
             valid_leaf_nodes.append(leaf_node)
         else:
             skipped_count += 1
-            # Extract file path if present in the leaf node name (usually "file.ClassName" format)
-            file_hint = ""
+            # Extract namespace from FQDN (e.g., "main-repo" from "main-repo.src/...")
+            namespace = ""
+            is_deps = False
             if '.' in leaf_node:
-                parts = leaf_node.split('.')
-                # Check if any part looks like a file path
-                for part in parts:
-                    if '/' in part or '\\' in part:
-                        file_hint = f" (from {part})"
-                        break
+                namespace = leaf_node.split('.')[0]
+                is_deps = namespace.startswith('deps/')
+
+            # Extract file path if present
+            file_hint = ""
+            if '::' in leaf_node:
+                file_part = leaf_node.split('::')[0]
+                file_hint = f" (from {file_part})"
 
             logger.warning(
                 f"Skipping invalid leaf node '{leaf_node}'{file_hint}\n"
+                f"   ├─ FQDN format: {leaf_node}\n"
+                f"   ├─ Namespace: {namespace or '(unknown)'}\n"
+                f"   ├─ Source: {'dependency repo' if is_deps else 'main repo'}\n"
                 f"   └─ Reason: Component not found in components dictionary\n"
                 f"   └─ Possible causes:\n"
                 f"      • File was excluded by filters (tests, specs, node_modules, etc.)\n"
@@ -51,12 +69,16 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
     for leaf_node in valid_leaf_nodes:
         leaf_nodes_by_file[components[leaf_node].relative_path].append(leaf_node)
 
+    logger.debug(f"   ├─ Valid leaf nodes: {len(valid_leaf_nodes)}")
+    logger.debug(f"   └─ Grouped into {len(leaf_nodes_by_file)} files")
+
     potential_core_components = ""
     potential_core_components_with_code = ""
     for file, leaf_nodes in dict(sorted(leaf_nodes_by_file.items())).items():
         potential_core_components += f"# {file}\n"
         potential_core_components_with_code += f"# {file}\n"
         for leaf_node in leaf_nodes:
+            # leaf_node is FQDN format (e.g., "main-repo.src/services/auth.py::AuthService")
             potential_core_components += f"\t{leaf_node}\n"
             potential_core_components_with_code += f"\t{leaf_node}\n"
             potential_core_components_with_code += f"{components[leaf_node].source_code}\n"
@@ -159,8 +181,18 @@ def cluster_modules(
                 valid_sub_leaf_nodes.append(node)
             else:
                 sub_skipped += 1
+                # Extract namespace from FQDN
+                namespace = ""
+                is_deps = False
+                if '.' in node:
+                    namespace = node.split('.')[0]
+                    is_deps = namespace.startswith('deps/')
+
                 logger.warning(
                     f"Skipping invalid sub leaf node '{node}' in module '{module_name}'\n"
+                    f"   ├─ FQDN format: {node}\n"
+                    f"   ├─ Namespace: {namespace or '(unknown)'}\n"
+                    f"   ├─ Source: {'dependency repo' if is_deps else 'main repo'}\n"
                     f"   └─ Reason: Component not found in components dictionary\n"
                     f"   └─ This node was suggested by LLM clustering but doesn't exist\n"
                     f"   └─ Possible causes: Parsing failure, excluded file, or LLM hallucination"

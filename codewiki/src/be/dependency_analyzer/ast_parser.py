@@ -117,10 +117,10 @@ class DependencyParser:
         all_components: Dict[str, Node] = {}
         namespace_mapping: Dict[str, str] = {}  # Maps original IDs to namespaced IDs
 
-        for idx, repo_path in enumerate(self.repo_paths, 1):
+        for idx, repo_path in enumerate(self.repo_paths):
             # Create namespace from directory name
             namespace = self._get_namespace_from_path(repo_path)
-            logger.info(f"\n📂 Analyzing path {idx}/{len(self.repo_paths)}: {repo_path}")
+            logger.info(f"\n📂 Analyzing path {idx+1}/{len(self.repo_paths)}: {repo_path}")
             logger.info(f"   └─ Namespace: '{namespace}'")
 
             # Log custom patterns if set
@@ -142,11 +142,12 @@ class DependencyParser:
                 repo_path
             )
 
-            # Build components with namespace
+            # Build components with namespace (idx=0 is main repo, idx>0 is deps)
             repo_components = self._build_namespaced_components(
                 call_graph_result,
                 namespace,
-                namespace_mapping
+                namespace_mapping,
+                repo_index=idx
             )
 
             # Merge into all_components
@@ -198,7 +199,8 @@ class DependencyParser:
         self,
         call_graph_result: Dict,
         namespace: str,
-        namespace_mapping: Dict[str, str]
+        namespace_mapping: Dict[str, str],
+        repo_index: int = 0
     ) -> Dict[str, Node]:
         """
         Build components with namespace prefixes.
@@ -207,6 +209,7 @@ class DependencyParser:
             call_graph_result: Result from call graph analysis
             namespace: Namespace prefix for this repository
             namespace_mapping: Global mapping of original IDs to namespaced IDs
+            repo_index: Index of this repository (0 = main, >0 = deps)
 
         Returns:
             Dictionary of namespaced components
@@ -222,15 +225,15 @@ class DependencyParser:
             if not original_id:
                 continue
 
-            # Create namespaced component ID
-            namespaced_id = f"{namespace}.{original_id}"
+            # Create FQDN (namespaced component ID)
+            fqdn = f"{namespace}.{original_id}"
 
             # Store mapping for dependency resolution
-            namespace_mapping[original_id] = namespaced_id
+            namespace_mapping[original_id] = fqdn
 
-            # Create node with namespaced ID
+            # Create node with FQDN as id and metadata fields
             node = Node(
-                id=namespaced_id,
+                id=fqdn,  # FQDN as primary identifier
                 name=func_dict.get("name", ""),
                 component_type=func_dict.get("component_type", func_dict.get("node_type", "function")),
                 file_path=func_dict.get("file_path", ""),
@@ -245,10 +248,15 @@ class DependencyParser:
                 base_classes=func_dict.get("base_classes"),
                 class_name=func_dict.get("class_name"),
                 display_name=func_dict.get("display_name", ""),
-                component_id=namespaced_id
+                component_id=fqdn,
+                # FQDN metadata fields
+                short_id=original_id,
+                namespace=namespace,
+                is_from_deps=(repo_index > 0)
             )
 
-            components[namespaced_id] = node
+            # Dictionary key is FQDN
+            components[fqdn] = node
 
             # Track module (with namespace)
             if "." in original_id:
@@ -324,16 +332,22 @@ class DependencyParser:
     def _build_components_from_analysis(self, call_graph_result: Dict):
         functions = call_graph_result.get("functions", [])
         relationships = call_graph_result.get("relationships", [])
-        
+
         component_id_mapping = {}
-        
+
+        # Compute namespace from repo path
+        namespace = self._get_namespace_from_path(self.repo_path)
+
         for func_dict in functions:
-            component_id = func_dict.get("id", "")
-            if not component_id:
+            original_id = func_dict.get("id", "")
+            if not original_id:
                 continue
-                
+
+            # Construct FQDN: {namespace}.{original_id}
+            fqdn = f"{namespace}.{original_id}"
+
             node = Node(
-                id=component_id,
+                id=fqdn,  # FQDN as primary identifier
                 name=func_dict.get("name", ""),
                 component_type=func_dict.get("component_type", func_dict.get("node_type", "function")),
                 file_path=func_dict.get("file_path", ""),
@@ -348,21 +362,29 @@ class DependencyParser:
                 base_classes=func_dict.get("base_classes"),
                 class_name=func_dict.get("class_name"),
                 display_name=func_dict.get("display_name", ""),
-                component_id=component_id
+                component_id=fqdn,
+                # FQDN metadata fields
+                short_id=original_id,
+                namespace=namespace,
+                is_from_deps=False  # Single-path mode = main repo
             )
-            
-            self.components[component_id] = node
-            
-            component_id_mapping[component_id] = component_id
+
+            # Dictionary key is FQDN
+            self.components[fqdn] = node
+
+            # Update mapping for dependency resolution
+            component_id_mapping[original_id] = fqdn
+            component_id_mapping[fqdn] = fqdn
             legacy_id = f"{func_dict.get('file_path', '')}:{func_dict.get('name', '')}"
-            if legacy_id and legacy_id != component_id:
-                component_id_mapping[legacy_id] = component_id
-            
-            if "." in component_id:
-                module_parts = component_id.split(".")[:-1]  
+            if legacy_id and legacy_id != fqdn:
+                component_id_mapping[legacy_id] = fqdn
+
+            if "." in original_id:
+                module_parts = original_id.split(".")[:-1]
                 module_path = ".".join(module_parts)
                 if module_path:
-                    self.modules.add(module_path)
+                    # Store module with namespace
+                    self.modules.add(f"{namespace}.{module_path}")
         
         processed_relationships = 0
         for rel_dict in relationships:
