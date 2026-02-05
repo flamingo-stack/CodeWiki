@@ -87,15 +87,57 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
     return potential_core_components, potential_core_components_with_code
 
 
+def _find_best_path_match(llm_id: str, candidates: List[str]) -> str | None:
+    """
+    Find the best matching FQDN from candidates based on path similarity.
+
+    Args:
+        llm_id: Component ID returned by LLM
+        candidates: List of potential FQDN matches
+
+    Returns:
+        Best matching FQDN or None if ambiguous
+    """
+    llm_segments = llm_id.split('.')
+
+    # Score each candidate by number of matching path segments
+    scores = []
+    for candidate in candidates:
+        candidate_segments = candidate.split('.')
+        # Count matching segments in order
+        matches = 0
+        for i, llm_seg in enumerate(llm_segments):
+            if llm_seg in candidate_segments:
+                # Bonus points if segments are in same relative position
+                try:
+                    candidate_idx = candidate_segments.index(llm_seg)
+                    position_diff = abs(i - candidate_idx)
+                    matches += 1 + (1.0 / (1 + position_diff))  # Weight by position similarity
+                except ValueError:
+                    pass
+        scores.append((candidate, matches))
+
+    # Sort by score descending
+    scores.sort(key=lambda x: x[1], reverse=True)
+
+    # Return best match if it's clearly better than alternatives
+    if len(scores) > 1 and scores[0][1] > scores[1][1]:
+        logger.debug(f"      Best match score: {scores[0][1]:.2f} vs next: {scores[1][1]:.2f}")
+        return scores[0][0]
+
+    return None
+
+
 def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     """
-    Build mapping from short component IDs to FQDNs.
+    Enhanced version of build_short_id_to_fqdn_map with partial path support.
 
-    This handles cases where LLM returns short IDs (e.g., "AuthService")
-    instead of full FQDNs (e.g., "main-repo.src/auth.py::AuthService").
+    Maps both:
+    - Short component names (e.g., "UserService")
+    - Partial paths (e.g., "auth.UserService", "services.auth.UserService")
 
-    Creates MULTIPLE mapping entries for each component to handle various
-    LLM output formats (class name, package.class, full path, etc.).
+    This helps match LLM outputs that include partial directory paths
+    and handles fuzzy matching for complex nested structures.
 
     Args:
         components: Dictionary with FQDN keys and Node values
@@ -106,104 +148,50 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     mapping = {}
     collisions = defaultdict(list)
 
-    # DIAGNOSTIC: Track sample variants for debugging
-    sample_variants = {}
-    sample_count = 0
-
     for fqdn, node in sorted(components.items()):  # ✅ SORT for determinism
-        # Strategy: Create multiple mapping entries for each component
-        # This handles LLM returning different levels of specificity
-
-        # Get base short_id from node
+        # Strategy 1: Use node's short_id if available
         short_id = getattr(node, 'short_id', None) or ""
 
         if not short_id:
             # Fallback: extract from FQDN
-            # Handle both :: (file::class) and . (package.class) separators
             if '::' in fqdn:
-                # Format: "namespace.path/file.ext::ClassName"
-                after_colon = fqdn.split('::')[-1]
-                # Handle nested classes: "ClassName.InnerClass" → "InnerClass"
-                short_id = after_colon.split('.')[-1] if '.' in after_colon else after_colon
+                short_id = fqdn.split('::')[-1]
             else:
-                # Format: "namespace.package.class.method"
                 short_id = fqdn.split('.')[-1]
 
-        # ENHANCEMENT: Create mappings for multiple formats
-        # This significantly improves LLM output matching
+        # Map short_id → FQDN
+        if short_id in mapping:
+            collisions[short_id].append(fqdn)
+        else:
+            mapping[short_id] = fqdn
 
-        mapping_variants = set()
-        mapping_variants.add(short_id)  # 1. Just class name: "LogDetails"
+        # Strategy 2: Map partial paths (last 2-4 segments)
+        # This helps match LLM outputs like "services.auth.UserService"
+        # when the full FQDN is "main-repo.src.services.auth.UserService"
+        segments = fqdn.split('.')
+        if len(segments) > 2:
+            # Map progressively longer suffixes
+            for i in range(2, min(5, len(segments) + 1)):  # Last 2-4 segments
+                partial_id = '.'.join(segments[-i:])
 
-        # 2. Extract additional variants from FQDN
-        parts = fqdn.replace('::', '.').split('.')
-
-        # Add last 2 segments: "dto.LogDetails"
-        if len(parts) >= 2:
-            last_two = '.'.join(parts[-2:])
-            mapping_variants.add(last_two)
-
-            # FIX: Handle duplicated class names (ClassName.ClassName)
-            # Java/TypeScript pattern where file name = class name
-            # E.g., "LogEvent.LogEvent" → also add "LogEvent"
-            if len(parts) >= 2 and parts[-1] == parts[-2]:
-                mapping_variants.add(parts[-1])  # Add de-duplicated version
-
-        # Add last 3 segments: "openframe.dto.LogDetails"
-        if len(parts) >= 3:
-            last_three = '.'.join(parts[-3:])
-            mapping_variants.add(last_three)
-
-            # FIX: Handle duplicated class names in last 3 segments
-            # E.g., "audit.LogEvent.LogEvent" → also add "audit.LogEvent"
-            if len(parts) >= 3 and parts[-1] == parts[-2]:
-                mapping_variants.add('.'.join(parts[-3:-1]))  # Remove last duplicate
-
-        # Add last 4 segments for deeply nested packages
-        if len(parts) >= 4:
-            last_four = '.'.join(parts[-4:])
-            mapping_variants.add(last_four)
-
-            # FIX: Handle duplicated class names in last 4 segments
-            # E.g., "dto.audit.LogEvent.LogEvent" → also add "dto.audit.LogEvent"
-            if len(parts) >= 4 and parts[-1] == parts[-2]:
-                mapping_variants.add('.'.join(parts[-4:-1]))  # Remove last duplicate
-
-        # DIAGNOSTIC: Capture first 3 examples for debugging
-        if sample_count < 3:
-            sample_variants[fqdn] = list(mapping_variants)
-            sample_count += 1
-
-        # Add all variants to mapping
-        for variant in mapping_variants:
-            if variant and variant != fqdn:  # Don't map FQDN to itself
-                if variant in mapping:
+                # Only map if unique
+                if partial_id not in mapping:
+                    mapping[partial_id] = fqdn
+                elif mapping[partial_id] != fqdn:
                     # Collision detected
-                    collisions[variant].append(fqdn)
-                    if mapping[variant] not in collisions[variant]:
-                        collisions[variant].insert(0, mapping[variant])
-                else:
-                    mapping[variant] = fqdn
+                    if partial_id not in collisions:
+                        collisions[partial_id].append(mapping[partial_id])
+                    collisions[partial_id].append(fqdn)
 
-    # Log sample mappings for debugging
-    logger.debug(f"📝 Sample mapping variants created:")
-    for fqdn, variants in sample_variants.items():
-        logger.debug(f"   FQDN: {fqdn}")
-        for v in variants:
-            logger.debug(f"      → '{v}'")
-
-    # Log collisions
+    # Log collisions for debugging
     if collisions:
-        logger.debug(f"🔀 Short ID collisions detected:")
-        for short_id, fqdns in collisions.items():
-            logger.debug(f"   ├─ '{short_id}' maps to {len(fqdns)} components:")
-            for fqdn in fqdns[:3]:  # Show first 3 only
-                logger.debug(f"   │  └─ {fqdn}")
-            if len(fqdns) > 3:
-                logger.debug(f"   │  └─ ... and {len(fqdns) - 3} more")
-        logger.debug(f"   └─ Using first match for each collision")
+        logger.warning(f"   ⚠️  Found {len(collisions)} short ID collisions:")
+        for short_id, fqdns in list(collisions.items())[:5]:
+            logger.warning(f"      '{short_id}' → {fqdns[:3]}")
 
-    logger.debug(f"📋 Built short_id → FQDN mapping: {len(mapping)} entries (from {len(components)} components)")
+    logger.info(f"   ✅ Built short_id → FQDN mapping with {len(mapping)} entries")
+    logger.debug(f"      ({len(collisions)} collisions detected)")
+
     return mapping
 
 
@@ -281,11 +269,11 @@ def cluster_modules(
         logger.error(f"Traceback: {traceback.format_exc()}")
         return {}
 
-    # Build reverse mapping: short_id → FQDN
+    # Build reverse mapping: short_id → FQDN (enhanced version with partial path support)
     logger.info(f"🔄 Normalizing component IDs in clustering response")
     short_to_fqdn = build_short_id_to_fqdn_map(components)
 
-    # Normalize all component IDs in module_tree
+    # Normalize all component IDs in module_tree (enhanced 5-strategy normalization)
     total_normalized = 0
     total_failed = 0
 
@@ -294,32 +282,150 @@ def cluster_modules(
         normalized_components = []
 
         for comp_id in original_components:
-            # Try exact FQDN match first
+            # Strategy 1: Exact FQDN match
             if comp_id in components:
                 normalized_components.append(comp_id)
-            # Try reverse mapping from short ID
-            elif comp_id in short_to_fqdn:
+                logger.debug(f"   ✅ Exact match: '{comp_id}'")
+                continue
+
+            # Strategy 2: Short ID mapping
+            if comp_id in short_to_fqdn:
                 fqdn = short_to_fqdn[comp_id]
                 normalized_components.append(fqdn)
                 total_normalized += 1
-                logger.debug(f"   ✅ Normalized '{comp_id}' → '{fqdn}'")
-            else:
-                # Keep original (will fail validation later with helpful error)
-                normalized_components.append(comp_id)
-                total_failed += 1
+                logger.debug(f"   ✅ Mapped '{comp_id}' → '{fqdn}'")
+                continue
 
-                # ENHANCED DIAGNOSTICS: Search for similar components
-                similar_mapping_keys = [k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]
-                similar_fqdns = [fqdn for fqdn in components.keys() if comp_id.lower() in fqdn.lower()][:5]
+            # Strategy 3: Strip "deps." prefix and retry
+            stripped_id = comp_id
+            if comp_id.startswith("deps."):
+                stripped_id = comp_id[5:]  # Remove "deps." prefix
+                logger.debug(f"   🔧 Stripping 'deps.' prefix: '{comp_id}' → '{stripped_id}'")
 
-                # Show helpful debug info
-                logger.warning(
-                    f"   ❌ Failed to normalize '{comp_id}' in module '{module_name}'\n"
-                    f"      ├─ Not found as exact FQDN in components dictionary\n"
-                    f"      ├─ Not found in short_id → FQDN mapping ({len(short_to_fqdn)} entries)\n"
-                    f"      ├─ Similar mapping keys: {similar_mapping_keys if similar_mapping_keys else 'None found'}\n"
-                    f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
+                # Try exact match with stripped ID
+                if stripped_id in components:
+                    normalized_components.append(stripped_id)
+                    total_normalized += 1
+                    logger.info(
+                        f"   ✅ Found after stripping 'deps.' prefix:\n"
+                        f"      LLM returned: '{comp_id}'\n"
+                        f"      Actual FQDN:  '{stripped_id}'"
+                    )
+                    continue
+
+                # Try short_id mapping with stripped ID
+                if stripped_id in short_to_fqdn:
+                    fqdn = short_to_fqdn[stripped_id]
+                    normalized_components.append(fqdn)
+                    total_normalized += 1
+                    logger.info(
+                        f"   ✅ Mapped after stripping prefix:\n"
+                        f"      LLM returned: '{comp_id}'\n"
+                        f"      Stripped to:  '{stripped_id}'\n"
+                        f"      Mapped to:    '{fqdn}'"
+                    )
+                    continue
+
+            # Strategy 4: Fuzzy substring matching on component name
+            # Extract the likely component name (last segment)
+            component_name = comp_id.split('.')[-1]
+
+            # Search for FQDNs ending with this component name
+            fuzzy_matches = [
+                fqdn for fqdn in components.keys()
+                if fqdn.split('.')[-1] == component_name
+            ]
+
+            if len(fuzzy_matches) == 1:
+                # Unique match found
+                normalized_components.append(fuzzy_matches[0])
+                total_normalized += 1
+                logger.info(
+                    f"   ✅ Fuzzy matched by component name:\n"
+                    f"      LLM returned:  '{comp_id}'\n"
+                    f"      Component:     '{component_name}'\n"
+                    f"      Matched FQDN:  '{fuzzy_matches[0]}'"
                 )
+                continue
+            elif len(fuzzy_matches) > 1:
+                # Multiple matches - try to find best match by path similarity
+                best_match = _find_best_path_match(comp_id, fuzzy_matches)
+                if best_match:
+                    normalized_components.append(best_match)
+                    total_normalized += 1
+                    logger.info(
+                        f"   ✅ Best fuzzy match from {len(fuzzy_matches)} candidates:\n"
+                        f"      LLM returned: '{comp_id}'\n"
+                        f"      Matched FQDN: '{best_match}'"
+                    )
+                    continue
+                else:
+                    logger.warning(
+                        f"   ⚠️  Multiple ambiguous fuzzy matches for '{comp_id}':\n"
+                        f"      Component: '{component_name}'\n"
+                        f"      Candidates:\n" +
+                        '\n'.join(f"        - {m}" for m in fuzzy_matches[:5]) +
+                        (f"\n        ... and {len(fuzzy_matches) - 5} more" if len(fuzzy_matches) > 5 else "")
+                    )
+
+            # Strategy 5: Try matching by suffix path (last N segments)
+            # This handles cases where LLM includes partial path
+            # Example: "deps.openframe-oss-lib.src.main.java.Class"
+            #          should match "openframe-oss-lib.different.path.java.Class"
+            if '.' in comp_id:
+                # Try matching last 2-4 segments
+                segments = comp_id.split('.')
+                suffix_matched = False
+                for n in range(2, min(5, len(segments) + 1)):
+                    suffix = '.'.join(segments[-n:])
+                    suffix_matches = [
+                        fqdn for fqdn in components.keys()
+                        if fqdn.endswith(suffix)
+                    ]
+                    if len(suffix_matches) == 1:
+                        normalized_components.append(suffix_matches[0])
+                        total_normalized += 1
+                        logger.info(
+                            f"   ✅ Matched by path suffix:\n"
+                            f"      LLM returned: '{comp_id}'\n"
+                            f"      Suffix:       '{suffix}'\n"
+                            f"      Matched FQDN: '{suffix_matches[0]}'"
+                        )
+                        suffix_matched = True
+                        break
+
+                if suffix_matched:
+                    continue
+
+            # All strategies failed - keep original (will fail validation)
+            normalized_components.append(comp_id)
+            total_failed += 1
+
+            # Enhanced failure logging
+            similar_short_ids = [
+                k for k in short_to_fqdn.keys()
+                if component_name.lower() in k.lower()
+            ][:5]
+
+            possible_fqdns = [
+                fqdn for fqdn in components.keys()
+                if component_name.lower() in fqdn.lower()
+            ][:5]
+
+            logger.warning(
+                f"   ❌ Failed to normalize '{comp_id}' in module '{module_name}'\n"
+                f"      ├─ Original ID:      '{comp_id}'\n"
+                f"      ├─ Stripped ID:      '{stripped_id}'\n"
+                f"      ├─ Component name:   '{component_name}'\n"
+                f"      ├─ Fuzzy matches:    {len(fuzzy_matches)}\n"
+                f"      ├─ Similar short IDs: {similar_short_ids if similar_short_ids else 'None'}\n"
+                f"      ├─ Possible FQDNs:   {possible_fqdns if possible_fqdns else 'None'}\n"
+                f"      └─ Reason: Component not found in any normalization strategy\n"
+                f"         This could indicate:\n"
+                f"         • Component filtered during parsing\n"
+                f"         • LLM hallucination (non-existent component)\n"
+                f"         • FQDN format mismatch requiring new normalization strategy"
+            )
 
         module_data['components'] = normalized_components
 
