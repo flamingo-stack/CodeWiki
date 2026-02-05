@@ -301,7 +301,7 @@ class DependencyParser:
         cross_deps_resolved = 0
 
         # For each component, check if any dependencies need cross-namespace resolution
-        for component_id, component in all_components.items():
+        for component_id, component in sorted(all_components.items()):  # ✅ SORT for determinism
             resolved_deps = set()
 
             for dep_id in component.depends_on:
@@ -311,7 +311,7 @@ class DependencyParser:
                 else:
                     # Try to find it by name match across namespaces
                     dep_name = dep_id.split(".")[-1]
-                    for other_id, other_component in all_components.items():
+                    for other_id, other_component in sorted(all_components.items()):  # ✅ SORT for determinism
                         if other_component.name == dep_name and other_id != component_id:
                             # Extract namespaces to check if it's cross-namespace
                             source_namespace = component_id.split(".")[0]
@@ -396,7 +396,7 @@ class DependencyParser:
             
             callee_component_id = component_id_mapping.get(callee_id)
             if not callee_component_id:
-                for comp_id, comp_node in self.components.items():
+                for comp_id, comp_node in sorted(self.components.items()):  # ✅ SORT for determinism
                     if comp_node.name == callee_id:
                         callee_component_id = comp_id
                         break
@@ -427,10 +427,11 @@ class DependencyParser:
     
     def save_dependency_graph(self, output_path: str):
         result = {}
-        for component_id, component in self.components.items():
+        for component_id in sorted(self.components.keys()):  # ✅ SORT for determinism
+            component = self.components[component_id]
             component_dict = component.model_dump()
             if 'depends_on' in component_dict and isinstance(component_dict['depends_on'], set):
-                component_dict['depends_on'] = list(component_dict['depends_on'])
+                component_dict['depends_on'] = sorted(list(component_dict['depends_on']))  # ✅ SORT for determinism
             result[component_id] = component_dict
         
         dir_name = os.path.dirname(output_path)

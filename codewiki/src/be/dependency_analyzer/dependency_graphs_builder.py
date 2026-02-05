@@ -3,6 +3,7 @@ import os
 from codewiki.src.config import Config
 from codewiki.src.be.dependency_analyzer.ast_parser import DependencyParser
 from codewiki.src.be.dependency_analyzer.topo_sort import build_graph_from_components, get_leaf_nodes
+from codewiki.src.be.dependency_analyzer.validation import validate_graph_completeness
 from codewiki.src.utils import file_manager
 
 import logging
@@ -90,7 +91,10 @@ class DependencyGraphBuilder:
         
         # Build graph for traversal
         graph = build_graph_from_components(components)
-        
+
+        # ✅ Post-build validation - verify graph completeness
+        validate_graph_completeness(components, graph)
+
         # Get leaf nodes
         leaf_nodes = get_leaf_nodes(graph, components)
 

@@ -286,15 +286,15 @@ def get_leaf_nodes(graph: Dict[str, Set[str]], components: Dict[str, Node]) -> L
     """
     # First, resolve cycles to ensure we have a DAG
     acyclic_graph = resolve_cycles(graph)
-    
-    # Find leaf nodes (nodes that no other nodes depend on)
-    leaf_nodes = set(acyclic_graph.keys())
 
-    
-    
-    def concise_node(leaf_nodes: Set[str]) -> Set[str]:
+    # Find leaf nodes (nodes that no other nodes depend on)
+    leaf_nodes = sorted(acyclic_graph.keys())  # ✅ SORT for determinism (List, not Set)
+
+
+
+    def concise_node(leaf_nodes: List[str]) -> List[str]:  # ✅ Changed to List for determinism
         concise_leaf_nodes = set()
-        for node in leaf_nodes:
+        for node in sorted(leaf_nodes):  # ✅ SORT for determinism
             if node.endswith("__init__"):
                 # replace by class name
                 concise_leaf_nodes.add(node.replace(".__init__", ""))
@@ -331,15 +331,18 @@ def get_leaf_nodes(graph: Dict[str, Set[str]], components: Dict[str, Node]) -> L
                 # logger.debug(f"Leaf node {leaf_node} not found in components, removing it")
                 pass
 
-        return keep_leaf_nodes
+        return sorted(keep_leaf_nodes)  # ✅ SORT for determinism
 
     concise_leaf_nodes = concise_node(leaf_nodes)
     if len(concise_leaf_nodes) >= 400:
         logger.debug(f"Leaf nodes are too many ({len(concise_leaf_nodes)}), removing dependencies of other nodes")
         # Remove nodes that are dependencies of other nodes
-        for node, deps in acyclic_graph.items():
-            for dep in deps:
-                leaf_nodes.discard(dep)
+        # Convert to set for efficient removal, then back to sorted list
+        leaf_nodes_set = set(leaf_nodes)
+        for node, deps in sorted(acyclic_graph.items()):  # ✅ SORT for determinism
+            for dep in sorted(deps):  # ✅ SORT for determinism
+                leaf_nodes_set.discard(dep)
+        leaf_nodes = sorted(leaf_nodes_set)  # ✅ SORT for determinism
         
         concise_leaf_nodes = concise_node(leaf_nodes)
     
