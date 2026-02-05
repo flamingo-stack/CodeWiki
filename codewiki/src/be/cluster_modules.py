@@ -5,6 +5,7 @@ import traceback
 logger = logging.getLogger(__name__)
 
 from codewiki.src.be.dependency_analyzer.models.core import Node
+from codewiki.src.be.dependency_analyzer.validation import validate_components_before_clustering
 from codewiki.src.be.llm_services import call_llm
 from codewiki.src.be.utils import count_tokens
 from codewiki.src.config import Config
@@ -74,10 +75,10 @@ def format_potential_core_components(leaf_nodes: List[str], components: Dict[str
 
     potential_core_components = ""
     potential_core_components_with_code = ""
-    for file, leaf_nodes in dict(sorted(leaf_nodes_by_file.items())).items():
+    for file, leaf_nodes in sorted(leaf_nodes_by_file.items()):  # ✅ Simplified - no need for dict()
         potential_core_components += f"# {file}\n"
         potential_core_components_with_code += f"# {file}\n"
-        for leaf_node in leaf_nodes:
+        for leaf_node in sorted(leaf_nodes):  # ✅ SORT for determinism
             # leaf_node is FQDN format (e.g., "main-repo.src/services/auth.py::AuthService")
             potential_core_components += f"\t{leaf_node}\n"
             potential_core_components_with_code += f"\t{leaf_node}\n"
@@ -109,7 +110,7 @@ def build_short_id_to_fqdn_map(components: Dict[str, Node]) -> Dict[str, str]:
     sample_variants = {}
     sample_count = 0
 
-    for fqdn, node in components.items():
+    for fqdn, node in sorted(components.items()):  # ✅ SORT for determinism
         # Strategy: Create multiple mapping entries for each component
         # This handles LLM returning different levels of specificity
 
@@ -223,6 +224,18 @@ def cluster_modules(
     logger.info(f"   ├─ Leaf nodes to cluster: {len(leaf_nodes)}")
     logger.info(f"   └─ Components dictionary size: {len(components)} components")
     logger.info("")
+
+    # ✅ Pre-flight validation - check all leaf nodes exist in components
+    if not validate_components_before_clustering(components, leaf_nodes):
+        logger.warning("⚠️  Pre-flight validation found issues, filtering out missing components...")
+        # Filter out missing components
+        valid_leaf_nodes = [ln for ln in leaf_nodes if ln in components]
+        logger.warning(f"   Filtered from {len(leaf_nodes)} to {len(valid_leaf_nodes)} valid leaf nodes")
+        leaf_nodes = valid_leaf_nodes
+
+        if not leaf_nodes:
+            logger.error("❌ No valid leaf nodes remaining after filtering")
+            return {}
 
     potential_core_components, potential_core_components_with_code = format_potential_core_components(leaf_nodes, components)
 

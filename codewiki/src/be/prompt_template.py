@@ -534,7 +534,29 @@ Here is list of all potential core components of the repository (It's normal tha
 {potential_core_components}
 </POTENTIAL_CORE_COMPONENTS>
 
+**CRITICAL CONSTRAINTS:**
+1. Component names MUST be actual class/function/interface names from the source code, NOT package or directory names
+2. DO NOT invent component names based on directory structure (e.g., "core/audit/" → "audit_dtos" is INVALID)
+3. Only use component names that appear in the actual source code above
+4. Package/directory names are NOT valid component names
+5. If you see a directory path like "core/device/", do NOT create components like "device_dtos" or "device_models"
+
+**Invalid Examples (DO NOT USE):**
+- ❌ "audit_dtos" (package name derived from "core/audit/" directory)
+- ❌ "device_dtos" (package name derived from "core/device/" directory)
+- ❌ "event_dtos" (package name derived from path structure)
+- ❌ "core_models" (package name)
+
+**Valid Examples (ONLY USE THESE):**
+- ✅ "AuditEvent" (actual class name from source code)
+- ✅ "DeviceInfo" (actual class name from source code)
+- ✅ "EventProcessor" (actual class name from source code)
+- ✅ "CoreModel" (actual class name from source code)
+
 Please group the components into groups such that each group is a set of components that are closely related to each other and together they form a module. DO NOT include components that are not essential to the repository.
+
+Return ONLY component names that exist in the source code above. DO NOT invent or derive component names from directory paths.
+
 Firstly reason about the components and then group them and return the result in the following format:
 <GROUPED_COMPONENTS>
 {{
@@ -571,7 +593,28 @@ Here is list of all potential core components of the module {module_name} (It's 
 {potential_core_components}
 </POTENTIAL_CORE_COMPONENTS>
 
+**CRITICAL CONSTRAINTS:**
+1. Component names MUST be actual class/function/interface names from the source code, NOT package or directory names
+2. DO NOT invent component names based on directory structure (e.g., "core/audit/" → "audit_dtos" is INVALID)
+3. Only use component names that appear in the actual source code above
+4. Package/directory names are NOT valid component names
+5. If you see a directory path like "core/device/", do NOT create components like "device_dtos" or "device_models"
+
+**Invalid Examples (DO NOT USE):**
+- ❌ "audit_dtos" (package name derived from "core/audit/" directory)
+- ❌ "device_dtos" (package name derived from "core/device/" directory)
+- ❌ "event_dtos" (package name derived from path structure)
+- ❌ "core_models" (package name)
+
+**Valid Examples (ONLY USE THESE):**
+- ✅ "AuditEvent" (actual class name from source code)
+- ✅ "DeviceInfo" (actual class name from source code)
+- ✅ "EventProcessor" (actual class name from source code)
+- ✅ "CoreModel" (actual class name from source code)
+
 Please group the components into groups such that each group is a set of components that are closely related to each other and together they form a smaller module. DO NOT include components that are not essential to the module.
+
+Return ONLY component names that exist in the source code above. DO NOT invent or derive component names from directory paths.
 
 Firstly reason based on given context and then group them and return the result in the following format:
 <GROUPED_COMPONENTS>
