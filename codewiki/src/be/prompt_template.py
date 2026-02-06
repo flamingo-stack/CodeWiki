@@ -530,55 +530,67 @@ Generate the overview of the `{{module_name}}` module in markdown format:
 
 CLUSTER_REPO_PROMPT = """
 Here is list of all potential core components of the repository (It's normal that some components are not essential to the repository):
+
+Each component is identified by an INTEGER ID followed by a human-readable description.
+
 <POTENTIAL_CORE_COMPONENTS>
 {potential_core_components}
 </POTENTIAL_CORE_COMPONENTS>
 
-**CRITICAL CONSTRAINTS:**
-1. Component names MUST be actual class/function/interface names from the source code, NOT package or directory names
-2. DO NOT invent component names based on directory structure (e.g., "core/audit/" → "audit_dtos" is INVALID)
-3. Only use component names that appear in the actual source code above
-4. Package/directory names are NOT valid component names
-5. If you see a directory path like "core/device/", do NOT create components like "device_dtos" or "device_models"
+**CRITICAL INSTRUCTIONS:**
+1. **Use INTEGER IDs ONLY**: Reference components by their integer ID (e.g., 0, 1, 42, 156)
+2. **DO NOT use class names or FQDNs**: The system will map IDs back to full paths
+3. **DO NOT invent IDs**: Only use IDs that appear in the list above
+4. **ID format**: IDs are shown as "123: ClassName (module, package)"
+
+**Example Component List Format:**
+```
+0: AuthService (auth, service)
+1: UserController (api, controller)
+2: DatabaseConfig (config, core)
+```
 
 **Invalid Examples (DO NOT USE):**
-- ❌ "audit_dtos" (package name derived from "core/audit/" directory)
-- ❌ "device_dtos" (package name derived from "core/device/" directory)
-- ❌ "event_dtos" (package name derived from path structure)
-- ❌ "core_models" (package name)
+- ❌ "AuthService" (class name - use ID instead)
+- ❌ "auth.AuthService" (FQDN - use ID instead)
+- ❌ "999" (ID not in the list)
+- ❌ "service_auth" (invented name)
 
 **Valid Examples (ONLY USE THESE):**
-- ✅ "AuditEvent" (actual class name from source code)
-- ✅ "DeviceInfo" (actual class name from source code)
-- ✅ "EventProcessor" (actual class name from source code)
-- ✅ "CoreModel" (actual class name from source code)
+- ✅ 0 (integer ID for AuthService)
+- ✅ 1 (integer ID for UserController)
+- ✅ 2 (integer ID for DatabaseConfig)
 
-Please group the components into groups such that each group is a set of components that are closely related to each other and together they form a module. DO NOT include components that are not essential to the repository.
+Please group the components into modules such that each group contains closely related components that together form a cohesive module. DO NOT include components that are not essential to the repository.
 
-Return ONLY component names that exist in the source code above. DO NOT invent or derive component names from directory paths.
+**Return Format:**
+Firstly reason about the components and their relationships, then group them by integer ID and return the result in the following format:
 
-Firstly reason about the components and then group them and return the result in the following format:
 <GROUPED_COMPONENTS>
 {{
     "module_name_1": {{
         "path": <path_to_the_module_1>, # the path to the module can be file or directory
         "components": [
-            <component_name_1>,
-            <component_name_2>,
+            0,  # Integer ID only
+            5,
+            12,
             ...
         ]
     }},
     "module_name_2": {{
         "path": <path_to_the_module_2>,
         "components": [
-            <component_name_1>,
-            <component_name_2>,
+            1,
+            3,
+            8,
             ...
         ]
     }},
     ...
 }}
 </GROUPED_COMPONENTS>
+
+**REMINDER**: Return ONLY integer IDs in the components arrays. The system will automatically convert IDs to full component paths.
 """.strip()
 
 CLUSTER_MODULE_PROMPT = """
@@ -589,55 +601,67 @@ Here is the module tree of a repository:
 </MODULE_TREE>
 
 Here is list of all potential core components of the module {module_name} (It's normal that some components are not essential to the module):
+
+Each component is identified by an INTEGER ID followed by a human-readable description.
+
 <POTENTIAL_CORE_COMPONENTS>
 {potential_core_components}
 </POTENTIAL_CORE_COMPONENTS>
 
-**CRITICAL CONSTRAINTS:**
-1. Component names MUST be actual class/function/interface names from the source code, NOT package or directory names
-2. DO NOT invent component names based on directory structure (e.g., "core/audit/" → "audit_dtos" is INVALID)
-3. Only use component names that appear in the actual source code above
-4. Package/directory names are NOT valid component names
-5. If you see a directory path like "core/device/", do NOT create components like "device_dtos" or "device_models"
+**CRITICAL INSTRUCTIONS:**
+1. **Use INTEGER IDs ONLY**: Reference components by their integer ID (e.g., 0, 1, 42, 156)
+2. **DO NOT use class names or FQDNs**: The system will map IDs back to full paths
+3. **DO NOT invent IDs**: Only use IDs that appear in the list above
+4. **ID format**: IDs are shown as "123: ClassName (module, package)"
+
+**Example Component List Format:**
+```
+0: AuthService (auth, service)
+1: UserController (api, controller)
+2: DatabaseConfig (config, core)
+```
 
 **Invalid Examples (DO NOT USE):**
-- ❌ "audit_dtos" (package name derived from "core/audit/" directory)
-- ❌ "device_dtos" (package name derived from "core/device/" directory)
-- ❌ "event_dtos" (package name derived from path structure)
-- ❌ "core_models" (package name)
+- ❌ "AuthService" (class name - use ID instead)
+- ❌ "auth.AuthService" (FQDN - use ID instead)
+- ❌ "999" (ID not in the list)
+- ❌ "service_auth" (invented name)
 
 **Valid Examples (ONLY USE THESE):**
-- ✅ "AuditEvent" (actual class name from source code)
-- ✅ "DeviceInfo" (actual class name from source code)
-- ✅ "EventProcessor" (actual class name from source code)
-- ✅ "CoreModel" (actual class name from source code)
+- ✅ 0 (integer ID for AuthService)
+- ✅ 1 (integer ID for UserController)
+- ✅ 2 (integer ID for DatabaseConfig)
 
-Please group the components into groups such that each group is a set of components that are closely related to each other and together they form a smaller module. DO NOT include components that are not essential to the module.
+Please group the components into smaller sub-modules such that each group contains closely related components. DO NOT include components that are not essential to the module.
 
-Return ONLY component names that exist in the source code above. DO NOT invent or derive component names from directory paths.
+**Return Format:**
+Firstly reason based on given context about the components and their relationships, then group them by integer ID and return the result in the following format:
 
-Firstly reason based on given context and then group them and return the result in the following format:
 <GROUPED_COMPONENTS>
 {{
     "module_name_1": {{
         "path": <path_to_the_module_1>, # the path to the module can be file or directory
         "components": [
-            <component_name_1>,
-            <component_name_2>,
+            0,  # Integer ID only
+            5,
+            12,
             ...
         ]
     }},
     "module_name_2": {{
         "path": <path_to_the_module_2>,
         "components": [
-            <component_name_1>,
-            <component_name_2>,
+            1,
+            3,
+            8,
             ...
         ]
     }},
     ...
 }}
 </GROUPED_COMPONENTS>
+
+**REMINDER**: Return ONLY integer IDs in the components arrays. The system will automatically convert IDs to full component paths.
 """.strip()
 
 FILTER_FOLDERS_PROMPT = """
