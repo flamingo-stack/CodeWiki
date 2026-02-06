@@ -7,7 +7,7 @@ from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_to
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
-from codewiki.src.be.cluster_modules import format_potential_core_components, build_short_id_to_fqdn_map
+from codewiki.src.be.cluster_modules import format_potential_core_components
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,10 +27,18 @@ async def generate_sub_module_documentation(
     deps = ctx.deps
     previous_module_name = deps.current_module_name
 
-    # CRITICAL FIX: Normalize component IDs from short IDs to FQDNs
-    # The LLM may return short IDs (e.g., "AuthService") but we need FQDNs
-    logger.info(f"🔄 Normalizing sub-module component IDs")
-    short_to_fqdn = build_short_id_to_fqdn_map(deps.components)
+    # CRITICAL FIX: Use ID-based normalization system
+    # The LLM returns integer IDs (e.g., 0, 1, 2) which we need to convert to FQDNs
+    logger.info(f"🔄 Normalizing sub-module component IDs (ID-based system)")
+
+    # Get all component IDs from sub_module_specs to create ID mapping
+    all_component_ids = []
+    for component_ids in sub_module_specs.values():
+        all_component_ids.extend(component_ids)
+
+    # Create ID-to-FQDN mapping using the ID-based system
+    # This returns (str1, str2, id_to_fqdn, id_descriptions) but we only need id_to_fqdn
+    _, _, id_to_fqdn, _ = format_potential_core_components(all_component_ids, deps.components)
 
     normalized_specs = {}
     total_normalized = 0
@@ -39,38 +47,43 @@ async def generate_sub_module_documentation(
     for sub_module_name, component_ids in sub_module_specs.items():
         normalized_ids = []
         for comp_id in component_ids:
-            # Try exact FQDN match first
+            # Try exact FQDN match first (component_ids might already be FQDNs)
             if comp_id in deps.components:
                 normalized_ids.append(comp_id)
-            # Try reverse mapping from short ID to FQDN
-            elif comp_id in short_to_fqdn:
-                fqdn = short_to_fqdn[comp_id]
-                normalized_ids.append(fqdn)
-                total_normalized += 1
-                logger.debug(f"   ✅ Normalized '{comp_id}' → '{fqdn}'")
+            # Try converting integer ID to FQDN (ID-based system)
             else:
-                # Keep original (will fail validation later)
-                normalized_ids.append(comp_id)
-                total_failed += 1
-
-                # ENHANCED DIAGNOSTICS: Search for similar components
-                similar_mapping_keys = [k for k in short_to_fqdn.keys() if comp_id.lower() in k.lower()][:5]
-                similar_fqdns = [fqdn for fqdn in deps.components.keys() if comp_id.lower() in fqdn.lower()][:5]
-
-                logger.warning(
-                    f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'\n"
-                    f"      ├─ Not found as exact FQDN in components dictionary\n"
-                    f"      ├─ Not found in short_id → FQDN mapping ({len(short_to_fqdn)} entries)\n"
-                    f"      ├─ Similar mapping keys: {similar_mapping_keys if similar_mapping_keys else 'None found'}\n"
-                    f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
-                )
+                try:
+                    # LLM should return integer IDs
+                    idx = int(comp_id)
+                    if idx in id_to_fqdn:
+                        fqdn = id_to_fqdn[idx]
+                        normalized_ids.append(fqdn)
+                        total_normalized += 1
+                        logger.debug(f"   ✅ Normalized ID {idx} → '{fqdn}'")
+                    else:
+                        logger.warning(
+                            f"   ⚠️  Failed to normalize ID {idx} in sub-module '{sub_module_name}'\n"
+                            f"      ├─ ID out of range (valid: 0-{len(id_to_fqdn)-1})\n"
+                            f"      └─ LLM returned invalid integer ID"
+                        )
+                        total_failed += 1
+                except (ValueError, TypeError):
+                    # comp_id is not an integer - likely a class name (LLM ignored instructions)
+                    similar_fqdns = [fqdn for fqdn in deps.components.keys() if str(comp_id).lower() in fqdn.lower()][:5]
+                    logger.warning(
+                        f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'\n"
+                        f"      ├─ Not an integer ID (type: {type(comp_id).__name__})\n"
+                        f"      ├─ LLM returned class name instead of integer ID\n"
+                        f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
+                    )
+                    total_failed += 1
 
         normalized_specs[sub_module_name] = normalized_ids
 
     if total_normalized > 0:
-        logger.info(f"   ✅ Normalized {total_normalized} short IDs to FQDNs")
+        logger.info(f"   ✅ Normalized {total_normalized} integer IDs to FQDNs")
     if total_failed > 0:
-        logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs")
+        logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs (LLM ignored instructions)")
 
     # Replace original specs with normalized specs
     sub_module_specs = normalized_specs
