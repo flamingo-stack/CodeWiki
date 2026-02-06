@@ -553,7 +553,9 @@ Each component is identified by an INTEGER ID followed by a human-readable descr
 **Invalid Examples (DO NOT USE):**
 - ❌ "AuthService" (class name - use ID instead)
 - ❌ "auth.AuthService" (FQDN - use ID instead)
-- ❌ "999" (ID not in the list)
+- ❌ "0" (quoted ID - use bare integer: 0)
+- ❌ "999" (quoted ID - use bare integer: 999)
+- ❌ 999 (ID not in the list above - only use shown IDs)
 - ❌ "service_auth" (invented name)
 
 **Valid Examples (ONLY USE THESE):**
@@ -561,10 +563,44 @@ Each component is identified by an INTEGER ID followed by a human-readable descr
 - ✅ 1 (integer ID for UserController)
 - ✅ 2 (integer ID for DatabaseConfig)
 
+**CRITICAL JSON FORMAT:**
+Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
+- ✅ "components": [0, 5, 12]        # Correct - bare integers
+- ❌ "components": ["0", "5", "12"]  # WRONG - will fail validation
+
+**Why this matters:** If you return quoted IDs like "0", the system will reject your entire response.
+
 Please group the components into modules such that each group contains closely related components that together form a cohesive module. DO NOT include components that are not essential to the repository.
 
 **Return Format:**
 Firstly reason about the components and their relationships, then group them by integer ID and return the result in the following format:
+
+**VALIDATION CHECKLIST - Review before returning:**
+1. [ ] All component IDs are bare integers: 0, 1, 42 (NOT "0", "1", "42")
+2. [ ] All IDs exist in the list above (range: 0 to max_available_id)
+3. [ ] No class names (e.g., "AuthService"), no FQDNs (e.g., "com.example.Auth")
+4. [ ] Valid JSON syntax (proper commas, brackets, quotes for strings only)
+
+**Example that will FAIL validation:**
+```json
+{{
+    "auth_module": {{
+        "components": ["AuthService", "0", 999]
+    }}
+}}
+```
+^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range
+
+**Example that will PASS validation:**
+```json
+{{
+    "auth_module": {{
+        "path": "src/auth",
+        "components": [0, 1, 2]
+    }}
+}}
+```
+^ This passes: All IDs are bare integers in valid range
 
 <GROUPED_COMPONENTS>
 {{
@@ -624,7 +660,9 @@ Each component is identified by an INTEGER ID followed by a human-readable descr
 **Invalid Examples (DO NOT USE):**
 - ❌ "AuthService" (class name - use ID instead)
 - ❌ "auth.AuthService" (FQDN - use ID instead)
-- ❌ "999" (ID not in the list)
+- ❌ "0" (quoted ID - use bare integer: 0)
+- ❌ "999" (quoted ID - use bare integer: 999)
+- ❌ 999 (ID not in the list above - only use shown IDs)
 - ❌ "service_auth" (invented name)
 
 **Valid Examples (ONLY USE THESE):**
@@ -632,10 +670,44 @@ Each component is identified by an INTEGER ID followed by a human-readable descr
 - ✅ 1 (integer ID for UserController)
 - ✅ 2 (integer ID for DatabaseConfig)
 
+**CRITICAL JSON FORMAT:**
+Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
+- ✅ "components": [0, 5, 12]        # Correct - bare integers
+- ❌ "components": ["0", "5", "12"]  # WRONG - will fail validation
+
+**Why this matters:** If you return quoted IDs like "0", the system will reject your entire response.
+
 Please group the components into smaller sub-modules such that each group contains closely related components. DO NOT include components that are not essential to the module.
 
 **Return Format:**
 Firstly reason based on given context about the components and their relationships, then group them by integer ID and return the result in the following format:
+
+**VALIDATION CHECKLIST - Review before returning:**
+1. [ ] All component IDs are bare integers: 0, 1, 42 (NOT "0", "1", "42")
+2. [ ] All IDs exist in the list above (range: 0 to max_available_id)
+3. [ ] No class names (e.g., "AuthService"), no FQDNs (e.g., "com.example.Auth")
+4. [ ] Valid JSON syntax (proper commas, brackets, quotes for strings only)
+
+**Example that will FAIL validation:**
+```json
+{{
+    "auth_module": {{
+        "components": ["AuthService", "0", 999]
+    }}
+}}
+```
+^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range
+
+**Example that will PASS validation:**
+```json
+{{
+    "auth_module": {{
+        "path": "src/auth",
+        "components": [0, 1, 2]
+    }}
+}}
+```
+^ This passes: All IDs are bare integers in valid range
 
 <GROUPED_COMPONENTS>
 {{

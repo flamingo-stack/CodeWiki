@@ -335,11 +335,45 @@ def cluster_modules(
             return {}
 
         response_content = response.split("<GROUPED_COMPONENTS>")[1].split("</GROUPED_COMPONENTS>")[0]
-        module_tree = eval(response_content)
+
+        # Parse JSON safely (no code execution)
+        import json
+        try:
+            module_tree = json.loads(response_content)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Invalid JSON in LLM response: {e}")
+            logger.error(f"Response excerpt: {response_content[:500]}...")
+            return {}
 
         if not isinstance(module_tree, dict):
             logger.error(f"Invalid module tree format - expected dict, got {type(module_tree)}")
             return {}
+
+        # CRITICAL: Validate all component IDs are integers
+        max_id = len(id_to_fqdn) - 1
+        for module_name, module_info in module_tree.items():
+            if "components" not in module_info:
+                continue
+
+            component_ids = module_info["components"]
+            invalid_ids = []
+
+            for comp_id in component_ids:
+                # Check if ID is an integer
+                if not isinstance(comp_id, int):
+                    invalid_ids.append(f"{comp_id} (type: {type(comp_id).__name__})")
+                # Check if ID is in valid range
+                elif comp_id < 0 or comp_id > max_id:
+                    invalid_ids.append(f"{comp_id} (out of range 0-{max_id})")
+
+            if invalid_ids:
+                logger.error(f"❌ Module '{module_name}' contains invalid component IDs:")
+                logger.error(f"   Invalid IDs: {invalid_ids}")
+                logger.error(f"   Expected: Integers in range 0-{max_id}")
+                logger.error(f"   LLM ignored instructions and returned non-integer IDs!")
+                return {}
+
+        logger.info(f"✅ LLM response validation passed: All IDs are integers in valid range")
 
     except Exception as e:
         logger.error(f"Failed to parse LLM response: {e}. Response: {response[:200]}...")
