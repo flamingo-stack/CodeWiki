@@ -100,7 +100,9 @@ async def generate_sub_module_documentation(
 
         logger.info(f"{indent}{arrow} Generating documentation for sub-module: {sub_module_name}")
 
-        num_tokens = count_tokens(format_potential_core_components(core_component_ids, ctx.deps.components)[-1])
+        # Get the second element (potential_core_components_with_code) which is a string
+        _, potential_core_components_with_code, _, _ = format_potential_core_components(core_component_ids, ctx.deps.components)
+        num_tokens = count_tokens(potential_core_components_with_code)
 
         # FLAMINGO_PATCH: Added retries=3 to fix "Tool exceeded max retries count of 1" errors
         # Use configurable max_token_per_leaf_module instead of hardcoded constant

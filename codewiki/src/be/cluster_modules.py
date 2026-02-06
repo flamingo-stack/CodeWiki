@@ -329,6 +329,7 @@ def cluster_modules(
     logger.info("")
 
     # Parse the response
+    import json
     try:
         if "<GROUPED_COMPONENTS>" not in response or "</GROUPED_COMPONENTS>" not in response:
             logger.error(f"Invalid LLM response format - missing component tags: {response[:200]}...")
@@ -337,7 +338,6 @@ def cluster_modules(
         response_content = response.split("<GROUPED_COMPONENTS>")[1].split("</GROUPED_COMPONENTS>")[0]
 
         # Parse JSON safely (no code execution)
-        import json
         try:
             module_tree = json.loads(response_content)
         except json.JSONDecodeError as e:
