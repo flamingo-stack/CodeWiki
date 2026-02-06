@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from collections import defaultdict
 import logging
 import traceback
@@ -411,3 +411,70 @@ def cluster_modules(
         current_module_path.pop()
 
     return module_tree
+
+
+# ============================================================================
+# BACKWARD COMPATIBILITY LAYER
+# ============================================================================
+# These functions are deprecated but kept for compatibility with existing code
+# that imports them (e.g., agent_tools/generate_sub_module_documentations.py)
+
+def build_short_id_to_fqdn_map(components: Dict[str, Any]) -> Dict[str, str]:
+    """
+    DEPRECATED: This function is no longer used in ID-based clustering.
+    Kept for backward compatibility with agent_tools module.
+
+    The new ID-based system uses integer IDs (0, 1, 2...) instead of short IDs.
+    This function returns an empty dict as the normalization logic in
+    generate_sub_module_documentations.py now uses direct FQDN matching.
+
+    Args:
+        components: Dictionary of components (unused)
+
+    Returns:
+        Empty dict - normalization now uses direct FQDN lookup
+
+    MIGRATION GUIDE:
+        Old approach (short ID):
+            short_to_fqdn = build_short_id_to_fqdn_map(components)
+            if comp_id in short_to_fqdn:
+                fqdn = short_to_fqdn[comp_id]
+
+        New approach (direct FQDN):
+            if comp_id in components:  # Direct lookup
+                use comp_id as FQDN
+    """
+    import warnings
+    warnings.warn(
+        "build_short_id_to_fqdn_map() is deprecated in ID-based clustering. "
+        "Use direct FQDN lookup: 'if comp_id in components' instead. "
+        "This function will be removed in v2.0.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
+    # Return empty dict - the calling code has fallback logic
+    # Lines 43-44 in generate_sub_module_documentations.py:
+    # if comp_id in deps.components:  # This handles direct FQDN lookup
+    return {}
+
+
+def _find_best_path_match(llm_id: str, candidates: List[str]) -> Optional[str]:
+    """
+    DEPRECATED: This function is no longer used in ID-based clustering.
+    Kept for backward compatibility.
+
+    The new ID-based system eliminates the need for fuzzy path matching
+    by using integer IDs and direct FQDN resolution.
+
+    Returns:
+        None - indicates no match found
+    """
+    import warnings
+    warnings.warn(
+        "_find_best_path_match() is deprecated in ID-based clustering. "
+        "This function will be removed in v2.0.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return None
