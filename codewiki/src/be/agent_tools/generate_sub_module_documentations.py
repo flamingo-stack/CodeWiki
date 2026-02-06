@@ -166,4 +166,34 @@ async def generate_sub_module_documentation(
     return f"Generate successfully. Documentations: {', '.join([key + '.md' for key in sub_module_specs.keys()])} are saved in the working directory."
 
 
-generate_sub_module_documentation_tool = Tool(function=generate_sub_module_documentation, name="generate_sub_module_documentation", description="Generate detailed description of a given sub-module specs to the sub-agents", takes_ctx=True)
+generate_sub_module_documentation_tool = Tool(
+    function=generate_sub_module_documentation,
+    name="generate_sub_module_documentation",
+    description="""Generate detailed documentation for sub-modules by grouping related components.
+
+CRITICAL FORMAT REQUIREMENTS:
+- Use the EXACT component identifiers as shown in the <CORE_COMPONENT_CODES> section
+- DO NOT extract just class names (e.g., "AuthService", "ApiApplicationConfig")
+- Use the COMPLETE identifiers like: "main-repo.src/services/auth.py::AuthService"
+
+Example CORRECT format:
+{
+    "Authentication": [
+        "main-repo.src/services/auth.py::AuthService",
+        "main-repo.src/services/auth.py::LoginController"
+    ],
+    "Configuration": [
+        "main-repo.src/config/api.py::ApiApplicationConfig",
+        "main-repo.src/config/security.py::SecurityConfig"
+    ]
+}
+
+Example WRONG format (DO NOT USE):
+{
+    "Authentication": ["AuthService", "LoginController"],  # ❌ Class names only
+    "Configuration": ["ApiApplicationConfig"]              # ❌ Missing full path
+}
+
+The component identifiers must match exactly what appears in <CORE_COMPONENT_CODES>.""",
+    takes_ctx=True
+)
