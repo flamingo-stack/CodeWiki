@@ -9,6 +9,7 @@ import sys
 import logging
 from typing import List, Dict, Any
 from pathlib import Path
+from io import StringIO
 
 # Add CodeWiki to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -55,13 +56,13 @@ class TestResults:
 
 
 # Sample OpenFrame data structure (mimicking Node objects)
-# create_component_id_map expects Dict[str, Node], so we use FQDNs as keys
 class MockNode:
     """Mock Node object for testing"""
     def __init__(self, fqdn, name, file_path):
         self.fqdn = fqdn
         self.name = name
         self.file_path = file_path
+
 
 SAMPLE_COMPONENTS = {
     "openframe.auth.service::AuthService": MockNode(
@@ -90,6 +91,26 @@ SAMPLE_COMPONENTS = {
         "middleware/logging.py"
     )
 }
+
+
+def capture_log_warnings(func):
+    """Decorator to capture log warnings"""
+    def wrapper(*args, **kwargs):
+        # Capture logging output
+        log_capture = StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.WARNING)
+        logger = logging.getLogger('codewiki.src.be.cluster_modules')
+        logger.addHandler(handler)
+
+        try:
+            result = func(*args, **kwargs)
+            log_output = log_capture.getvalue()
+            return result, log_output
+        finally:
+            logger.removeHandler(handler)
+
+    return wrapper
 
 
 def test_component_id_map_creation(results: TestResults):
@@ -157,40 +178,61 @@ def test_component_id_map_creation(results: TestResults):
 
 
 def test_valid_integer_ids(results: TestResults):
-    """Test 2: Valid integer IDs (should pass)"""
+    """Test 2: Valid integer IDs (should pass without warnings)"""
     print("\n[TEST 2] Testing valid integer IDs...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        valid_ids = [0, 1, 2]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate
-        is_valid = validate_component_ids_against_map(valid_ids, id_map)
-
-        if not is_valid:
-            results.add_test(
-                "Valid Integer IDs",
-                False,
-                f"Validation failed for valid IDs: {valid_ids}"
-            )
-            return
+        # Create module tree with valid IDs
+        module_tree = {
+            "Auth Module": {
+                "components": [0, 1, 2],
+                "description": "Authentication components"
+            }
+        }
 
         # Normalize
-        normalized = normalize_component_ids_by_lookup(valid_ids, id_map)
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
 
-        if normalized != valid_ids:
+        normalized, log_output = normalize_test()
+
+        # Check for warnings
+        if "❌" in log_output or "⚠️" in log_output:
             results.add_test(
                 "Valid Integer IDs",
                 False,
-                f"Normalization changed valid IDs: {valid_ids} → {normalized}"
+                f"Unexpected warnings for valid IDs: {log_output}"
             )
             return
 
-        print(f"✓ Valid IDs passed: {valid_ids}")
+        # Verify normalization
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 3:
+            results.add_test(
+                "Valid Integer IDs",
+                False,
+                f"Expected 3 components, got {len(components)}"
+            )
+            return
+
+        # Verify FQDNs
+        for comp in components:
+            if not isinstance(comp, str) or "::" not in comp:
+                results.add_test(
+                    "Valid Integer IDs",
+                    False,
+                    f"Invalid FQDN format: {comp}"
+                )
+                return
+
+        print(f"✓ Valid IDs normalized successfully: [0, 1, 2] → 3 FQDNs")
         results.add_test(
             "Valid Integer IDs",
             True,
-            f"Correctly validated and preserved: {valid_ids}"
+            f"Correctly normalized {len(components)} valid IDs"
         )
 
     except Exception as e:
@@ -202,182 +244,265 @@ def test_valid_integer_ids(results: TestResults):
 
 
 def test_invalid_quoted_integers(results: TestResults):
-    """Test 3: Invalid quoted integer strings (should fail validation)"""
-    print("\n[TEST 3] Testing invalid quoted integer strings...")
+    """Test 3: Quoted integer strings (should ACCEPT via int() conversion)"""
+    print("\n[TEST 3] Testing quoted integer strings (resilient handling)...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        invalid_ids = ["0", "1", "2"]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should FAIL
-        is_valid = validate_component_ids_against_map(invalid_ids, id_map)
+        # Create module tree with quoted integers (Python's int() converts these)
+        module_tree = {
+            "Auth Module": {
+                "components": ["0", "1", "2"],
+                "description": "Authentication components"
+            }
+        }
 
-        if is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should NOT have warnings (int("0") works in Python)
+        if "❌" in log_output or "⚠️" in log_output:
             results.add_test(
-                "Invalid Quoted Integers",
+                "Quoted Integers (Resilient)",
                 False,
-                f"Validation PASSED for invalid quoted IDs (should fail): {invalid_ids}"
+                f"Unexpected warnings for quoted integers: {log_output}"
             )
             return
 
-        print(f"✓ Validation correctly rejected quoted integers: {invalid_ids}")
-
-        # Try to normalize - should raise ValueError
-        try:
-            normalized = normalize_component_ids_by_lookup(invalid_ids, id_map)
+        # Components should be successfully normalized (3 components)
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 3:
             results.add_test(
-                "Invalid Quoted Integers",
+                "Quoted Integers (Resilient)",
                 False,
-                f"Normalization succeeded for invalid IDs (should fail): {invalid_ids} → {normalized}"
+                f"Expected 3 components, got {len(components)}"
             )
-        except ValueError as ve:
-            print(f"✓ Normalization correctly raised ValueError: {str(ve)}")
-            results.add_test(
-                "Invalid Quoted Integers",
-                True,
-                f"Correctly rejected quoted integers: {invalid_ids}"
-            )
+            return
+
+        # Verify FQDNs
+        for comp in components:
+            if not isinstance(comp, str) or "::" not in comp:
+                results.add_test(
+                    "Quoted Integers (Resilient)",
+                    False,
+                    f"Invalid FQDN format: {comp}"
+                )
+                return
+
+        print(f"✓ Quoted integers correctly converted: [\"0\", \"1\", \"2\"] → 3 FQDNs")
+        results.add_test(
+            "Quoted Integers (Resilient)",
+            True,
+            "Correctly converted quoted integers to IDs (resilient behavior)"
+        )
 
     except Exception as e:
         results.add_test(
-            "Invalid Quoted Integers",
+            "Quoted Integers (Resilient)",
             False,
-            f"Unexpected exception: {str(e)}"
+            f"Exception: {str(e)}"
         )
 
 
 def test_invalid_class_names(results: TestResults):
-    """Test 4: Invalid class name strings (should fail validation)"""
+    """Test 4: Invalid class name strings (should log warnings)"""
     print("\n[TEST 4] Testing invalid class name strings...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        invalid_ids = ["AuthService", "CountedGenericQueryResult"]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should FAIL
-        is_valid = validate_component_ids_against_map(invalid_ids, id_map)
+        # Create module tree with class names (INVALID)
+        module_tree = {
+            "Auth Module": {
+                "components": ["AuthService", "CountedGenericQueryResult"],
+                "description": "Authentication components"
+            }
+        }
 
-        if is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should have warnings
+        if "❌" not in log_output:
             results.add_test(
                 "Invalid Class Names",
                 False,
-                f"Validation PASSED for invalid class names (should fail): {invalid_ids}"
+                "No warnings logged for class names (should warn)"
             )
             return
 
-        print(f"✓ Validation correctly rejected class names: {invalid_ids}")
-
-        # Try to normalize - should raise ValueError
-        try:
-            normalized = normalize_component_ids_by_lookup(invalid_ids, id_map)
+        # Should have "Non-integer ID" warnings
+        if "Non-integer ID" not in log_output:
             results.add_test(
                 "Invalid Class Names",
                 False,
-                f"Normalization succeeded for invalid IDs (should fail): {invalid_ids} → {normalized}"
+                f"Missing 'Non-integer ID' warning. Got: {log_output}"
             )
-        except ValueError as ve:
-            print(f"✓ Normalization correctly raised ValueError: {str(ve)}")
+            return
+
+        # Components should be empty (all failed)
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 0:
             results.add_test(
                 "Invalid Class Names",
-                True,
-                f"Correctly rejected class names: {invalid_ids}"
+                False,
+                f"Expected 0 components (all failed), got {len(components)}"
             )
+            return
+
+        print(f"✓ Class names correctly rejected with warnings")
+        results.add_test(
+            "Invalid Class Names",
+            True,
+            "Correctly rejected class names with warnings"
+        )
 
     except Exception as e:
         results.add_test(
             "Invalid Class Names",
             False,
-            f"Unexpected exception: {str(e)}"
+            f"Exception: {str(e)}"
         )
 
 
 def test_mixed_invalid_ids(results: TestResults):
-    """Test 5: Mixed valid/invalid IDs (should fail validation)"""
+    """Test 5: Mixed valid/invalid IDs (should partially normalize)"""
     print("\n[TEST 5] Testing mixed valid/invalid IDs...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        mixed_ids = [0, "1", "AuthService", 999]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should FAIL
-        is_valid = validate_component_ids_against_map(mixed_ids, id_map)
+        # Create module tree with mixed IDs
+        # Note: "1" will be converted to int(1) successfully by Python
+        module_tree = {
+            "Auth Module": {
+                "components": [0, "1", "AuthService", 999],
+                "description": "Mixed components"
+            }
+        }
 
-        if is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should have warnings for invalid IDs (AuthService and 999)
+        if "❌" not in log_output:
             results.add_test(
                 "Mixed Invalid IDs",
                 False,
-                f"Validation PASSED for mixed invalid IDs (should fail): {mixed_ids}"
+                "No warnings logged for mixed invalid IDs (should warn)"
             )
             return
 
-        print(f"✓ Validation correctly rejected mixed invalid IDs: {mixed_ids}")
-
-        # Try to normalize - should raise ValueError
-        try:
-            normalized = normalize_component_ids_by_lookup(mixed_ids, id_map)
+        # Should have exactly 2 valid components (ID 0 and "1" converted to 1)
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 2:
             results.add_test(
                 "Mixed Invalid IDs",
                 False,
-                f"Normalization succeeded for invalid IDs (should fail): {mixed_ids} → {normalized}"
+                f"Expected 2 valid components (0 and \"1\"), got {len(components)}"
             )
-        except ValueError as ve:
-            print(f"✓ Normalization correctly raised ValueError: {str(ve)}")
+            return
+
+        # Verify the two valid components are IDs 0 and 1
+        expected_fqdns = [id_to_fqdn[0], id_to_fqdn[1]]
+        if components != expected_fqdns:
             results.add_test(
                 "Mixed Invalid IDs",
-                True,
-                f"Correctly rejected mixed invalid IDs: {mixed_ids}"
+                False,
+                f"Expected FQDNs for IDs 0 and 1, got {components}"
             )
+            return
+
+        print(f"✓ Mixed IDs: 2 valid normalized (0, \"1\"), 2 invalid rejected (AuthService, 999)")
+        results.add_test(
+            "Mixed Invalid IDs",
+            True,
+            "Correctly normalized valid IDs and rejected invalid IDs"
+        )
 
     except Exception as e:
         results.add_test(
             "Mixed Invalid IDs",
             False,
-            f"Unexpected exception: {str(e)}"
+            f"Exception: {str(e)}"
         )
 
 
 def test_out_of_range_ids(results: TestResults):
-    """Test 6: Out-of-range valid integer IDs (should fail validation)"""
+    """Test 6: Out-of-range valid integer IDs (should log warnings)"""
     print("\n[TEST 6] Testing out-of-range integer IDs...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        out_of_range_ids = [0, 1, 999]  # 999 is out of range
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should FAIL
-        is_valid = validate_component_ids_against_map(out_of_range_ids, id_map)
+        # Create module tree with out-of-range IDs
+        module_tree = {
+            "Auth Module": {
+                "components": [0, 1, 999],
+                "description": "Out of range components"
+            }
+        }
 
-        if is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should have warnings for out-of-range
+        if "❌" not in log_output or "Invalid ID 999" not in log_output:
             results.add_test(
                 "Out-of-Range IDs",
                 False,
-                f"Validation PASSED for out-of-range IDs (should fail): {out_of_range_ids}"
+                "Missing warning for out-of-range ID 999"
             )
             return
 
-        print(f"✓ Validation correctly rejected out-of-range IDs: {out_of_range_ids}")
-
-        # Try to normalize - should raise ValueError
-        try:
-            normalized = normalize_component_ids_by_lookup(out_of_range_ids, id_map)
+        # Should have "Valid range" in warning
+        if "Valid range" not in log_output:
             results.add_test(
                 "Out-of-Range IDs",
                 False,
-                f"Normalization succeeded for invalid IDs (should fail): {out_of_range_ids} → {normalized}"
+                f"Missing 'Valid range' in warning. Got: {log_output}"
             )
-        except ValueError as ve:
-            print(f"✓ Normalization correctly raised ValueError: {str(ve)}")
+            return
+
+        # Should have 2 valid components (0, 1)
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 2:
             results.add_test(
                 "Out-of-Range IDs",
-                True,
-                f"Correctly rejected out-of-range IDs: {out_of_range_ids}"
+                False,
+                f"Expected 2 valid components, got {len(components)}"
             )
+            return
+
+        print(f"✓ Out-of-range ID rejected: 2 valid, 1 rejected")
+        results.add_test(
+            "Out-of-Range IDs",
+            True,
+            "Correctly rejected out-of-range ID with warning"
+        )
 
     except Exception as e:
         results.add_test(
             "Out-of-Range IDs",
             False,
-            f"Unexpected exception: {str(e)}"
+            f"Exception: {str(e)}"
         )
 
 
@@ -386,41 +511,51 @@ def test_json_loads_normalization(results: TestResults):
     print("\n[TEST 7] Testing JSON string parsing with json.loads()...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
         # Simulate LLM response as JSON string
         json_string = "[0, 1, 2]"
-
-        # Parse with json.loads
         parsed_ids = json.loads(json_string)
 
-        # Validate
-        is_valid = validate_component_ids_against_map(parsed_ids, id_map)
-
-        if not is_valid:
-            results.add_test(
-                "JSON Loads Normalization",
-                False,
-                f"Validation failed for JSON-parsed IDs: {parsed_ids}"
-            )
-            return
+        # Create module tree with parsed IDs
+        module_tree = {
+            "Auth Module": {
+                "components": parsed_ids,
+                "description": "JSON parsed components"
+            }
+        }
 
         # Normalize
-        normalized = normalize_component_ids_by_lookup(parsed_ids, id_map)
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
 
-        if normalized != [0, 1, 2]:
+        normalized, log_output = normalize_test()
+
+        # Should NOT have warnings
+        if "❌" in log_output or "⚠️" in log_output:
             results.add_test(
                 "JSON Loads Normalization",
                 False,
-                f"Normalization failed: {json_string} → {normalized}"
+                f"Unexpected warnings: {log_output}"
             )
             return
 
-        print(f"✓ JSON string correctly parsed and validated: {json_string} → {normalized}")
+        # Should have 3 valid components
+        components = normalized["Auth Module"]["components"]
+        if len(components) != 3:
+            results.add_test(
+                "JSON Loads Normalization",
+                False,
+                f"Expected 3 components, got {len(components)}"
+            )
+            return
+
+        print(f"✓ JSON string correctly parsed and normalized")
         results.add_test(
             "JSON Loads Normalization",
             True,
-            f"JSON string correctly parsed: {json_string} → {normalized}"
+            f"JSON string successfully parsed: {json_string} → 3 FQDNs"
         )
 
     except Exception as e:
@@ -436,28 +571,39 @@ def test_empty_list(results: TestResults):
     print("\n[TEST 8] Testing empty component list...")
 
     try:
-        empty_ids = []
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should PASS (empty list is valid)
-        is_valid = validate_component_ids_against_map(empty_ids, id_map)
+        # Create module tree with empty components
+        module_tree = {
+            "Empty Module": {
+                "components": [],
+                "description": "No components"
+            }
+        }
 
-        if not is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should NOT have warnings
+        if "❌" in log_output:
             results.add_test(
                 "Empty List",
                 False,
-                "Validation failed for empty list (should pass)"
+                f"Unexpected warnings for empty list: {log_output}"
             )
             return
 
-        # Normalize
-        normalized = normalize_component_ids_by_lookup(empty_ids, id_map)
-
-        if normalized != []:
+        # Components should still be empty
+        components = normalized["Empty Module"]["components"]
+        if len(components) != 0:
             results.add_test(
                 "Empty List",
                 False,
-                f"Normalization failed for empty list: got {normalized}"
+                f"Expected 0 components, got {len(components)}"
             )
             return
 
@@ -465,7 +611,7 @@ def test_empty_list(results: TestResults):
         results.add_test(
             "Empty List",
             True,
-            "Empty list correctly validated and normalized"
+            "Empty list correctly handled without warnings"
         )
 
     except Exception as e:
@@ -477,40 +623,61 @@ def test_empty_list(results: TestResults):
 
 
 def test_duplicate_ids(results: TestResults):
-    """Test 9: Duplicate IDs in list (should pass validation)"""
+    """Test 9: Duplicate IDs in list (should allow duplicates)"""
     print("\n[TEST 9] Testing duplicate IDs...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        duplicate_ids = [0, 1, 1, 2]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should PASS (duplicates are allowed)
-        is_valid = validate_component_ids_against_map(duplicate_ids, id_map)
-
-        if not is_valid:
-            results.add_test(
-                "Duplicate IDs",
-                False,
-                f"Validation failed for duplicate IDs (should pass): {duplicate_ids}"
-            )
-            return
+        # Create module tree with duplicate IDs
+        module_tree = {
+            "Duplicate Module": {
+                "components": [0, 1, 1, 2],
+                "description": "Duplicate components"
+            }
+        }
 
         # Normalize
-        normalized = normalize_component_ids_by_lookup(duplicate_ids, id_map)
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
 
-        if normalized != duplicate_ids:
+        normalized, log_output = normalize_test()
+
+        # Should NOT have warnings
+        if "❌" in log_output or "⚠️" in log_output:
             results.add_test(
                 "Duplicate IDs",
                 False,
-                f"Normalization changed duplicate IDs: {duplicate_ids} → {normalized}"
+                f"Unexpected warnings for duplicates: {log_output}"
             )
             return
 
-        print(f"✓ Duplicate IDs correctly handled: {duplicate_ids}")
+        # Should have 4 components (duplicates preserved)
+        components = normalized["Duplicate Module"]["components"]
+        if len(components) != 4:
+            results.add_test(
+                "Duplicate IDs",
+                False,
+                f"Expected 4 components (with duplicates), got {len(components)}"
+            )
+            return
+
+        # Verify duplicate FQDN
+        fqdn_1 = id_to_fqdn[1]
+        if components.count(fqdn_1) != 2:
+            results.add_test(
+                "Duplicate IDs",
+                False,
+                f"Expected 2 instances of FQDN for ID 1, got {components.count(fqdn_1)}"
+            )
+            return
+
+        print(f"✓ Duplicate IDs correctly preserved")
         results.add_test(
             "Duplicate IDs",
             True,
-            f"Duplicate IDs correctly preserved: {duplicate_ids}"
+            "Duplicate IDs correctly preserved in normalization"
         )
 
     except Exception as e:
@@ -522,47 +689,58 @@ def test_duplicate_ids(results: TestResults):
 
 
 def test_negative_ids(results: TestResults):
-    """Test 10: Negative IDs (should fail validation)"""
+    """Test 10: Negative IDs (should log warnings)"""
     print("\n[TEST 10] Testing negative IDs...")
 
     try:
-        id_map = create_component_id_map(SAMPLE_COMPONENTS)
-        negative_ids = [-1, 0, 1]
+        id_to_fqdn, _ = create_component_id_map(SAMPLE_COMPONENTS)
 
-        # Validate - should FAIL
-        is_valid = validate_component_ids_against_map(negative_ids, id_map)
+        # Create module tree with negative IDs
+        module_tree = {
+            "Negative Module": {
+                "components": [-1, 0, 1],
+                "description": "Negative IDs"
+            }
+        }
 
-        if is_valid:
+        # Normalize
+        @capture_log_warnings
+        def normalize_test():
+            return normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+
+        normalized, log_output = normalize_test()
+
+        # Should have warnings for negative ID
+        if "❌" not in log_output or "Invalid ID -1" not in log_output:
             results.add_test(
                 "Negative IDs",
                 False,
-                f"Validation PASSED for negative IDs (should fail): {negative_ids}"
+                "Missing warning for negative ID -1"
             )
             return
 
-        print(f"✓ Validation correctly rejected negative IDs: {negative_ids}")
-
-        # Try to normalize - should raise ValueError
-        try:
-            normalized = normalize_component_ids_by_lookup(negative_ids, id_map)
+        # Should have 2 valid components (0, 1)
+        components = normalized["Negative Module"]["components"]
+        if len(components) != 2:
             results.add_test(
                 "Negative IDs",
                 False,
-                f"Normalization succeeded for invalid IDs (should fail): {negative_ids} → {normalized}"
+                f"Expected 2 valid components, got {len(components)}"
             )
-        except ValueError as ve:
-            print(f"✓ Normalization correctly raised ValueError: {str(ve)}")
-            results.add_test(
-                "Negative IDs",
-                True,
-                f"Correctly rejected negative IDs: {negative_ids}"
-            )
+            return
+
+        print(f"✓ Negative ID rejected: 2 valid, 1 rejected")
+        results.add_test(
+            "Negative IDs",
+            True,
+            "Correctly rejected negative ID with warning"
+        )
 
     except Exception as e:
         results.add_test(
             "Negative IDs",
             False,
-            f"Unexpected exception: {str(e)}"
+            f"Exception: {str(e)}"
         )
 
 
@@ -571,7 +749,7 @@ def main():
     print("CodeWiki ID-Based Clustering System - Integration Tests")
     print("="*80)
     print(f"Testing with {len(SAMPLE_COMPONENTS)} sample components")
-    print(f"Component names: {[c['name'] for c in SAMPLE_COMPONENTS]}")
+    print(f"Component names: {[SAMPLE_COMPONENTS[k].name for k in sorted(SAMPLE_COMPONENTS.keys())]}")
 
     results = TestResults()
 
