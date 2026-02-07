@@ -674,8 +674,13 @@ Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
 
 Please group the components into modules such that each group contains closely related components that together form a cohesive module. DO NOT include components that are not essential to the repository.
 
+**CRITICAL RESPONSE FORMAT REQUIREMENT:**
+You MUST wrap your response in <GROUPED_COMPONENTS> and </GROUPED_COMPONENTS> tags.
+Do NOT include any text before <GROUPED_COMPONENTS> or after </GROUPED_COMPONENTS>.
+The response format is NON-NEGOTIABLE - failure to use these tags will cause a SYSTEM ERROR.
+
 **Return Format:**
-Firstly reason about the components and their relationships, then group them by integer ID and return the result in the following format:
+You may optionally include brief reasoning, then you MUST return the JSON result wrapped in tags as shown below.
 
 **VALIDATION CHECKLIST - Review before returning:**
 1. [ ] All component IDs are bare integers: 0, 1, 42 (NOT "0", "1", "42")
@@ -704,31 +709,27 @@ Firstly reason about the components and their relationships, then group them by 
 ```
 ^ This passes: All IDs are bare integers in valid range
 
+**EXACT RESPONSE FORMAT (copy this structure):**
+
 <GROUPED_COMPONENTS>
 {{
     "module_name_1": {{
-        "path": <path_to_the_module_1>, # the path to the module can be file or directory
-        "components": [
-            0,  # Integer ID only
-            5,
-            12,
-            ...
-        ]
+        "path": "src/auth",
+        "components": [0, 5, 12]
     }},
     "module_name_2": {{
-        "path": <path_to_the_module_2>,
-        "components": [
-            1,
-            3,
-            8,
-            ...
-        ]
-    }},
-    ...
+        "path": "src/api",
+        "components": [1, 3, 8]
+    }}
 }}
 </GROUPED_COMPONENTS>
 
-**REMINDER**: Return ONLY integer IDs in the components arrays. The system will automatically convert IDs to full component paths.
+**CRITICAL REMINDERS:**
+1. Response MUST start with <GROUPED_COMPONENTS> tag
+2. Response MUST end with </GROUPED_COMPONENTS> tag
+3. No text before or after the tags
+4. Use ONLY bare integers in components arrays (no quotes)
+5. The system will automatically convert IDs to full component paths
 """.strip()
 
 CLUSTER_MODULE_PROMPT = """
@@ -811,31 +812,27 @@ Firstly reason based on given context about the components and their relationshi
 ```
 ^ This passes: All IDs are bare integers in valid range
 
+**EXACT RESPONSE FORMAT (copy this structure):**
+
 <GROUPED_COMPONENTS>
 {{
     "module_name_1": {{
-        "path": <path_to_the_module_1>, # the path to the module can be file or directory
-        "components": [
-            0,  # Integer ID only
-            5,
-            12,
-            ...
-        ]
+        "path": "src/auth",
+        "components": [0, 5, 12]
     }},
     "module_name_2": {{
-        "path": <path_to_the_module_2>,
-        "components": [
-            1,
-            3,
-            8,
-            ...
-        ]
-    }},
-    ...
+        "path": "src/api",
+        "components": [1, 3, 8]
+    }}
 }}
 </GROUPED_COMPONENTS>
 
-**REMINDER**: Return ONLY integer IDs in the components arrays. The system will automatically convert IDs to full component paths.
+**CRITICAL REMINDERS:**
+1. Response MUST start with <GROUPED_COMPONENTS> tag
+2. Response MUST end with </GROUPED_COMPONENTS> tag
+3. No text before or after the tags
+4. Use ONLY bare integers in components arrays (no quotes)
+5. The system will automatically convert IDs to full component paths
 """.strip()
 
 FILTER_FOLDERS_PROMPT = """
