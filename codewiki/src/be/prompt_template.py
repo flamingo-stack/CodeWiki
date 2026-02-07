@@ -453,11 +453,12 @@ Generate comprehensive documentation for the {module_name} module using the prov
 <MODULE_TREE>
 {module_tree}
 </MODULE_TREE>
-* NOTE: You can refer the other modules in the module tree based on the dependencies between their core components to make the documentation more structured and avoid repeating the same information. Documentation files are organized hierarchically following the module tree structure. For example:
-  - Root modules: [Module Name](../module_name.md)
-  - Child modules: [Child Module](child_module.md)
-  - Sibling modules: [Sibling](../sibling.md)
-  Use relative paths based on the current module's position in the hierarchy.
+* NOTE: You can refer the other modules in the module tree based on the dependencies between their core components to make the documentation more structured and avoid repeating the same information. Documentation files are organized hierarchically following the module tree structure. Examples:
+  - Parent module: [Parent](../Parent.md) - go up one level
+  - Child module: [ChildModule](ChildModule/ChildModule.md) - child has own directory
+  - Sibling module: [Sibling](../Sibling/Sibling.md) - sibling at same level
+  - Root module: [Root](../../Root.md) - multiple levels up
+  Use relative paths based on current module's position in the hierarchy.
 
 <CORE_COMPONENT_CODES>
 {formatted_core_component_codes}

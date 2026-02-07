@@ -94,10 +94,16 @@ class DocumentationGenerator:
         }
         
         # Add generated markdown files to the metadata
+        # HIERARCHICAL OUTPUT: Recursively walk directories to find all .md files
         try:
-            for file_path in os.listdir(working_dir):
-                if file_path.endswith('.md') and file_path not in metadata["files_generated"]:
-                    metadata["files_generated"].append(file_path)
+            for root, dirs, files in os.walk(working_dir):
+                for file in files:
+                    if file.endswith('.md'):
+                        # Store relative path from working_dir
+                        full_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(full_path, working_dir)
+                        if relative_path not in metadata["files_generated"]:
+                            metadata["files_generated"].append(relative_path)
         except Exception as e:
             logger.warning(f"Could not list generated files: {e}")
         
@@ -147,11 +153,17 @@ class DocumentationGenerator:
             module_info = module_info["children"]
 
         for child_name, child_info in module_info.items():
-            child_doc_path = os.path.join(working_dir, f"{child_name}.md")
-            if os.path.exists(child_doc_path):
-                child_info["docs"] = file_manager.load_text(child_doc_path)
+            # HIERARCHICAL OUTPUT: Child docs are in nested subdirectories
+            # Try hierarchical path first (child_name/child_name.md), fall back to flat (child_name.md)
+            child_doc_path_nested = os.path.join(working_dir, child_name, f"{child_name}.md")
+            child_doc_path_flat = os.path.join(working_dir, f"{child_name}.md")
+
+            if os.path.exists(child_doc_path_nested):
+                child_info["docs"] = file_manager.load_text(child_doc_path_nested)
+            elif os.path.exists(child_doc_path_flat):
+                child_info["docs"] = file_manager.load_text(child_doc_path_flat)
             else:
-                logger.warning(f"Module docs not found at {child_doc_path}")
+                logger.warning(f"Module docs not found at {child_doc_path_nested} or {child_doc_path_flat}")
                 child_info["docs"] = ""
 
         return processed_module_tree
