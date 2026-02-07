@@ -448,9 +448,11 @@ class EditTool:
         return True
 
     def create_file(self, path: Path, file_text: str):
+        # HIERARCHICAL OUTPUT: Auto-create parent directories
         if not path.parent.exists():
-            self.logs.append(f"The parent directory {self._get_display_path(path.parent)} does not exist. Please create it first.")
-            return
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.logs.append(f"Created parent directory: {self._get_display_path(path.parent)}")
+
         self.write_file(path, file_text)
         self._file_history[path].append(file_text)
         self.logs.append(f"File created successfully at: {self._get_display_path(path)}")

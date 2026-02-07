@@ -44,7 +44,31 @@ class DocumentationGenerator:
         self.commit_id = commit_id
         self.graph_builder = DependencyGraphBuilder(config)
         self.agent_orchestrator = AgentOrchestrator(config)
-    
+
+    def _get_nested_working_dir(self, base_dir: str, module_path: List[str]) -> str:
+        """
+        Compute nested working directory based on module hierarchy.
+
+        Args:
+            base_dir: Base output directory (e.g., "docs/reference/architecture")
+            module_path: Module path list (e.g., ["Backend", "Authentication", "JWT"])
+
+        Returns:
+            Nested directory path (e.g., "docs/reference/architecture/Backend/Authentication")
+
+        Note: The module's own name is NOT included in the path - it becomes the filename.
+        For module_path ["Backend", "Authentication", "JWT"], the directory is:
+        "docs/reference/architecture/Backend/Authentication/" and file is "JWT.md"
+        """
+        if not module_path or len(module_path) <= 1:
+            # Root modules stay in base directory
+            return base_dir
+
+        # Use all path elements except the last one (which is the module name, not a directory)
+        parent_path = module_path[:-1]
+        nested_path = os.path.join(base_dir, *parent_path)
+        return os.path.abspath(nested_path)
+
     def create_documentation_metadata(self, working_dir: str, components: Dict[str, Any], num_leaf_nodes: int):
         """Create a metadata file with documentation generation information."""
         from datetime import datetime
@@ -205,8 +229,13 @@ class DocumentationGenerator:
                         logger.debug(f"│  │  └─ Calling LLM for leaf module documentation...")
                         import time
                         start_time = time.time()
+
+                        # HIERARCHICAL OUTPUT: Create nested directory based on module_path
+                        nested_working_dir = self._get_nested_working_dir(working_dir, module_path)
+                        file_manager.ensure_directory(nested_working_dir)
+
                         final_module_tree = await self.agent_orchestrator.process_module(
-                            module_name, components, module_info["components"], module_path, working_dir
+                            module_name, components, module_info["components"], module_path, nested_working_dir
                         )
                         elapsed = time.time() - start_time
                         logger.info(f"│  │     └─ ✅ Generated in {elapsed:.2f}s")
@@ -216,8 +245,13 @@ class DocumentationGenerator:
                         logger.debug(f"│  │  └─ Calling LLM for parent module overview...")
                         import time
                         start_time = time.time()
+
+                        # HIERARCHICAL OUTPUT: Create nested directory based on module_path
+                        nested_working_dir = self._get_nested_working_dir(working_dir, module_path)
+                        file_manager.ensure_directory(nested_working_dir)
+
                         final_module_tree = await self.generate_parent_module_docs(
-                            module_path, working_dir
+                            module_path, nested_working_dir
                         )
                         elapsed = time.time() - start_time
                         logger.info(f"│  │     └─ ✅ Generated in {elapsed:.2f}s")

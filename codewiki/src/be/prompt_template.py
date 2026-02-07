@@ -453,7 +453,11 @@ Generate comprehensive documentation for the {module_name} module using the prov
 <MODULE_TREE>
 {module_tree}
 </MODULE_TREE>
-* NOTE: You can refer the other modules in the module tree based on the dependencies between their core components to make the documentation more structured and avoid repeating the same information. Know that all documentation files are saved in the same folder not structured as module tree. e.g. [alt text]([ref_module_name].md)
+* NOTE: You can refer the other modules in the module tree based on the dependencies between their core components to make the documentation more structured and avoid repeating the same information. Documentation files are organized hierarchically following the module tree structure. For example:
+  - Root modules: [Module Name](../module_name.md)
+  - Child modules: [Child Module](child_module.md)
+  - Sibling modules: [Sibling](../sibling.md)
+  Use relative paths based on the current module's position in the hierarchy.
 
 <CORE_COMPONENT_CODES>
 {formatted_core_component_codes}
@@ -461,7 +465,7 @@ Generate comprehensive documentation for the {module_name} module using the prov
 """.strip()
 
 REPO_OVERVIEW_PROMPT = f"""
-{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{repo_name}} repository.
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{repo_name}} repository.
 
 The overview should be a brief documentation of the repository, including:
 - The purpose of the repository
@@ -495,7 +499,7 @@ Generate the overview of the `{{repo_name}}` repository in markdown format:
 """.strip()
 
 MODULE_OVERVIEW_PROMPT = f"""
-{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
 
 The overview should be a brief documentation of the module, including:
 - The purpose of the module
