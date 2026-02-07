@@ -10,10 +10,13 @@ Usage:
 import os
 import sys
 import json
+
+# Add CodeWiki to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from codewiki.src.be.cluster_modules import cluster_modules
-from codewiki.src.be.file_manager import FileManager
-from codewiki.src.be.dependency_analyzer.models.node import Node
-from codewiki.src.be.config import Config
+from codewiki.src.be.dependency_analyzer.models.core import Node
+from codewiki.src.config import Config
 
 def test_clustering():
     """Test clustering on a small sample to verify prompt fix."""
@@ -51,36 +54,49 @@ def test_clustering():
     print(f"   Provider: {config.main_provider}")
 
     # Create sample components (minimal test set)
+    test_file_1 = os.path.join(test_repo, "openframe/services/openframe-api/src/main/java/com/openframe/api/controller/AuthController.java")
+    test_file_2 = os.path.join(test_repo, "openframe/services/openframe-api/src/main/java/com/openframe/api/service/AuthService.java")
+    test_file_3 = os.path.join(test_repo, "openframe/services/openframe-api/src/main/java/com/openframe/api/controller/UserController.java")
+    test_file_4 = os.path.join(test_repo, "openframe/services/openframe-api/src/main/java/com/openframe/api/service/UserService.java")
+
     components = {
         "0": Node(
             id="0",
-            fqdn="test.auth.AuthService",
-            file_path=os.path.join(test_repo, "test/auth/AuthService.java"),
-            relative_path="test/auth/AuthService.java"
+            name="AuthController",
+            component_type="class",
+            file_path=test_file_1,
+            relative_path="openframe/services/openframe-api/src/main/java/com/openframe/api/controller/AuthController.java",
+            language="java"
         ),
         "1": Node(
             id="1",
-            fqdn="test.auth.AuthController",
-            file_path=os.path.join(test_repo, "test/auth/AuthController.java"),
-            relative_path="test/auth/AuthController.java"
+            name="AuthService",
+            component_type="class",
+            file_path=test_file_2,
+            relative_path="openframe/services/openframe-api/src/main/java/com/openframe/api/service/AuthService.java",
+            language="java"
         ),
         "2": Node(
             id="2",
-            fqdn="test.api.UserService",
-            file_path=os.path.join(test_repo, "test/api/UserService.java"),
-            relative_path="test/api/UserService.java"
+            name="UserController",
+            component_type="class",
+            file_path=test_file_3,
+            relative_path="openframe/services/openframe-api/src/main/java/com/openframe/api/controller/UserController.java",
+            language="java"
         ),
         "3": Node(
             id="3",
-            fqdn="test.api.UserController",
-            file_path=os.path.join(test_repo, "test/api/UserController.java"),
-            relative_path="test/api/UserController.java"
+            name="UserService",
+            component_type="class",
+            file_path=test_file_4,
+            relative_path="openframe/services/openframe-api/src/main/java/com/openframe/api/service/UserService.java",
+            language="java"
         )
     }
 
     print(f"\n📦 Test components: {len(components)}")
     for comp_id, comp in components.items():
-        print(f"   [{comp_id}] {comp.fqdn}")
+        print(f"   [{comp_id}] {comp.name}")
 
     print("\n🔄 Running clustering...")
     print("-" * 80)
@@ -98,7 +114,7 @@ def test_clustering():
 
         print("-" * 80)
         print("\n✅ CLUSTERING RESULT:")
-        print(json.dumps(module_tree, indent=2))
+        print(json.dumps(module_tree, indent=2, default=str))
 
         if len(module_tree) == 0:
             print("\n❌ FAILED: Empty module tree returned")
