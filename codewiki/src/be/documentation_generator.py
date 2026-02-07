@@ -153,8 +153,15 @@ class DocumentationGenerator:
             module_info = module_info["children"]
 
         for child_name, child_info in module_info.items():
-            # HIERARCHICAL OUTPUT: Child docs are in nested subdirectories
-            child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
+            # HIERARCHICAL OUTPUT: Path depends on depth
+            # - Root-level modules (module_path is empty): flat files in working_dir
+            # - Nested modules (module_path has elements): in subdirectories
+            if len(module_path) == 0:
+                # Root-level modules are flat files
+                child_doc_path = os.path.join(working_dir, f"{child_name}.md")
+            else:
+                # Nested modules are in subdirectories
+                child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
 
             if os.path.exists(child_doc_path):
                 child_info["docs"] = file_manager.load_text(child_doc_path)
