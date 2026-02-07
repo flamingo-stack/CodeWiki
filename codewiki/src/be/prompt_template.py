@@ -40,8 +40,9 @@ Generate documentation following this structure:
    - Link to other module documentation instead of duplicating information
 
 2. **Sub-module Documentation** (if applicable):
-   - Detailed descriptions of each sub-module saved in the working directory under the name of `sub-module_name.md`
+   - Detailed descriptions of each sub-module saved in its own subdirectory: `sub-module_name/sub-module_name.md`
    - Core components and their responsibilities
+   - Link from parent to child using relative path: `[ChildModule](ChildModule/ChildModule.md)`
 
 3. **Visual Documentation**:
    - Mermaid diagrams for architecture, dependencies, and data flow
@@ -258,22 +259,30 @@ sequenceDiagram
 3. If you want to reference a concept without a file, write: "See platform documentation for X"
 4. DO NOT create comprehensive cross-reference sections with links to files you haven't verified
 
-**EXAMPLES:**
+**HIERARCHICAL STRUCTURE LINKING:**
 
-CORRECT - Development docs linking to its own sub-modules:
-  You are generating development/README.md and these sub-modules:
-  - development/setup/environment.md
-  - development/setup/local-development.md
+Documentation files are organized hierarchically. Each module gets:
+1. A parent file: `ModuleName.md` in the current directory
+2. Child subdirectory: `ModuleName/` containing child modules
+3. Child files: `ModuleName/ChildName/ChildName.md`
 
-  In development/README.md, you CAN link:
-  - [Environment Setup](setup/environment.md) ✅ YOU ARE CREATING THIS
-  - [Local Development](setup/local-development.md) ✅ YOU ARE CREATING THIS
+**CORRECT - Parent module linking to its own children:**
+  You are generating `Backend.md` and these child sub-modules:
+  - `Backend/Authentication/Authentication.md`
+  - `Backend/Controllers/Controllers.md`
 
-WRONG - Development docs with hallucinated links:
+  In `Backend.md`, you MUST link using the hierarchical path:
+  - [Authentication](Backend/Authentication/Authentication.md) ✅ CORRECT HIERARCHICAL PATH
+  - [Controllers](Backend/Controllers/Controllers.md) ✅ CORRECT HIERARCHICAL PATH
+
+**WRONG - Flat linking (broken for hierarchical structure):**
+  - [Authentication](Authentication.md) ❌ WRONG - File is actually in Backend/Authentication/
+  - [Controllers](Controllers.md) ❌ WRONG - File is actually in Backend/Controllers/
+
+WRONG - Hallucinated links to unverified files:
   ## Related Documentation
   - [API Reference](../api/overview.md) ❌ DON'T KNOW IF IT EXISTS
   - [Deployment Guide](../deployment/kubernetes.md) ❌ DON'T KNOW IF IT EXISTS
-  - [Troubleshooting](../operations/troubleshooting.md) ❌ DON'T KNOW IF IT EXISTS
 
 **If you want to reference external documentation:**
 - ✅ CORRECT: "For deployment instructions, see the deployment documentation"
@@ -409,22 +418,30 @@ flowchart TD
 3. If you want to reference a concept without a file, write: "See platform documentation for X"
 4. DO NOT create comprehensive cross-reference sections with links to files you haven't verified
 
-**EXAMPLES:**
+**HIERARCHICAL STRUCTURE LINKING:**
 
-CORRECT - Development docs linking to its own sub-modules:
-  You are generating development/README.md and these sub-modules:
-  - development/setup/environment.md
-  - development/setup/local-development.md
+Documentation files are organized hierarchically. Each module gets:
+1. A parent file: `ModuleName.md` in the current directory
+2. Child subdirectory: `ModuleName/` containing child modules
+3. Child files: `ModuleName/ChildName/ChildName.md`
 
-  In development/README.md, you CAN link:
-  - [Environment Setup](setup/environment.md) ✅ YOU ARE CREATING THIS
-  - [Local Development](setup/local-development.md) ✅ YOU ARE CREATING THIS
+**CORRECT - Parent module linking to its own children:**
+  You are generating `Backend.md` and these child sub-modules:
+  - `Backend/Authentication/Authentication.md`
+  - `Backend/Controllers/Controllers.md`
 
-WRONG - Development docs with hallucinated links:
+  In `Backend.md`, you MUST link using the hierarchical path:
+  - [Authentication](Backend/Authentication/Authentication.md) ✅ CORRECT HIERARCHICAL PATH
+  - [Controllers](Backend/Controllers/Controllers.md) ✅ CORRECT HIERARCHICAL PATH
+
+**WRONG - Flat linking (broken for hierarchical structure):**
+  - [Authentication](Authentication.md) ❌ WRONG - File is actually in Backend/Authentication/
+  - [Controllers](Controllers.md) ❌ WRONG - File is actually in Backend/Controllers/
+
+WRONG - Hallucinated links to unverified files:
   ## Related Documentation
   - [API Reference](../api/overview.md) ❌ DON'T KNOW IF IT EXISTS
   - [Deployment Guide](../deployment/kubernetes.md) ❌ DON'T KNOW IF IT EXISTS
-  - [Troubleshooting](../operations/troubleshooting.md) ❌ DON'T KNOW IF IT EXISTS
 
 **If you want to reference external documentation:**
 - ✅ CORRECT: "For deployment instructions, see the deployment documentation"
