@@ -154,16 +154,12 @@ class DocumentationGenerator:
 
         for child_name, child_info in module_info.items():
             # HIERARCHICAL OUTPUT: Child docs are in nested subdirectories
-            # Try hierarchical path first (child_name/child_name.md), fall back to flat (child_name.md)
-            child_doc_path_nested = os.path.join(working_dir, child_name, f"{child_name}.md")
-            child_doc_path_flat = os.path.join(working_dir, f"{child_name}.md")
+            child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
 
-            if os.path.exists(child_doc_path_nested):
-                child_info["docs"] = file_manager.load_text(child_doc_path_nested)
-            elif os.path.exists(child_doc_path_flat):
-                child_info["docs"] = file_manager.load_text(child_doc_path_flat)
+            if os.path.exists(child_doc_path):
+                child_info["docs"] = file_manager.load_text(child_doc_path)
             else:
-                logger.warning(f"Module docs not found at {child_doc_path_nested} or {child_doc_path_flat}")
+                logger.warning(f"Module docs not found at {child_doc_path}")
                 child_info["docs"] = ""
 
         return processed_module_tree
