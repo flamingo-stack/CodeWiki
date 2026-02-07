@@ -10,6 +10,24 @@ _CUSTOM_INSTRUCTIONS_SECTION = get_custom_instructions_section()
 _GUIDELINES_SECTION = get_guidelines_section()
 _VALIDATION_RULES_SECTION = get_validation_rules_section()
 
+
+def format_module_display_name(module_name: str) -> str:
+    """
+    Convert snake_case module names to Title Case for display.
+
+    Examples:
+        gateway_service_core -> Gateway Service Core
+        user_auth -> User Auth
+        api_v2 -> Api V2
+
+    Args:
+        module_name: Raw module name with underscores
+
+    Returns:
+        Formatted display name with proper capitalization
+    """
+    return module_name.replace('_', ' ').title()
+
 # DEBUG: Check what's in the sections at module import time
 if _CUSTOM_INSTRUCTIONS_SECTION and ("{0}" in _CUSTOM_INSTRUCTIONS_SECTION or "{1}" in _CUSTOM_INSTRUCTIONS_SECTION):
     print(f"[DEBUG] prompt_template.py MODULE IMPORT - _CUSTOM_INSTRUCTIONS_SECTION contains {{0}} or {{1}}")
@@ -29,6 +47,32 @@ Create documentation that helps developers and maintainers understand:
 2. Architecture and component relationships
 3. How the module fits into the overall system
 </OBJECTIVES>
+
+<MODULE_NAMING>
+**CRITICAL: Use proper display names, not raw filenames with underscores**
+
+Module names are provided in two forms:
+1. **File name** (snake_case): Used ONLY for file creation - e.g., `gateway_service_core.md`
+2. **Display name** (Title Case): Used EVERYWHERE in content - e.g., "Gateway Service Core"
+
+Rules:
+- ✅ **Headings**: Use display name - `# Gateway Service Core`, NOT `# gateway_service_core`
+- ✅ **Link text**: Use display name - `[Gateway Service Core](...)`, NOT `[gateway_service_core](...)`
+- ✅ **Body text**: Use display name - "The Gateway Service Core module...", NOT "The gateway_service_core module..."
+- ✅ **File creation**: Use raw module_name - `create_file("gateway_service_core.md", ...)`
+- ✅ **Link paths**: Use raw module_name - `[Display Name](gateway_service_core.md)`
+
+Example:
+```markdown
+# Gateway Service Core
+
+The Gateway Service Core module handles API routing...
+
+See also: [WebSocket Gateway](gateway_service_core/websocket/websocket.md)
+```
+
+**Never use underscores in visible text** - only in filenames and file paths.
+</MODULE_NAMING>
 
 <DOCUMENTATION_STRUCTURE>
 Generate documentation following this structure:
@@ -320,6 +364,32 @@ Create a comprehensive documentation that helps developers and maintainers under
 3. How the module fits into the overall system
 </OBJECTIVES>
 
+<MODULE_NAMING>
+**CRITICAL: Use proper display names, not raw filenames with underscores**
+
+Module names are provided in two forms:
+1. **File name** (snake_case): Used ONLY for file creation - e.g., `gateway_service_core.md`
+2. **Display name** (Title Case): Used EVERYWHERE in content - e.g., "Gateway Service Core"
+
+Rules:
+- ✅ **Headings**: Use display name - `# Gateway Service Core`, NOT `# gateway_service_core`
+- ✅ **Link text**: Use display name - `[Gateway Service Core](...)`, NOT `[gateway_service_core](...)`
+- ✅ **Body text**: Use display name - "The Gateway Service Core module...", NOT "The gateway_service_core module..."
+- ✅ **File creation**: Use raw module_name - `create_file("gateway_service_core.md", ...)`
+- ✅ **Link paths**: Use raw module_name - `[Display Name](gateway_service_core.md)`
+
+Example:
+```markdown
+# Gateway Service Core
+
+The Gateway Service Core module handles API routing...
+
+See also: [WebSocket Gateway](gateway_service_core/websocket/websocket.md)
+```
+
+**Never use underscores in visible text** - only in filenames and file paths.
+</MODULE_NAMING>
+
 <DOCUMENTATION_REQUIREMENTS>
 Generate documentation following the following requirements:
 1. Structure: Brief introduction → comprehensive documentation with Mermaid diagrams
@@ -465,7 +535,12 @@ WRONG - Hallucinated links to unverified files:
 """.strip()
 
 USER_PROMPT = """
-Generate comprehensive documentation for the {module_name} module using the provided module tree and core components.
+Generate comprehensive documentation for the {display_name} module using the provided module tree and core components.
+
+**IMPORTANT - Module Naming:**
+- **File name**: `{module_name}.md` (keep underscores for filename)
+- **Display name**: "{display_name}" (use this in headings, text, and all documentation content)
+- **Example**: File is `gateway_service_core.md` but heading should be `# Gateway Service Core`
 
 <MODULE_TREE>
 {module_tree}
@@ -517,7 +592,12 @@ Generate the overview of the `{{repo_name}}` repository in markdown format:
 """.strip()
 
 MODULE_OVERVIEW_PROMPT = f"""
-{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of `{{module_name}}` module.
+{_CUSTOM_INSTRUCTIONS_SECTION}{_GUIDELINES_SECTION}{_VALIDATION_RULES_SECTION}You are an AI documentation assistant. Your task is to generate a brief overview of the {{display_name}} module.
+
+**IMPORTANT - Module Naming:**
+- **File name**: `{{module_name}}.md` (keep underscores for filename)
+- **Display name**: "{{display_name}}" (use this in headings, text, and all documentation content)
+- **Example**: File is `gateway_service_core.md` but heading should be `# Gateway Service Core`
 
 The overview should be a brief documentation of the module, including:
 - The purpose of the module
@@ -534,7 +614,7 @@ CRITICAL: Follow these rules to avoid validation errors:
    - Node labels with spaces MUST use brackets: `A["User Service"]`
 </MARKDOWN_RULES>
 
-Provide repo structure and core components documentation of the `{{module_name}}` module:
+Provide repo structure and core components documentation of the {{display_name}} module:
 <REPO_STRUCTURE>
 {{repo_structure}}
 </REPO_STRUCTURE>
@@ -544,7 +624,7 @@ You MUST wrap your entire response in <OVERVIEW> and </OVERVIEW> tags.
 Do NOT include any text before <OVERVIEW> or after </OVERVIEW>.
 The response format is NON-NEGOTIABLE - failure to use these tags will cause a system error.
 
-Generate the overview of the `{{module_name}}` module in markdown format:
+Generate the overview of the {{display_name}} module in markdown format:
 <OVERVIEW>
 [Your markdown overview content here]
 </OVERVIEW>
@@ -912,8 +992,10 @@ def format_user_prompt(module_name: str, core_component_ids: list[str], componen
     # FIXED: Use manual string replacement instead of .format()
     # formatted_core_component_codes might contain code with curly braces (JSON, TypeScript, etc.)
     # which .format() tries to interpret as placeholders
+    display_name = format_module_display_name(module_name)
     result = USER_PROMPT
     result = result.replace('{module_name}', module_name)
+    result = result.replace('{display_name}', display_name)
     result = result.replace('{formatted_core_component_codes}', core_component_codes)
     result = result.replace('{module_tree}', formatted_module_tree)
 
@@ -1027,8 +1109,10 @@ def format_system_prompt(module_name: str, custom_instructions: str = None) -> s
     # This avoids ALL .format() complexity with curly braces in guidelines content
     # .format() tries to interpret ANY {text} pattern, causing KeyError/IndexError
     # Manual replacement only replaces EXACT placeholder strings, leaving all other braces untouched
+    display_name = format_module_display_name(module_name)
     result = SYSTEM_PROMPT
     result = result.replace('{module_name}', module_name)
+    result = result.replace('{display_name}', display_name)
     result = result.replace('{custom_instructions}', custom_section)
 
     logger.info(f"   ├─ Base system prompt length: {len(SYSTEM_PROMPT)} chars")
@@ -1079,8 +1163,10 @@ def format_leaf_system_prompt(module_name: str, custom_instructions: str = None)
     # This avoids ALL .format() complexity with curly braces in guidelines content
     # .format() tries to interpret ANY {text} pattern, causing KeyError/IndexError
     # Manual replacement only replaces EXACT placeholder strings, leaving all other braces untouched
+    display_name = format_module_display_name(module_name)
     result = LEAF_SYSTEM_PROMPT
     result = result.replace('{module_name}', module_name)
+    result = result.replace('{display_name}', display_name)
     result = result.replace('{custom_instructions}', custom_section)
 
     logger.info(f"   ├─ Base system prompt length: {len(LEAF_SYSTEM_PROMPT)} chars")
@@ -1155,8 +1241,10 @@ def format_module_overview_prompt(module_name: str, repo_structure: str) -> str:
     # FIXED: Use manual string replacement instead of .format()
     # repo_structure is JSON which contains lots of curly braces
     # .format() would try to interpret these as placeholders
+    display_name = format_module_display_name(module_name)
     result = MODULE_OVERVIEW_PROMPT
     result = result.replace('{module_name}', module_name)
+    result = result.replace('{display_name}', display_name)
     result = result.replace('{repo_structure}', repo_structure)
 
     logger.info(f"   ├─ Base MODULE_OVERVIEW_PROMPT length: {len(MODULE_OVERVIEW_PROMPT)} chars")
