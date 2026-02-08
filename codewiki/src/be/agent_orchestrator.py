@@ -113,9 +113,12 @@ class AgentOrchestrator:
 
         # Reset request counter for this module
         reset_request_counter(module_name)
-        
+
         # Load or create module tree
-        module_tree_path = os.path.join(working_dir, MODULE_TREE_FILENAME)
+        # CRITICAL: module_tree.json is ALWAYS in the BASE docs directory,
+        # not in the module's subdirectory (working_dir may be a nested path)
+        base_docs_dir = os.path.abspath(self.config.docs_dir)
+        module_tree_path = os.path.join(base_docs_dir, MODULE_TREE_FILENAME)
         module_tree = file_manager.load_json(module_tree_path)
         
         # Create agent
