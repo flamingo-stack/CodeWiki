@@ -54,19 +54,22 @@ class DocumentationGenerator:
             module_path: Module path list (e.g., ["Backend", "Authentication", "JWT"])
 
         Returns:
-            Nested directory path (e.g., "docs/reference/architecture/Backend/Authentication")
+            Nested directory path (e.g., "docs/reference/architecture/Backend/Authentication/JWT")
 
-        Note: The module's own name is NOT included in the path - it becomes the filename.
+        Note: ALWAYS creates a subdirectory for the module, even for root-level modules.
         For module_path ["Backend", "Authentication", "JWT"], the directory is:
-        "docs/reference/architecture/Backend/Authentication/" and file is "JWT.md"
+        "docs/reference/architecture/Backend/Authentication/JWT/" and file is "JWT.md"
+
+        For module_path ["gateway_service_core"], the directory is:
+        "docs/reference/architecture/gateway_service_core/" and file is "gateway_service_core.md"
         """
-        if not module_path or len(module_path) <= 1:
-            # Root modules stay in base directory
+        if not module_path:
+            # Empty path means repository overview - stay in base directory
             return base_dir
 
-        # Use all path elements except the last one (which is the module name, not a directory)
-        parent_path = module_path[:-1]
-        nested_path = os.path.join(base_dir, *parent_path)
+        # ALWAYS use full module_path including module name for subdirectory
+        # This creates consistent structure: module_name/module_name.md
+        nested_path = os.path.join(base_dir, *module_path)
         return os.path.abspath(nested_path)
 
     def create_documentation_metadata(self, working_dir: str, components: Dict[str, Any], num_leaf_nodes: int):
@@ -153,15 +156,9 @@ class DocumentationGenerator:
             module_info = module_info["children"]
 
         for child_name, child_info in module_info.items():
-            # HIERARCHICAL OUTPUT: Path depends on depth
-            # - Root-level modules (module_path is empty): flat files in working_dir
-            # - Nested modules (module_path has elements): in subdirectories
-            if len(module_path) == 0:
-                # Root-level modules are flat files
-                child_doc_path = os.path.join(working_dir, f"{child_name}.md")
-            else:
-                # Nested modules are in subdirectories
-                child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
+            # HIERARCHICAL OUTPUT: ALL modules now use subdirectories (module_name/module_name.md)
+            # This ensures consistent structure regardless of nesting depth
+            child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
 
             if os.path.exists(child_doc_path):
                 child_info["docs"] = file_manager.load_text(child_doc_path)
