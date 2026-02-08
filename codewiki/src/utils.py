@@ -12,8 +12,10 @@ class FileManager:
     
     @staticmethod
     def ensure_directory(path: str) -> None:
-        """Create directory if it doesn't exist."""
-        os.makedirs(path, exist_ok=True)
+        """Create directory and all parent directories if they don't exist."""
+        # Explicitly use parents=True to create nested directory structures
+        # Example: "/docs/Backend/Auth/JWT" creates Backend/, Auth/, and JWT/
+        os.makedirs(path, exist_ok=True)  # parents=True is default in Python 3
     
     @staticmethod
     def save_json(data: Any, filepath: str) -> None:

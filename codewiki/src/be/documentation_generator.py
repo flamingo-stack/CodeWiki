@@ -244,7 +244,10 @@ class DocumentationGenerator:
 
                         # HIERARCHICAL OUTPUT: Create nested directory based on module_path
                         nested_working_dir = self._get_nested_working_dir(working_dir, module_path)
+
+                        # Ensure all parent directories exist (for deeply nested modules)
                         file_manager.ensure_directory(nested_working_dir)
+                        logger.debug(f"│  │  └─ Ensured nested directory: {nested_working_dir}")
 
                         final_module_tree = await self.agent_orchestrator.process_module(
                             module_name, components, module_info["components"], module_path, nested_working_dir
@@ -260,7 +263,10 @@ class DocumentationGenerator:
 
                         # HIERARCHICAL OUTPUT: Create nested directory based on module_path
                         nested_working_dir = self._get_nested_working_dir(working_dir, module_path)
+
+                        # Ensure all parent directories exist (for deeply nested modules)
                         file_manager.ensure_directory(nested_working_dir)
+                        logger.debug(f"│  │  └─ Ensured nested directory: {nested_working_dir}")
 
                         final_module_tree = await self.generate_parent_module_docs(
                             module_path, nested_working_dir
