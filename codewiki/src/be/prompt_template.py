@@ -84,9 +84,11 @@ Generate documentation following this structure:
    - Link to other module documentation instead of duplicating information
 
 2. **Sub-module Documentation** (if applicable):
-   - Detailed descriptions of each sub-module saved in its own subdirectory: `sub-module_name/sub-module_name.md`
+   - Detailed descriptions of each sub-module saved in its own subdirectory: `sub_module_name/sub_module_name.md`
    - Core components and their responsibilities
-   - Link from parent to child using relative path: `[ChildModule](ChildModule/ChildModule.md)`
+   - Link from parent to child using snake_case paths: `[Display Name](sub_module_name/sub_module_name.md)`
+
+   **CRITICAL**: File paths MUST use snake_case (e.g., `data_layer/kafka/kafka.md`), NOT PascalCase or spaces
 
 3. **Visual Documentation**:
    - Mermaid diagrams for architecture, dependencies, and data flow
@@ -306,22 +308,29 @@ sequenceDiagram
 **HIERARCHICAL STRUCTURE LINKING:**
 
 Documentation files are organized hierarchically. Each module gets:
-1. A parent file: `ModuleName.md` in the current directory
-2. Child subdirectory: `ModuleName/` containing child modules
-3. Child files: `ModuleName/ChildName/ChildName.md`
+1. A parent file: `module_name.md` in the current directory (ALWAYS snake_case)
+2. Child subdirectory: `module_name/` containing child modules (ALWAYS snake_case)
+3. Child files: `module_name/child_name/child_name.md` (ALWAYS snake_case)
 
-**CORRECT - Parent module linking to its own children:**
-  You are generating `Backend.md` and these child sub-modules:
-  - `Backend/Authentication/Authentication.md`
-  - `Backend/Controllers/Controllers.md`
+**CRITICAL**: File paths MUST use snake_case with underscores, NOT PascalCase or spaces.
+Module names in paths use the raw module_name variable (snake_case), NOT display names (Title Case).
 
-  In `Backend.md`, you MUST link using the hierarchical path:
-  - [Authentication](Backend/Authentication/Authentication.md) ✅ CORRECT HIERARCHICAL PATH
-  - [Controllers](Backend/Controllers/Controllers.md) ✅ CORRECT HIERARCHICAL PATH
+**CORRECT - Parent module linking to its own children (snake_case paths):**
+  You are generating `backend.md` and these child sub-modules:
+  - `backend/authentication/authentication.md` (snake_case paths)
+  - `backend/controllers/controllers.md`
+
+  In `backend.md`, you MUST link using the hierarchical path with snake_case:
+  - [Authentication](backend/authentication/authentication.md) ✅ CORRECT (Title Case label, snake_case path)
+  - [Controllers](backend/controllers/controllers.md) ✅ CORRECT
+
+**WRONG - Using PascalCase or Title Case in file paths:**
+  - [Authentication](Backend/Authentication/Authentication.md) ❌ WRONG - Must be snake_case
+  - [Controllers](Backend/Controllers/Controllers.md) ❌ WRONG - Must be snake_case
 
 **WRONG - Flat linking (broken for hierarchical structure):**
-  - [Authentication](Authentication.md) ❌ WRONG - File is actually in Backend/Authentication/
-  - [Controllers](Controllers.md) ❌ WRONG - File is actually in Backend/Controllers/
+  - [Authentication](authentication.md) ❌ WRONG - File is actually in backend/authentication/
+  - [Controllers](controllers.md) ❌ WRONG - File is actually in backend/controllers/
 
 WRONG - Hallucinated links to unverified files:
   ## Related Documentation
@@ -491,22 +500,29 @@ flowchart TD
 **HIERARCHICAL STRUCTURE LINKING:**
 
 Documentation files are organized hierarchically. Each module gets:
-1. A parent file: `ModuleName.md` in the current directory
-2. Child subdirectory: `ModuleName/` containing child modules
-3. Child files: `ModuleName/ChildName/ChildName.md`
+1. A parent file: `module_name.md` in the current directory (ALWAYS snake_case)
+2. Child subdirectory: `module_name/` containing child modules (ALWAYS snake_case)
+3. Child files: `module_name/child_name/child_name.md` (ALWAYS snake_case)
 
-**CORRECT - Parent module linking to its own children:**
-  You are generating `Backend.md` and these child sub-modules:
-  - `Backend/Authentication/Authentication.md`
-  - `Backend/Controllers/Controllers.md`
+**CRITICAL**: File paths MUST use snake_case with underscores, NOT PascalCase or spaces.
+Module names in paths use the raw module_name variable (snake_case), NOT display names (Title Case).
 
-  In `Backend.md`, you MUST link using the hierarchical path:
-  - [Authentication](Backend/Authentication/Authentication.md) ✅ CORRECT HIERARCHICAL PATH
-  - [Controllers](Backend/Controllers/Controllers.md) ✅ CORRECT HIERARCHICAL PATH
+**CORRECT - Parent module linking to its own children (snake_case paths):**
+  You are generating `backend.md` and these child sub-modules:
+  - `backend/authentication/authentication.md` (snake_case paths)
+  - `backend/controllers/controllers.md`
+
+  In `backend.md`, you MUST link using the hierarchical path with snake_case:
+  - [Authentication](backend/authentication/authentication.md) ✅ CORRECT (Title Case label, snake_case path)
+  - [Controllers](backend/controllers/controllers.md) ✅ CORRECT
+
+**WRONG - Using PascalCase or Title Case in file paths:**
+  - [Authentication](Backend/Authentication/Authentication.md) ❌ WRONG - Must be snake_case
+  - [Controllers](Backend/Controllers/Controllers.md) ❌ WRONG - Must be snake_case
 
 **WRONG - Flat linking (broken for hierarchical structure):**
-  - [Authentication](Authentication.md) ❌ WRONG - File is actually in Backend/Authentication/
-  - [Controllers](Controllers.md) ❌ WRONG - File is actually in Backend/Controllers/
+  - [Authentication](authentication.md) ❌ WRONG - File is actually in backend/authentication/
+  - [Controllers](controllers.md) ❌ WRONG - File is actually in backend/controllers/
 
 WRONG - Hallucinated links to unverified files:
   ## Related Documentation
