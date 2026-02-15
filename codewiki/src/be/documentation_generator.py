@@ -156,8 +156,12 @@ class DocumentationGenerator:
             module_info = module_info["children"]
 
         for child_name, child_info in module_info.items():
-            # HIERARCHICAL OUTPUT: ALL modules now use subdirectories (module_name/module_name.md)
-            # This ensures consistent structure regardless of nesting depth
+            # HIERARCHICAL OUTPUT: working_dir is already nested (e.g., docs/architecture/parent_module/)
+            # Child files are in child subdirectories: docs/architecture/parent_module/child_name/child_name.md
+            # BUT for DIRECT children at the CURRENT level, they're at: working_dir/child_name.md
+            #
+            # CRITICAL FIX: Don't add extra child_name/ subdirectory - files are at working_dir/child_name/child_name.md
+            # because _get_nested_working_dir() creates the child's directory when processing that child
             child_doc_path = os.path.join(working_dir, child_name, f"{child_name}.md")
 
             if os.path.exists(child_doc_path):
