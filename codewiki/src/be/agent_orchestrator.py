@@ -149,7 +149,9 @@ class AgentOrchestrator:
             return module_tree
 
         # check if module docs already exists
-        docs_path = os.path.join(working_dir, f"{module_name}.md")
+        # HIERARCHICAL OUTPUT: ALL modules use subdirectories (module_name/module_name.md)
+        # This matches the breaking change from commit 2ac6767
+        docs_path = os.path.join(working_dir, module_name, f"{module_name}.md")
         if os.path.exists(docs_path):
             logger.info(f"✓ Module docs already exists at {docs_path}")
             return module_tree
