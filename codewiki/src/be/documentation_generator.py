@@ -327,9 +327,12 @@ class DocumentationGenerator:
         module_name = module_path[-1] if len(module_path) >= 1 else os.path.basename(os.path.normpath(self.config.repo_path))
 
         logger.info(f"Generating parent documentation for: {module_name}")
-        
-        # Load module tree
-        module_tree_path = os.path.join(working_dir, MODULE_TREE_FILENAME)
+
+        # Load module tree from BASE docs directory (not module's nested directory)
+        # Bug fix: working_dir can be nested (docs/architecture/module1/) but
+        # module_tree.json is ALWAYS at base level (docs/architecture/module_tree.json)
+        base_docs_dir = os.path.abspath(self.config.docs_dir)
+        module_tree_path = os.path.join(base_docs_dir, MODULE_TREE_FILENAME)
         module_tree = file_manager.load_json(module_tree_path)
 
         # check if overview docs already exists
