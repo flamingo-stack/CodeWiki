@@ -448,14 +448,32 @@ class EditTool:
         return True
 
     def create_file(self, path: Path, file_text: str):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔧 create_file called:")
+        logger.info(f"   path: {path}")
+        logger.info(f"   path.exists(): {path.exists()}")
+        logger.info(f"   path.parent: {path.parent}")
+        logger.info(f"   path.parent.exists(): {path.parent.exists()}")
+        logger.info(f"   file_text length: {len(file_text)} chars")
+
         # HIERARCHICAL OUTPUT: Auto-create parent directories
         if not path.parent.exists():
+            logger.info(f"   Creating parent directory: {path.parent}")
             path.parent.mkdir(parents=True, exist_ok=True)
             self.logs.append(f"Created parent directory: {self._get_display_path(path.parent)}")
+            logger.info(f"   ✓ Parent directory created")
 
+        logger.info(f"   Writing file...")
         self.write_file(path, file_text)
         self._file_history[path].append(file_text)
         self.logs.append(f"File created successfully at: {self._get_display_path(path)}")
+        logger.info(f"   ✓ File written, verifying...")
+        logger.info(f"   path.exists() after write: {path.exists()}")
+        if path.exists():
+            logger.info(f"   ✓✓ SUCCESS: File verified on disk")
+        else:
+            logger.error(f"   ✗✗ FAILURE: File NOT on disk after write!")
 
     def view(self, path: Path, view_range: Optional[List[int]] = None):
         """Implement the view command"""
@@ -688,9 +706,15 @@ class EditTool:
 
     def write_file(self, path: Path, file: str):
         """Write the content of a file to a given path; raise a ToolError if an error occurs."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"   💾 write_file: {path}")
+        logger.info(f"      encoding: {self._encoding or 'utf-8'}")
         try:
             path.write_text(file, encoding=self._encoding or "utf-8")
+            logger.info(f"      ✓ write_text() completed without exception")
         except Exception as e:
+            logger.error(f"      ✗ EXCEPTION during write: {type(e).__name__}: {e}")
             self.logs.append(f"Ran into {e} while trying to write to {self._get_display_path(path)}")
             return
 
@@ -748,17 +772,30 @@ async def str_replace_editor(
 
     tool = EditTool(ctx.deps.registry, ctx.deps.absolute_docs_path)
 
+    # DEBUG: Log what we received
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 str_replace_editor called:")
+    logger.info(f"   working_dir: {working_dir}")
+    logger.info(f"   command: {command}")
+    logger.info(f"   path (original): {path}")
+    logger.info(f"   absolute_docs_path: {ctx.deps.absolute_docs_path}")
+
     # CRITICAL FIX: Strip leading slash from path to prevent Path operator from discarding base path
     # Bug: Path("/base") / "/absolute/path" returns "/absolute/path" (discards base)
     # Fix: Path("/base") / "relative/path" returns "/base/relative/path"
     # Agent sometimes passes absolute paths like "/docs/module.md" when it should pass "module.md"
     if path.startswith('/'):
+        logger.info(f"   ⚠️  Path starts with / - stripping it")
         path = path.lstrip('/')
+        logger.info(f"   path (after strip): {path}")
 
     if working_dir == "docs":
         absolute_path = str(Path(ctx.deps.absolute_docs_path) / path)
     else:
         absolute_path = str(Path(ctx.deps.absolute_repo_path) / path)
+
+    logger.info(f"   absolute_path (computed): {absolute_path}")
 
     # validate command
     if command != "view" and working_dir == "repo":
