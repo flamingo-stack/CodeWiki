@@ -189,6 +189,19 @@ class AgentOrchestrator:
             logger.info(f"✅ Successfully generated documentation for: {module_name}")
             logger.info(f"   └─ Output: {docs_path}")
 
+            # CRITICAL: Verify file was actually created
+            if os.path.exists(docs_path):
+                logger.info(f"   └─ ✓ File verified: {docs_path}")
+            else:
+                logger.error(f"   └─ ✗ FILE NOT FOUND: {docs_path}")
+                logger.error(f"   └─ Agent completed but file doesn't exist!")
+                # List what files DO exist in working_dir
+                if os.path.exists(working_dir):
+                    files_in_dir = os.listdir(working_dir)
+                    logger.error(f"   └─ Files in {working_dir}: {files_in_dir}")
+                else:
+                    logger.error(f"   └─ Working directory doesn't exist: {working_dir}")
+
             return deps.module_tree
 
         except Exception as e:
