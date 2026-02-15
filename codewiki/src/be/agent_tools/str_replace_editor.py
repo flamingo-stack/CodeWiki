@@ -747,6 +747,14 @@ async def str_replace_editor(
         path = file
 
     tool = EditTool(ctx.deps.registry, ctx.deps.absolute_docs_path)
+
+    # CRITICAL FIX: Strip leading slash from path to prevent Path operator from discarding base path
+    # Bug: Path("/base") / "/absolute/path" returns "/absolute/path" (discards base)
+    # Fix: Path("/base") / "relative/path" returns "/base/relative/path"
+    # Agent sometimes passes absolute paths like "/docs/module.md" when it should pass "module.md"
+    if path.startswith('/'):
+        path = path.lstrip('/')
+
     if working_dir == "docs":
         absolute_path = str(Path(ctx.deps.absolute_docs_path) / path)
     else:
