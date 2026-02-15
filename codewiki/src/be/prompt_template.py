@@ -347,10 +347,13 @@ WRONG - Hallucinated links to unverified files:
 
 <WORKFLOW>
 1. Analyze the provided code components and module structure, explore the not given dependencies between the components if needed
-2. Create the main `{{module_name}}.md` file with overview and architecture in working directory
+2. Create the main `{{module_name}}.md` file using: str_replace_editor(working_dir="docs", command="create", path="{{module_name}}.md", file_text="[your generated markdown]")
 3. Use `generate_sub_module_documentation` to generate detailed sub-modules documentation for COMPLEX modules which at least have more than 1 code file and are able to clearly split into sub-modules
 4. Include relevant Mermaid diagrams throughout the documentation
 5. After all sub-modules are documented, adjust `{{module_name}}.md` with ONLY ONE STEP to ensure all generated files including sub-modules documentation are properly cross-refered
+
+CRITICAL: You MUST use str_replace_editor with command="create" to write the {{module_name}}.md file in step 2.
+Do NOT just return the content - you must explicitly call the create command.
 </WORKFLOW>
 
 <AVAILABLE_TOOLS>
@@ -540,7 +543,10 @@ WRONG - Hallucinated links to unverified files:
 <WORKFLOW>
 1. Analyze provided code components and module structure
 2. Explore dependencies between components if needed
-3. Generate complete {{module_name}}.md documentation file
+3. Write the documentation using: str_replace_editor(working_dir="docs", command="create", path="{{module_name}}.md", file_text="[your generated markdown]")
+
+CRITICAL: You MUST use str_replace_editor with command="create" to write the {{module_name}}.md file.
+Do NOT just return the content - you must explicitly call the create command.
 </WORKFLOW>
 
 <AVAILABLE_TOOLS>
