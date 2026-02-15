@@ -16,7 +16,7 @@ from typing import Dict
 from dataclasses import asdict
 
 from codewiki.src.be.documentation_generator import DocumentationGenerator
-from codewiki.src.config import Config, MAIN_MODEL
+from codewiki.src.config import Config, MAIN_MODEL, OUTPUT_BASE_DIR, DOCS_DIR
 from .models import JobStatus
 from .cache_manager import CacheManager
 from .github_processor import GitHubRepoProcessor
@@ -207,8 +207,8 @@ class BackgroundWorker:
             import argparse
             args = argparse.Namespace(repo_path=temp_repo_dir)
             config = Config.from_args(args)
-            # Override docs_dir with job-specific directory
-            config.docs_dir = os.path.join("output", "docs", f"{job_id}-docs")
+            # Override docs_dir with job-specific directory using config constants
+            config.docs_dir = os.path.join(OUTPUT_BASE_DIR, DOCS_DIR, f"{job_id}-docs")
             
             job.progress = "Generating documentation..."
             
