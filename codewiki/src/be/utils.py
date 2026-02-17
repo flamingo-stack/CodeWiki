@@ -325,7 +325,7 @@ def create_diagrams_readme(diagrams_dir: str, diagram_files: list) -> str:
     ]
 
     for module_name, files in sorted(diagrams_by_module.items()):
-        lines.append(f'### {module_name.replace("_", " ").title()}')
+        lines.append(f'### {module_name.replace("-", " ").replace("_", " ").title()}')
         lines.append('')
         for filename in sorted(files):
             lines.append(f'- [{filename}](./{filename})')

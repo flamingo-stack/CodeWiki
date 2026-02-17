@@ -442,8 +442,8 @@ class DocumentationGenerator:
                         # Extract top-level directory (e.g., "openframe-api/src/..." -> "openframe-api")
                         parts = rel_path.split('/')
                         top_dir = parts[0] if len(parts) > 1 else "root"
-                        # Sanitize directory name for use as module name
-                        top_dir = top_dir.replace('-', '_').replace('.', '_')
+                        # Sanitize directory name for use as module name (kebab-case)
+                        top_dir = top_dir.replace('.', '-').lower()
                         if top_dir not in dir_groups:
                             dir_groups[top_dir] = []
                         dir_groups[top_dir].append(leaf_node)

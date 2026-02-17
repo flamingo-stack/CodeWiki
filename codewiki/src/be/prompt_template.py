@@ -13,20 +13,20 @@ _VALIDATION_RULES_SECTION = get_validation_rules_section()
 
 def format_module_display_name(module_name: str) -> str:
     """
-    Convert snake_case module names to Title Case for display.
+    Convert kebab-case module names to Title Case for display.
 
     Examples:
-        gateway_service_core -> Gateway Service Core
-        user_auth -> User Auth
-        api_v2 -> Api V2
+        gateway-service-core -> Gateway Service Core
+        user-auth -> User Auth
+        api-contracts-dtos-and-mapping -> Api Contracts Dtos And Mapping
 
     Args:
-        module_name: Raw module name with underscores
+        module_name: Raw module name with hyphens (kebab-case)
 
     Returns:
         Formatted display name with proper capitalization
     """
-    return module_name.replace('_', ' ').title()
+    return module_name.replace('-', ' ').replace('_', ' ').title()
 
 # DEBUG: Check what's in the sections at module import time
 if _CUSTOM_INSTRUCTIONS_SECTION and ("{0}" in _CUSTOM_INSTRUCTIONS_SECTION or "{1}" in _CUSTOM_INSTRUCTIONS_SECTION):
@@ -696,6 +696,11 @@ Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
 
 Please group the components into modules such that each group contains closely related components that together form a cohesive module. DO NOT include components that are not essential to the repository.
 
+**MODULE NAMING CONVENTION (REQUIRED):**
+- Use **kebab-case**: lowercase words separated by hyphens
+- ✅ `api-contracts-and-mapping`, `auth-service-core`, `gateway-routing`
+- ❌ `api_contracts_and_mapping`, `AuthServiceCore`, `gateway routing`
+
 **CRITICAL RESPONSE FORMAT REQUIREMENT:**
 You MUST wrap your response in <GROUPED_COMPONENTS> and </GROUPED_COMPONENTS> tags.
 Do NOT include any text before <GROUPED_COMPONENTS> or after </GROUPED_COMPONENTS>.
@@ -718,28 +723,28 @@ You may optionally include brief reasoning, then you MUST return the JSON result
     }}
 }}
 ```
-^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range
+^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range, snake_case not allowed
 
 **Example that will PASS validation:**
 ```json
 {{
-    "auth_module": {{
+    "auth-service-core": {{
         "path": "src/auth",
         "components": [0, 1, 2]
     }}
 }}
 ```
-^ This passes: All IDs are bare integers in valid range
+^ This passes: kebab-case name, all IDs are bare integers in valid range
 
 **EXACT RESPONSE FORMAT (copy this structure):**
 
 <GROUPED_COMPONENTS>
 {{
-    "module_name_1": {{
+    "auth-service-core": {{
         "path": "src/auth",
         "components": [0, 5, 12]
     }},
-    "module_name_2": {{
+    "api-contracts-and-mapping": {{
         "path": "src/api",
         "components": [1, 3, 8]
     }}
@@ -751,7 +756,8 @@ You may optionally include brief reasoning, then you MUST return the JSON result
 2. Response MUST end with </GROUPED_COMPONENTS> tag
 3. No text before or after the tags
 4. Use ONLY bare integers in components arrays (no quotes)
-5. The system will automatically convert IDs to full component paths
+5. Module names MUST be kebab-case (e.g., `auth-service-core`, NOT `auth_service_core`)
+6. The system will automatically convert IDs to full component paths
 """.strip()
 
 CLUSTER_MODULE_PROMPT = """
@@ -804,6 +810,11 @@ Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
 
 Please group the components into smaller sub-modules such that each group contains closely related components. DO NOT include components that are not essential to the module.
 
+**MODULE NAMING CONVENTION (REQUIRED):**
+- Use **kebab-case**: lowercase words separated by hyphens
+- ✅ `api-contracts-and-mapping`, `auth-service-core`, `gateway-routing`
+- ❌ `api_contracts_and_mapping`, `AuthServiceCore`, `gateway routing`
+
 **Return Format:**
 Firstly reason based on given context about the components and their relationships, then group them by integer ID and return the result in the following format:
 
@@ -821,28 +832,28 @@ Firstly reason based on given context about the components and their relationshi
     }}
 }}
 ```
-^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range
+^ This fails because: "AuthService" is a string, "0" is quoted, 999 may be out of range, snake_case not allowed
 
 **Example that will PASS validation:**
 ```json
 {{
-    "auth_module": {{
+    "auth-service-core": {{
         "path": "src/auth",
         "components": [0, 1, 2]
     }}
 }}
 ```
-^ This passes: All IDs are bare integers in valid range
+^ This passes: kebab-case name, all IDs are bare integers in valid range
 
 **EXACT RESPONSE FORMAT (copy this structure):**
 
 <GROUPED_COMPONENTS>
 {{
-    "module_name_1": {{
+    "auth-service-core": {{
         "path": "src/auth",
         "components": [0, 5, 12]
     }},
-    "module_name_2": {{
+    "api-contracts-and-mapping": {{
         "path": "src/api",
         "components": [1, 3, 8]
     }}
@@ -854,7 +865,8 @@ Firstly reason based on given context about the components and their relationshi
 2. Response MUST end with </GROUPED_COMPONENTS> tag
 3. No text before or after the tags
 4. Use ONLY bare integers in components arrays (no quotes)
-5. The system will automatically convert IDs to full component paths
+5. Module names MUST be kebab-case (e.g., `auth-service-core`, NOT `auth_service_core`)
+6. The system will automatically convert IDs to full component paths
 """.strip()
 
 FILTER_FOLDERS_PROMPT = """
