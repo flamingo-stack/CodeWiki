@@ -1,176 +1,215 @@
 # First Steps
 
-After installing CodeWiki and running your first generation, here are the five most important things to explore next.
+After completing the quick start, here are the first five things to explore in CodeWiki.
 
 ---
 
-## 1. Understand Your Configuration
+## 1. Explore the Generated Documentation Structure
 
-CodeWiki stores your configuration in two places:
+After running `codewiki generate`, your output directory follows a deterministic structure:
 
-| Data | Location |
-|---|---|
-| API keys | System keychain (`codewiki` service) |
-| Model names, URLs, token limits | `~/.codewiki/config.json` |
-
-View your current configuration at any time:
-
-```bash
-codewiki config set --help
+```text
+docs/
+├── README.md                    ← Repository overview (auto-generated)
+├── module_tree.json             ← Module hierarchy metadata
+├── metadata.json                ← Generation audit metadata
+└── <ModuleName>/
+    ├── <ModuleName>.md          ← Module documentation
+    └── <SubModule>/
+        └── <SubModule>.md       ← Sub-module documentation
 ```
 
-Update specific settings without resetting everything else:
+**Open `docs/README.md` first.** This is your entry point — it provides a high-level overview of the entire codebase as understood by the AI.
+
+**Inspect `metadata.json`** to see what was generated:
 
 ```bash
-# Switch the main model without touching other settings
-codewiki config set --main-model claude-sonnet-4-5 --main-max-tokens 128000
+cat docs/metadata.json
 ```
+
+It contains:
+
+- Generation timestamp
+- Model used
+- Repository path and commit ID
+- Total components analyzed
+- Leaf node count
+- List of all generated Markdown files
 
 ---
 
-## 2. Choose the Right Documentation Style
+## 2. Review and Refine Configuration
 
-CodeWiki supports four documentation styles via the `--doc-type` flag:
-
-| Style | Best For |
-|---|---|
-| `architecture` | System design, component relationships, high-level overviews |
-| `api` | Public APIs, endpoints, function signatures, usage examples |
-| `developer` | Internal implementation details, contributor guides |
-| `user-guide` | End-user facing documentation, how-to guides |
+View your current configuration:
 
 ```bash
-# Architecture docs — ideal for understanding a new codebase
-codewiki generate --doc-type architecture
-
-# API docs — ideal for library or service documentation
-codewiki generate --doc-type api --include "*.py" --exclude "*test*"
+codewiki config show
 ```
+
+Adjust token limits for large repositories (if generation was truncated or slow):
+
+```bash
+codewiki config set \
+  --main-max-tokens 128000 \
+  --cluster-max-tokens 128000 \
+  --fallback-max-tokens 64000
+```
+
+Adjust the max documentation depth (default is 2):
+
+```bash
+codewiki config set --max-depth 3
+```
+
+> **Tip:** Higher depth means more granular module documentation but longer generation time.
 
 ---
 
-## 3. Filter Files to Focus the Analysis
+## 3. Use File Filtering to Focus Documentation
 
-Use `--include` and `--exclude` flags to control which files are analyzed:
+CodeWiki supports include/exclude glob patterns to filter which files are analyzed. This is useful for focusing on the core logic while excluding tests, migrations, or generated code.
 
-```bash
-# Document only TypeScript files, excluding tests
-codewiki generate \
-  --include "*.ts,*.tsx" \
-  --exclude "*test*,*spec*,*node_modules*"
-
-# Focus on a specific module subdirectory
-codewiki generate --focus "src/core,src/api"
-```
-
-You can also add custom LLM instructions to shape the output:
+**Include only specific file types:**
 
 ```bash
-codewiki generate \
-  --instructions "Focus on public APIs and include a usage example for every exported function."
+codewiki generate --include "*.py,*.ts"
 ```
 
----
-
-## 4. Integrate With Git Workflows
-
-CodeWiki has built-in git integration. After docs are generated, you can automatically branch and commit:
+**Exclude test directories and generated files:**
 
 ```bash
-# Create a timestamped documentation branch (e.g., docs/codewiki-20250101-143022)
-codewiki generate --create-branch
-
-# The branch is created, docs are written, and you get a PR URL:
-# → https://github.com/your-org/your-repo/compare/docs/codewiki-20250101-143022
+codewiki generate --exclude "tests/,*_test.py,*.generated.*,migrations/"
 ```
 
-> **Requirement:** Your working directory must be clean (no uncommitted changes) before using `--create-branch`. Run `git status` first.
-
----
-
-## 5. Serve Docs via the Web Application
-
-The CodeWiki web app lets you submit any public GitHub repository URL and receive generated documentation in your browser.
-
-### Start the Web App
-
-```bash
-python codewiki/run_web_app.py
-```
-
-Or with custom settings:
-
-```bash
-python -m fe.web_app --host 0.0.0.0 --port 8080 --reload --debug
-```
-
-### Available Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/` | Repository submission form |
-| `POST` | `/` | Submit `repo_url` + optional `commit_id` |
-| `GET` | `/api/job/{job_id}` | Job status (JSON) |
-| `GET` | `/docs/{job_id}` | Documentation viewer |
-| `GET` | `/static-docs/{job_id}/{filename}` | Serve individual doc files |
-
-### Job Lifecycle
-
-```mermaid
-graph LR
-    queued["queued"] --> processing["processing"]
-    processing --> completed["completed"]
-    processing --> failed["failed"]
-```
-
-Poll the job status endpoint until `status` is `completed` or `failed`:
-
-```bash
-curl http://localhost:8000/api/job/flamingo-stack--CodeWiki
-```
-
----
-
-## Helpful Tips for Your First Week
-
-### Re-running is Safe
-
-CodeWiki is **idempotent** — existing `.md` files are detected and skipped automatically. Re-run freely as your code changes:
-
-```bash
-# Only undocumented modules will be processed
-codewiki generate
-```
-
-To force full regeneration:
-
-```bash
-codewiki generate --no-cache
-```
-
-### Token Budget Tuning
-
-For large codebases, you may need to increase token limits:
+**For a Java/Spring project:**
 
 ```bash
 codewiki generate \
-  --max-tokens 32768 \
-  --max-depth 3
+  --include "*.java" \
+  --exclude "*Test.java,*Spec.java" \
+  --doc-type architecture
 ```
 
-### Multi-path Repositories
-
-If your project spans multiple directories (e.g., a monorepo), use `--additional-paths`:
+**For a TypeScript project:**
 
 ```bash
 codewiki generate \
-  --additional-paths ../shared-lib,../common-utils
+  --include "*.ts" \
+  --exclude "*.spec.ts,*.test.ts,node_modules/"
+```
+
+---
+
+## 4. Generate GitHub Pages Documentation
+
+CodeWiki can generate a static `index.html` viewer compatible with GitHub Pages.
+
+```bash
+codewiki generate --github-pages --create-branch
+```
+
+This will:
+
+1. Generate all Markdown documentation
+2. Create a timestamped Git branch (e.g., `docs/codewiki-20250101-120000`)
+3. Generate `docs/index.html` — a fully static documentation viewer
+4. Commit all files to the branch
+
+Push the branch and open a PR:
+
+```bash
+git push origin docs/codewiki-20250101-120000
+```
+
+Then navigate to your repository's **Settings → Pages** and point it to the `docs/` folder on this branch.
+
+---
+
+## 5. Use the Web Interface for Team-Wide Access
+
+The web interface lets any team member generate documentation by pasting a GitHub repository URL — no CLI required.
+
+**Start the web app:**
+
+```bash
+python -m codewiki.run_web_app --port 8000
+```
+
+Or with auto-reload for development:
+
+```bash
+python -m codewiki.run_web_app --reload
+```
+
+**What the web interface does:**
+
+- Accepts any public GitHub repository URL
+- Queues documentation generation in a background worker
+- Caches results (by default for several days) to avoid redundant generation
+- Serves rendered Markdown as navigable HTML
+
+**API endpoint to check job status:**
+
+```bash
+curl http://localhost:8000/api/job/{job_id}
+```
+
+---
+
+## Common Initial Configuration Patterns
+
+### Single LLM Provider (All Roles)
+
+Configure all three roles to use the same provider and key:
+
+```bash
+codewiki config set \
+  --main-model gpt-4o \
+  --main-api-key sk-... \
+  --main-base-url https://api.openai.com/v1 \
+  --cluster-model gpt-4o \
+  --cluster-api-key sk-... \
+  --cluster-base-url https://api.openai.com/v1 \
+  --fallback-model gpt-4o-mini \
+  --fallback-api-key sk-... \
+  --fallback-base-url https://api.openai.com/v1
+```
+
+### Mixed Providers (Cost Optimization)
+
+Use a larger model for documentation and a smaller/cheaper model for clustering:
+
+```bash
+codewiki config set \
+  --main-model claude-sonnet-4 \
+  --main-api-key sk-ant-... \
+  --main-base-url https://api.anthropic.com/v1 \
+  --cluster-model gpt-4o-mini \
+  --cluster-api-key sk-... \
+  --cluster-base-url https://api.openai.com/v1 \
+  --fallback-model gpt-4o-mini \
+  --fallback-api-key sk-... \
+  --fallback-base-url https://api.openai.com/v1
+```
+
+### Reasoning Models (o3, o3-mini)
+
+Some reasoning models require `max_completion_tokens` instead of `max_tokens`:
+
+```bash
+codewiki config set \
+  --main-model o3 \
+  --main-max-token-field max_completion_tokens \
+  --main-temperature-supported false
 ```
 
 ---
 
 ## Where to Get Help
 
-- **OpenMSP Slack Community**: [https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
-- **Community Hub**: [https://www.openmsp.ai/](https://www.openmsp.ai/)
-- **Source Code**: [https://github.com/flamingo-stack/CodeWiki](https://github.com/flamingo-stack/CodeWiki)
+CodeWiki is part of the OpenMSP open-source community:
+
+- **OpenMSP Slack:** [Join the community](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
+- **Community portal:** [openmsp.ai](https://www.openmsp.ai/)
+- **Source code:** [github.com/flamingo-stack/CodeWiki](https://github.com/flamingo-stack/CodeWiki)
+- **Flamingo Platform:** [flamingo.run](https://flamingo.run)

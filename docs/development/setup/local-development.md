@@ -1,205 +1,235 @@
 # Local Development Guide
 
-This guide walks you through cloning CodeWiki, installing dependencies, running the CLI and web app locally, enabling debug mode, and configuring hot reload.
+This guide walks you through cloning CodeWiki, running it locally, and configuring your development workflow.
 
 ---
 
 ## Clone and Setup
 
-### 1. Clone the Repository
-
 ```bash
+# Clone the repository
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
-```
 
-### 2. Create a Virtual Environment
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\Activate.ps1  # Windows PowerShell
 
-```bash
-python -m venv .venv
-
-# Activate (Linux / macOS)
-source .venv/bin/activate
-
-# Activate (Windows PowerShell)
-.venv\Scripts\Activate.ps1
-```
-
-### 3. Install in Editable Mode
-
-```bash
+# Install in editable mode
 pip install -e .
-```
 
-This installs CodeWiki as an editable package, meaning changes to source files take effect immediately without reinstalling.
-
-```bash
-# Verify CLI is available
+# Verify installation
 codewiki --version
-# Expected: CodeWiki CLI v1.0.1
-
-codewiki --help
-```
-
-### 4. Install Node.js Dependencies (Optional)
-
-Required only if working on the VoltAgent orchestration layer:
-
-```bash
-npm install
 ```
 
 ---
 
 ## Running the CLI Locally
 
-### Configure API Keys
+The CLI is the primary development interface. After `pip install -e .`, the `codewiki` command is available in your virtual environment.
+
+### Configure LLM Credentials
 
 ```bash
 codewiki config set \
-  --cluster-api-key sk-your-key \
-  --main-api-key sk-your-key \
-  --fallback-api-key sk-your-key \
-  --cluster-base-url https://api.anthropic.com/v1 \
+  --main-model claude-sonnet-4 \
+  --main-api-key sk-ant-your-key \
   --main-base-url https://api.anthropic.com/v1 \
-  --fallback-base-url https://api.anthropic.com/v1 \
-  --cluster-model claude-3-haiku-20240307 \
-  --main-model claude-sonnet-4-5 \
-  --fallback-model claude-3-haiku-20240307
+  --cluster-model claude-sonnet-4 \
+  --cluster-api-key sk-ant-your-key \
+  --cluster-base-url https://api.anthropic.com/v1 \
+  --fallback-model claude-sonnet-4 \
+  --fallback-api-key sk-ant-your-key \
+  --fallback-base-url https://api.anthropic.com/v1
 ```
 
-### Generate Docs for CodeWiki Itself
+### Run Generation on a Repository
 
 ```bash
-# From the CodeWiki repo root
-codewiki generate --output ./docs --doc-type architecture
+# Generate docs for any local repository
+codewiki generate --output /tmp/test-docs /path/to/some-repo
 ```
 
-### Verbose Mode
+### Run Against the CodeWiki Repository Itself
 
 ```bash
-# See detailed logs including LLM requests
-codewiki generate --verbose
+# Document CodeWiki's own codebase
+codewiki generate --output ./self-docs
 ```
 
 ---
 
 ## Running the Web Application Locally
 
-### Direct Python Startup
+The web app is a FastAPI application served via Uvicorn.
+
+### Configure Environment
+
+Create a `.env` file in the project root:
 
 ```bash
-# Default: http://127.0.0.1:8000
-python codewiki/run_web_app.py
+MAIN_MODEL=claude-sonnet-4
+LLM_BASE_URL=https://api.anthropic.com/v1
+MAIN_API_KEY=sk-ant-your-key
+CLUSTER_API_KEY=sk-ant-your-key
+FALLBACK_API_KEY=sk-ant-your-key
 ```
 
-### With Custom Options
+### Start the Web Server
 
 ```bash
-python -m codewiki.src.fe.web_app \
-  --host 0.0.0.0 \
-  --port 8080 \
-  --reload \
-  --debug
+# Standard start
+python -m codewiki.run_web_app
+
+# With auto-reload (development mode)
+python -m codewiki.run_web_app --reload
+
+# Custom host and port
+python -m codewiki.run_web_app --host 0.0.0.0 --port 8080
+
+# Debug mode (verbose logging)
+python -m codewiki.run_web_app --debug --reload
 ```
 
-> The `--reload` flag enables **hot reload** — the server restarts automatically when source files change (powered by Uvicorn's built-in reloader).
+The web app starts at `http://localhost:8000`.
 
-### Web App Startup Sequence
+### Web App Endpoints
 
-```mermaid
-graph TD
-    A["python run_web_app.py"] --> B["Parse CLI args"]
-    B --> C["WebAppConfig.ensure_directories()"]
-    C --> D["background_worker.start()"]
-    D --> E["uvicorn.run(app)"]
-    E --> F["Serve HTTP on port 8000"]
-    F --> G{"KeyboardInterrupt?"}
-    G -->|"Yes"| H["background_worker.stop()"]
-    G -->|"No"| F
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Documentation submission form |
+| `/` | POST | Submit a repository URL |
+| `/api/job/{job_id}` | GET | JSON job status |
+| `/docs/{job_id}` | GET | Redirect to generated docs |
+| `/static-docs/{job_id}/{filename}` | GET | Serve generated Markdown as HTML |
+
+---
+
+## Development Workflow
+
+### Working on CLI Commands
+
+CLI commands are in `codewiki/cli/commands/`:
+
+- [`generate.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/cli/commands/generate.py) — The `codewiki generate` command
+- [`config.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/cli/commands/config.py) — The `codewiki config` command group
+
+To test a CLI change immediately (editable install picks it up automatically):
+
+```bash
+codewiki generate --help
+```
+
+### Working on Backend Logic
+
+Core backend files:
+
+- [`codewiki/src/be/documentation_generator.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/src/be/documentation_generator.py) — Main orchestration
+- [`codewiki/src/be/agent_orchestrator.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/src/be/agent_orchestrator.py) — AI agent lifecycle
+- [`codewiki/src/be/llm_services.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/src/be/llm_services.py) — LLM provider factory
+- [`codewiki/src/be/cluster_modules.py`](https://github.com/flamingo-stack/CodeWiki/blob/main/codewiki/src/be/cluster_modules.py) — Module clustering
+
+### Working on the Dependency Analyzer
+
+Analyzer files follow a per-language pattern:
+
+```text
+codewiki/src/be/dependency_analyzer/analyzers/
+├── python.py       ← PythonASTAnalyzer
+├── javascript.py   ← TreeSitterJSAnalyzer
+├── typescript.py   ← TreeSitterTSAnalyzer
+├── java.py         ← TreeSitterJavaAnalyzer
+├── csharp.py       ← TreeSitterCSharpAnalyzer
+├── c.py            ← TreeSitterCAnalyzer
+├── cpp.py          ← TreeSitterCppAnalyzer
+└── php.py          ← TreeSitterPHPAnalyzer
+```
+
+The analysis pipeline entry point:
+
+```text
+codewiki/src/be/dependency_analyzer/analysis/analysis_service.py
 ```
 
 ---
 
-## Web App Endpoints for Local Testing
+## Running with Docker Compose (Local)
 
-Once running, the following endpoints are available:
-
-| Method | URL | Description |
-|---|---|---|
-| `GET` | `http://localhost:8000/` | Repository submission form |
-| `POST` | `http://localhost:8000/` | Submit `repo_url` form field |
-| `GET` | `http://localhost:8000/api/job/{job_id}` | JSON job status |
-| `GET` | `http://localhost:8000/docs/{job_id}` | Documentation viewer |
-
-### Submit a Test Job via curl
+For a fully containerized local environment:
 
 ```bash
-curl -X POST http://localhost:8000/ \
-  -F "repo_url=https://github.com/flamingo-stack/CodeWiki"
+# Build the Docker image
+docker build -f docker/Dockerfile -t codewiki:0.0.1 .
+
+# Create the external Docker network
+docker network create codewiki-network
+
+# Create output directory
+mkdir -p output
+
+# Start the service
+cd docker
+docker-compose up
 ```
 
-### Poll Job Status
+The app will be available at `http://localhost:8000` (or whichever port `APP_PORT` is set to in your `.env`).
+
+**Stop the service:**
 
 ```bash
-curl http://localhost:8000/api/job/flamingo-stack--CodeWiki | python -m json.tool
-```
-
----
-
-## Running the Backend Directly
-
-You can bypass the CLI and invoke the Python backend directly for development/debugging:
-
-```bash
-export PYTHONPATH=$(pwd)
-export MAIN_API_KEY=sk-your-key
-export FALLBACK_API_KEY=sk-your-key
-export CLUSTER_API_KEY=sk-your-key
-
-python -m codewiki.src.be.main --repo-path /path/to/target/repo
+docker-compose down
 ```
 
 ---
 
-## Hot Reload — CLI Changes
+## Debug Configuration
 
-Because CodeWiki is installed with `pip install -e .`, all Python source changes are reflected immediately. Just save your file and re-run the command — no reinstall needed.
-
-For the web app, use `--reload`:
+### CLI Verbose Logging
 
 ```bash
-python codewiki/run_web_app.py --reload
+codewiki generate --verbose
 ```
 
----
+### Web App Debug Mode
 
-## Debug Configuration (VS Code)
+```bash
+python -m codewiki.run_web_app --debug
+```
 
-Add a launch configuration to `.vscode/launch.json`:
+This enables `log_level=debug` in Uvicorn, showing all request/response details.
+
+### Python Debugger (pdb)
+
+You can insert breakpoints directly in Python source files:
+
+```python
+import pdb; pdb.set_trace()
+```
+
+Or use VS Code's Python debugger by creating a launch configuration:
 
 ```json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "CodeWiki CLI Generate",
+      "name": "CodeWiki CLI",
       "type": "debugpy",
       "request": "launch",
-      "module": "codewiki.cli.main",
-      "args": ["generate", "--output", "./docs", "--doc-type", "architecture"],
-      "cwd": "${workspaceFolder}",
+      "module": "codewiki",
+      "args": ["generate", "--output", "/tmp/test-docs"],
+      "cwd": "/path/to/some-repo",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
-      },
-      "justMyCode": false
+      }
     },
     {
       "name": "CodeWiki Web App",
       "type": "debugpy",
       "request": "launch",
-      "module": "codewiki.src.fe.web_app",
-      "args": ["--host", "127.0.0.1", "--port", "8000", "--debug"],
+      "module": "codewiki.run_web_app",
+      "args": ["--reload", "--debug"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env"
     }
@@ -209,52 +239,32 @@ Add a launch configuration to `.vscode/launch.json`:
 
 ---
 
-## Running Docker Compose Locally
+## Hot Reload
+
+The web app supports hot reload via Uvicorn's `--reload` flag:
 
 ```bash
-# Copy the example env file
-cp .env.example .env
-# Edit .env with your actual API keys
-
-# Build and start
-cd docker
-docker compose up --build
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
+python -m codewiki.run_web_app --reload
 ```
 
-The Docker app binds to `http://localhost:8000` (or `APP_PORT` from `.env`).
+Changes to `.py` files under `codewiki/src/fe/` are picked up automatically.
+
+For CLI development, the editable install (`pip install -e .`) means any changes to `codewiki/cli/` are immediately reflected without reinstalling.
 
 ---
 
-## Output Directory Structure
+## Inspecting LLM Requests
 
-After a successful local run, the output directory looks like:
+To monitor LLM API calls during development:
+
+- Set `log_level=debug` to see raw request sizes
+- Each `call_llm()` invocation logs: model name, base URL, prompt length, temperature, token field, and response length
+- Request counts are tracked and logged every 100 requests via `increment_request_counter()`
+
+Check logs for patterns like:
 
 ```text
-docs/
-├── metadata.json            # Generation stats: timestamps, file list
-├── module_tree.json         # Full module hierarchy
-├── first_module_tree.json   # Initial cluster tree
-├── overview.md              # Top-level documentation overview
-└── ModuleName/
-    ├── ModuleName.md        # Module documentation
-    └── SubModule/
-        └── SubModule.md
+[LLM] Model: claude-sonnet-4 | Base URL: https://api.anthropic.com/v1
+[LLM] Prompt length: 4200 chars | Max tokens: 16384
+[LLM] Response length: 1850 chars
 ```
-
----
-
-## Troubleshooting Common Issues
-
-| Issue | Likely Cause | Fix |
-|---|---|---|
-| `codewiki: command not found` | Package not installed | Run `pip install -e .` |
-| `ConfigurationError: API key not found` | Keys not set | Run `codewiki config set --main-api-key ...` |
-| `RepositoryError: Not a git repository` | Running outside a git repo | Run `git init` or navigate to a git repo |
-| `KeyboardInterrupt` exits with code 130 | Normal user cancellation | Re-run the command |
-| Port 8000 already in use | Another process using the port | Use `--port 8080` or stop the conflicting process |
