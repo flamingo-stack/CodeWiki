@@ -1,0 +1,19 @@
+flowchart TD
+    User["User (CLI or Web)"] --> CLI["CLI Core"]
+    User --> FE["Frontend Core"]
+
+    CLI --> DG["DocumentationGenerator"]
+    FE --> DG
+
+    DG --> DA["Dependency Analysis"]
+    DG --> AO["Agent Orchestration"]
+
+    AO --> LLM["LLM Services"]
+
+    DA --> Graph["Dependency Graph"]
+    Graph --> DG
+
+    DG --> FileSystem["Generated Documentation"]
+    DG --> Metadata["metadata.json"]
+
+    LLM --> External["External LLM Providers"]

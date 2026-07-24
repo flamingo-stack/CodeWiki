@@ -1,0 +1,11 @@
+flowchart TD
+    EmptyTree["Module Tree Empty?"]
+    YesNode["Create Synthetic Modules"]
+    Group["Group by Top Directory"]
+    Save["Save Synthetic Tree"]
+    ContinueNode["Continue Generation"]
+
+    EmptyTree -->|"Yes"| YesNode
+    YesNode --> Group
+    Group --> Save
+    Save --> ContinueNode

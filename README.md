@@ -12,206 +12,222 @@
 
 # CodeWiki
 
-**CodeWiki** is an AI-powered documentation generator that transforms codebases into comprehensive, structured documentation. By combining static dependency analysis with multi-agent LLM orchestration, CodeWiki understands the architecture of your code and produces rich, hierarchical Markdown documentation — automatically.
+**CodeWiki** is an open-source, AI-powered documentation engine that transforms source code repositories into structured, hierarchical, and navigable technical documentation — automatically.
 
-> **Part of the Flamingo / OpenFrame ecosystem.** CodeWiki powers the documentation pipeline behind [OpenFrame](https://openframe.ai) — the AI-driven MSP platform by [Flamingo](https://flamingo.run).
-
-[![CodeWiki Demo](https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+Built by [Flamingo](https://flamingo.run) as part of the [OpenFrame](https://openframe.ai) platform, CodeWiki eliminates the documentation bottleneck in software engineering. It turns undocumented codebases into architecture-aware, LLM-generated documentation with zero manual effort.
 
 ---
 
 ## Features
 
-- **Multi-language analysis** — Supports Python, TypeScript, JavaScript, Java, C#, C, C++, and PHP
-- **AI agent orchestration** — Uses `pydantic-ai` agents with tool calling to read, analyze, and write docs
-- **Hierarchical documentation** — Output mirrors your module tree; parent overviews are built after children
-- **LLM-agnostic** — Works with any OpenAI-compatible provider (OpenAI, Anthropic, local models)
-- **Three-role LLM model config** — Separate `main`, `fallback`, and `cluster` model configurations
-- **Idempotent generation** — Skips already-documented modules; safe to re-run at any time
-- **Git-native workflow** — Automatically creates documentation branches and commits
-- **Web application mode** — FastAPI-based web app for submitting GitHub repos via browser
-- **Docker support** — Ready-to-run Docker Compose configuration
-- **GitHub Pages output** — Optionally generates `index.html` for static hosting
+- **Multi-language support** — Python, JavaScript, TypeScript, Java, C, C++, C#, PHP
+- **AI-powered generation** — LLM-generated documentation using Claude, GPT, or any OpenAI-compatible endpoint
+- **AST-based dependency analysis** — Accurate call graphs extracted from actual source code
+- **Hierarchical, bottom-up generation** — Leaf-first documentation that respects module structure
+- **CLI interface** — One-command generation via `codewiki generate`
+- **Web interface** — FastAPI-based web app for team-wide usage without requiring CLI setup
+- **Git-native workflows** — Auto-creates timestamped documentation branches and commits
+- **GitHub Pages ready** — Generates a static `index.html` viewer deployable to GitHub Pages
+- **LLM-agnostic** — Works with OpenAI, Anthropic, Azure OpenAI, and any OpenAI-compatible proxy
+- **Context overflow protection** — Staged pipeline and synthetic module fallback prevent runaway LLM calls
+- **Secure configuration** — API keys stored in the OS keychain, never written to disk in plaintext
 
 ---
 
 ## Architecture
 
-The CodeWiki pipeline runs in three stages: **Analysis**, **Orchestration**, and **Output**.
+CodeWiki runs as a multi-stage pipeline with clearly separated layers:
 
 ```mermaid
-graph TD
-    CLI["CLI (codewiki generate)"] --> CG["CLIDocumentationGenerator"]
-    WebApp["Web App (FastAPI)"] --> BW["BackgroundWorker"]
-    BW --> DG["DocumentationGenerator"]
-    CG --> DG
-    DG --> DGB["DependencyGraphBuilder"]
-    DG --> CM["cluster_modules (LLM)"]
-    DG --> AO["AgentOrchestrator"]
-    DGB --> RA["RepoAnalyzer"]
-    DGB --> AP["AST / Language Analyzers"]
-    AO --> LA["Leaf Agent (read + write)"]
-    AO --> CA["Complex Agent (recursive)"]
-    LA --> MD["Module .md output"]
-    CA --> MD
-    MD --> OV["overview.md"]
+flowchart TD
+    User["User (CLI or Web)"] --> CLICore["CLI Core"]
+    User --> FECore["Frontend Core (FastAPI)"]
+
+    CLICore --> DocGen["Documentation Generator"]
+    FECore --> DocGen
+
+    DocGen --> DepAnalysis["Dependency Analysis"]
+    DocGen --> AgentOrch["Agent Orchestration"]
+
+    AgentOrch --> LLMSvc["LLM Services"]
+    DepAnalysis --> GraphBuilder["Dependency Graph Builder"]
+    GraphBuilder --> DocGen
+
+    DocGen --> Utils["Utils (FileManager)"]
+    DocGen --> Output["Generated Documentation"]
+
+    LLMSvc --> Provider["External LLM Providers"]
 ```
 
-CodeWiki can operate in two modes:
+### Generation Pipeline
 
-- **CLI Mode** — Run `codewiki generate` locally against any git repository
-- **Web App Mode** — Submit any public GitHub URL via browser; the background worker clones, runs, and serves the docs
+```mermaid
+flowchart TD
+    Start["Start Job"] --> Analyze["1. Dependency Analysis (40%)"]
+    Analyze --> Cluster["2. Module Clustering — LLM (20%)"]
+    Cluster --> LeafDocs["3. Generate Leaf Module Docs (30%)"]
+    LeafDocs --> ParentDocs["4. Generate Parent Module Docs"]
+    ParentDocs --> Overview["5. Generate Repository Overview"]
+    Overview --> Metadata["6. Write metadata.json (5%)"]
+    Metadata --> EndNode["Done"]
+```
 
 ---
 
 ## Technology Stack
 
-### Backend (Python)
-
 | Layer | Technology |
-|---|---|
-| CLI framework | [Click](https://click.palletsprojects.com/) |
-| AI agent framework | [pydantic-ai](https://ai.pydantic.dev/) |
-| Web application | [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) |
-| LLM providers | OpenAI-compatible APIs (Anthropic, OpenAI, local models) |
-| Git operations | [GitPython](https://gitpython.readthedocs.io/) |
-| Secrets storage | [keyring](https://pypi.org/project/keyring/) |
-| AST analysis | Python `ast`, language-specific parsers |
-| Schema validation | [Pydantic](https://docs.pydantic.dev/) |
-
-### Tooling (Node.js)
-
-| Package | Purpose |
-|---|---|
-| `@voltagent/core` | Agent orchestration framework |
-| `@ai-sdk/anthropic` | Anthropic AI SDK adapter |
-| `zod` | Schema validation |
+|-------|-----------|
+| **Language** | Python 3.9+ |
+| **CLI Framework** | Click |
+| **Web Framework** | FastAPI + Uvicorn |
+| **AI Agent Framework** | Pydantic AI |
+| **AST Parsing** | Tree-sitter (8 language grammars) |
+| **LLM Providers** | OpenAI SDK, Anthropic SDK (provider-agnostic) |
+| **Secure Config** | keyring (macOS Keychain / Windows Credential Manager / Linux Secret Service) |
+| **Git Integration** | GitPython |
+| **Templating** | Jinja2 |
 
 ---
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.9+
-- pip 22.0+
-- Git 2.30+
-- API key for an OpenAI-compatible LLM provider (Anthropic, OpenAI, etc.)
-
-### Install
+### 1. Clone and install
 
 ```bash
-# Clone the repository
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
-
-# Install in editable mode
 pip install -e .
-
-# Verify the CLI is available
-codewiki --version
 ```
 
-### Configure LLM Providers
-
-CodeWiki uses three model roles: `cluster` (module grouping), `main` (doc writing), and `fallback` (backup). Keys are stored securely in the system keychain.
+### 2. Configure your LLM provider
 
 ```bash
 codewiki config set \
-  --cluster-api-key YOUR_API_KEY \
+  --main-model claude-sonnet-4 \
   --main-api-key YOUR_API_KEY \
-  --fallback-api-key YOUR_API_KEY \
-  --cluster-base-url https://api.anthropic.com/v1 \
   --main-base-url https://api.anthropic.com/v1 \
-  --fallback-base-url https://api.anthropic.com/v1 \
-  --cluster-model claude-3-haiku-20240307 \
-  --main-model claude-sonnet-4-5 \
-  --fallback-model claude-3-haiku-20240307
+  --cluster-model claude-sonnet-4 \
+  --cluster-api-key YOUR_API_KEY \
+  --cluster-base-url https://api.anthropic.com/v1 \
+  --fallback-model claude-sonnet-4 \
+  --fallback-api-key YOUR_API_KEY \
+  --fallback-base-url https://api.anthropic.com/v1
 ```
 
-### Generate Documentation
+> API keys are stored securely in your OS keychain — never written to disk in plaintext.
 
-Run `codewiki generate` inside any git repository:
+### 3. Generate documentation
 
 ```bash
-# Navigate to a project you want to document
-cd /path/to/your/project
-
-# Generate docs (default output: ./docs)
+cd /path/to/your-project
 codewiki generate
-
-# Or specify doc type and output directory
-codewiki generate --doc-type architecture --output ./wiki
 ```
 
-### Expected Output Structure
+Documentation is written to `./docs/` by default.
+
+### 4. View the results
+
+```bash
+ls ./docs/
+```
 
 ```text
 docs/
-├── metadata.json
-├── module_tree.json
-├── overview.md
-└── ModuleName/
-    └── ModuleName.md
-```
-
-### Web App Mode
-
-```bash
-# Start the web app (default: http://127.0.0.1:8000)
-python codewiki/run_web_app.py
-```
-
-Open `http://127.0.0.1:8000`, paste a GitHub repository URL, and click **Generate**.
-
-### Docker Compose
-
-```bash
-cp .env.example .env
-# Edit .env with your API keys
-
-cd docker
-docker compose up -d
+├── README.md              ← Repository overview
+├── module_tree.json       ← Module structure metadata
+├── metadata.json          ← Generation audit metadata
+└── <module-name>/
+    └── <module-name>.md   ← Per-module documentation
 ```
 
 ---
 
-## Useful CLI Flags
+## Using OpenAI
 
-| Flag | Description |
-|---|---|
-| `--output / -o` | Output directory (default: `./docs`) |
-| `--doc-type` | Style: `api`, `architecture`, `user-guide`, `developer` |
-| `--include` | Comma-separated glob patterns to include (e.g., `*.py`) |
-| `--exclude` | Comma-separated glob patterns to exclude |
-| `--focus` | Comma-separated module paths to prioritize |
-| `--max-depth` | Maximum module nesting depth (default: `2`) |
-| `--instructions` | Custom freeform prompt instructions for the LLM |
-| `--create-branch` | Auto-create a git branch before writing docs |
-| `--github-pages` | Generate `index.html` for GitHub Pages hosting |
-| `--no-cache` | Force full regeneration, bypassing cache |
+```bash
+codewiki config set \
+  --main-model gpt-4o \
+  --main-api-key sk-... \
+  --main-base-url https://api.openai.com/v1 \
+  --cluster-model gpt-4o-mini \
+  --cluster-api-key sk-... \
+  --cluster-base-url https://api.openai.com/v1 \
+  --fallback-model gpt-4o-mini \
+  --fallback-api-key sk-... \
+  --fallback-base-url https://api.openai.com/v1
+```
+
+## Web Interface
+
+Start the web UI to generate documentation for any public GitHub repository via a browser:
+
+```bash
+python -m codewiki.run_web_app
+```
+
+Then open `http://localhost:8000`, paste a GitHub repository URL, and CodeWiki will handle the rest.
+
+---
+
+## Common Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--output / -o` | Output directory | `./docs` |
+| `--create-branch` | Auto-create a Git branch | Off |
+| `--github-pages` | Generate GitHub Pages `index.html` | Off |
+| `--include` | Glob patterns to include | All files |
+| `--exclude` | Glob patterns to exclude | None |
+| `--doc-type` | Style: `api`, `architecture`, `user-guide`, `developer` | Default |
+| `--max-depth` | Maximum module nesting depth | 2 |
+
+### Example: CI/CD pipeline
+
+```bash
+codewiki generate \
+  --create-branch \
+  --github-pages \
+  --output ./docs
+```
+
+### Example: Focus on specific modules
+
+```bash
+codewiki generate \
+  --include "src/core,src/api" \
+  --exclude "tests/" \
+  --doc-type architecture
+```
+
+---
+
+## Requirements
+
+| Software | Minimum Version |
+|---------|-----------------|
+| Python | 3.9+ |
+| Git | 2.x |
+| pip | 22+ |
+
+An API key for at least one LLM provider (Anthropic, OpenAI, Azure OpenAI, or any OpenAI-compatible endpoint) is required.
 
 ---
 
 ## Documentation
 
-📚 See the [Documentation](./docs/README.md) for comprehensive guides, including:
-
-- [Introduction](./docs/getting-started/introduction.md) — What CodeWiki is and how it works
-- [Prerequisites](./docs/getting-started/prerequisites.md) — Environment requirements
-- [Quick Start](./docs/getting-started/quick-start.md) — Step-by-step installation
-- [First Steps](./docs/getting-started/first-steps.md) — Key features and workflows
+📚 See the [Documentation](./docs/README.md) for comprehensive guides including getting started tutorials, development setup, and full architecture reference.
 
 ---
 
-## Community & Support
+## Community
 
-All questions, feedback, and collaboration happen on the **OpenMSP Slack Community** — we don't use GitHub Issues or Discussions.
+CodeWiki is part of the OpenMSP open-source community.
 
-- 💬 **Slack**: [Join OpenMSP](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
-- 🌐 **Community Hub**: [https://www.openmsp.ai/](https://www.openmsp.ai/)
-- 🦩 **Flamingo**: [https://flamingo.run](https://flamingo.run)
-- 🖥️ **OpenFrame**: [https://openframe.ai](https://openframe.ai)
+- **Community Slack:** [OpenMSP Slack](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
+- **Community portal:** [openmsp.ai](https://www.openmsp.ai/)
+- **Flamingo Platform:** [flamingo.run](https://flamingo.run)
+- **OpenFrame:** [openframe.ai](https://openframe.ai)
 
 ---
 

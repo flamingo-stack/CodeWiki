@@ -1,0 +1,5 @@
+flowchart TD
+    Run["Run Agent"] --> Success{"Success?"}
+    Success -->|"Yes"| Save["Save module_tree.json"]
+    Success -->|"No"| LogError["Log Traceback"]
+    LogError --> Raise["Re-raise Exception"]

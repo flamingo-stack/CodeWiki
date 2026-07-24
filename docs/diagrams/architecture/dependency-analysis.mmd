@@ -1,0 +1,15 @@
+flowchart TD
+    CLI["CLI Core"] --> Orchestrator["Agent Orchestrator"]
+    Orchestrator --> AnalysisService["Analysis Service"]
+
+    AnalysisService --> RepoAnalyzer["Repo Analyzer"]
+    AnalysisService --> CallGraphAnalyzer["Call Graph Analyzer"]
+
+    CallGraphAnalyzer --> LanguageAnalyzers["Language Analyzers"]
+    LanguageAnalyzers --> CoreModels["Core Models"]
+
+    AnalysisService --> AnalysisModels["Analysis Models"]
+    AnalysisService --> DependencyParser["Dependency Parser"]
+
+    DependencyParser --> GraphBuilder["Dependency Graph Builder"]
+    GraphBuilder --> DocumentationGen["Documentation Generator"]

@@ -1,0 +1,7 @@
+flowchart TD
+    Start["Process Module"] --> CheckComplex["is_complex_module()?"]
+    CheckComplex -->|"Yes"| ComplexAgent["Create Complex Agent"]
+    CheckComplex -->|"No"| LeafAgent["Create Leaf Agent"]
+
+    ComplexAgent --> AddSubTool["Add Sub-Module Tool"]
+    LeafAgent --> NoSubTool["No Sub-Module Tool"]

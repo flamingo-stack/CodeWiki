@@ -1,0 +1,5 @@
+flowchart LR
+    Input["Application Data"] -->|"serialize"| JSON["JSON File"]
+    Input -->|"write"| TEXT["Text File"]
+    JSON -->|"parse"| Output["Python Dict"]
+    TEXT -->|"read"| Output

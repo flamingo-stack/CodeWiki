@@ -1,0 +1,4 @@
+flowchart LR
+    Request["LLM Request"] --> Counter["increment_request_counter()"]
+    Counter --> SuperCall["FallbackModel.request()"]
+    SuperCall --> Response["LLM Response"]

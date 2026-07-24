@@ -1,0 +1,6 @@
+flowchart TD
+    Start["parse_repository()"] --> SingleCheck{"Single Path?"}
+    SingleCheck -->|"Yes"| AnalyzeStructure["Analyze File Structure"]
+    AnalyzeStructure --> BuildCallGraph["Build Call Graph"]
+    BuildCallGraph --> BuildComponents["Build Components"]
+    BuildComponents --> ReturnComponents["Return Component Map"]

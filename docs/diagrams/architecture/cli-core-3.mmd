@@ -1,0 +1,7 @@
+flowchart TD
+    EmptyCheck{"Module Tree Empty?"}
+    EmptyCheck -->|"Yes"| CreateSynthetic["Create Synthetic Modules"]
+    EmptyCheck -->|"No"| Continue["Continue Normally"]
+
+    CreateSynthetic --> SaveTree["Save Synthetic Module Tree"]
+    SaveTree --> Continue

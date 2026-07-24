@@ -1,0 +1,10 @@
+flowchart TD
+    Config["Config"] --> Builder["DependencyGraphBuilder"]
+    Builder --> Parser["DependencyParser"]
+    Parser --> Components["Parsed Components"]
+    Components --> GraphBuilder["build_graph_from_components()"]
+    GraphBuilder --> Graph["Dependency Graph"]
+    Graph --> Validator["validate_graph_completeness()"]
+    Graph --> LeafFinder["get_leaf_nodes()"]
+    LeafFinder --> Filter["Leaf Node Filtering Logic"]
+    Filter --> Output["Components + Valid Leaf Nodes"]

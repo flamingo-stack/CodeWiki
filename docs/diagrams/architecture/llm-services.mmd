@@ -1,0 +1,9 @@
+flowchart TD
+    AgentOrchestrator["Agent Orchestrator"] --> DocumentationGenerator["Documentation Generator"]
+    DocumentationGenerator --> LlmServices["Llm Services"]
+    LlmServices --> MainModel["Main Model"]
+    LlmServices --> FallbackModel["Fallback Model"]
+    LlmServices --> ClusterModel["Cluster Model"]
+    MainModel --> ProviderAPI["LLM Provider API"]
+    FallbackModel --> ProviderAPI
+    ClusterModel --> ProviderAPI

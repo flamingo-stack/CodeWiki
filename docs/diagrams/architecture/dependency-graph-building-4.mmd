@@ -1,0 +1,7 @@
+flowchart TD
+    DetectTypes["Detect Available Component Types"] --> HasOO{"Has class or interface or struct?"}
+    HasOO -->|"Yes"| UseDefault["Use class, interface, struct"]
+    HasOO -->|"No"| AddFunction["Add function To Valid Types"]
+    UseDefault --> Filter
+    AddFunction --> Filter
+    Filter["Filter Leaf Nodes By Valid Types"]

@@ -1,202 +1,219 @@
 # Development Environment Setup
 
-This guide covers IDE recommendations, required development tools, environment variables, and editor extensions for contributing to CodeWiki.
-
----
-
-## IDE Recommendations
-
-### VS Code (Recommended)
-
-[Visual Studio Code](https://code.visualstudio.com/) provides the best experience for CodeWiki development.
-
-**Recommended Extensions:**
-
-| Extension | ID | Purpose |
-|---|---|---|
-| Python | `ms-python.python` | Python language support |
-| Pylance | `ms-python.vscode-pylance` | Type checking and IntelliSense |
-| Ruff | `charliermarsh.ruff` | Fast Python linter and formatter |
-| YAML | `redhat.vscode-yaml` | YAML file support (docker-compose) |
-| Docker | `ms-azuretools.vscode-docker` | Docker file editing and management |
-| GitLens | `eamodio.gitlens` | Enhanced Git integration |
-| Markdown All in One | `yzhang.markdown-all-in-one` | Markdown preview and editing |
-
-**Workspace Settings (`.vscode/settings.json`):**
-
-```json
-{
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
-  },
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  },
-  "python.analysis.typeCheckingMode": "basic"
-}
-```
-
-### PyCharm
-
-PyCharm Professional or Community Edition also works well:
-
-1. Open the `CodeWiki` directory as a project
-2. Configure the Python interpreter to point to your virtual environment
-3. Enable the **Pydantic** plugin for better dataclass support
-4. Install the **Docker** plugin for `docker-compose.yml` editing
+This guide covers the tools, IDE configuration, and editor extensions recommended for contributing to CodeWiki.
 
 ---
 
 ## Required Development Tools
 
-### Python Virtual Environment
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Python** | 3.9+ | Primary runtime |
+| **pip** | 22+ | Package management |
+| **Git** | 2.x+ | Version control |
+| **virtualenv** or **venv** | Any | Isolated Python environments |
 
-Always develop inside a virtual environment:
+---
+
+## Recommended IDE
+
+### Visual Studio Code
+
+VS Code is the recommended IDE for CodeWiki development.
+
+**Recommended extensions:**
+
+| Extension | ID | Purpose |
+|-----------|-----|---------|
+| Python | `ms-python.python` | Python language support |
+| Pylance | `ms-python.vscode-pylance` | Type checking and IntelliSense |
+| Ruff | `charliermarsh.ruff` | Fast Python linter and formatter |
+| GitLens | `eamodio.gitlens` | Enhanced Git history views |
+| Mermaid Preview | `bierner.markdown-mermaid` | Preview Mermaid diagrams in Markdown |
+| YAML | `redhat.vscode-yaml` | YAML support for config files |
+| Docker | `ms-azuretools.vscode-docker` | Docker file editing and container management |
+
+**Suggested VS Code `settings.json`:**
+
+```json
+{
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "editor.formatOnSave": true,
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "editor.rulers": [88]
+}
+```
+
+---
+
+### PyCharm
+
+PyCharm Professional or Community also works well.
+
+**Configuration:**
+
+1. Open the project root as a PyCharm project
+2. Set the Python interpreter to your virtual environment
+3. Enable **PEP 8** code style inspection
+4. Install the **Mermaid** plugin for diagram previews
+
+---
+
+## Python Environment Setup
+
+Always use a virtual environment for development to avoid polluting your system Python:
 
 ```bash
 # Create a virtual environment
-python -m venv .venv
+python3 -m venv .venv
 
 # Activate it
-# On Linux / macOS:
+# On Linux/macOS:
 source .venv/bin/activate
+
 # On Windows (PowerShell):
 .venv\Scripts\Activate.ps1
 
-# Install CodeWiki in editable mode with all dependencies
+# Install in editable mode with all dependencies
 pip install -e .
-
-# Verify
-python -c "import codewiki; print(codewiki.__version__)"
-# Expected: 1.0.1
 ```
 
-### Node.js (for VoltAgent tooling)
+Verify the CLI is available:
 
 ```bash
-# Install Node.js dependencies
-npm install
-
-# Verify
-node --version   # v18.x.x or higher
-npm --version    # 9.x.x or higher
-```
-
-### Git Configuration
-
-Configure your git identity before contributing:
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
+codewiki --version
 ```
 
 ---
 
 ## Environment Variables for Development
 
-Create a `.env` file in the project root for local development. This is used by Docker Compose and can also be sourced manually.
+Create a `.env` file in the project root for web app development:
 
 ```bash
-# .env — DO NOT COMMIT THIS FILE
+# Copy from the template if available
+cp .env.example .env
+```
 
-# API keys for LLM providers
-MAIN_API_KEY=sk-your-main-key
-FALLBACK_API_KEY=sk-your-fallback-key
-CLUSTER_API_KEY=sk-your-cluster-key
+Key variables for local development:
 
-# Model names (optional — defaults to env var or hardcoded fallback)
-MAIN_MODEL=claude-sonnet-4-5
-CLUSTER_MODEL=claude-3-haiku-20240307
-FALLBACK_MODEL=gpt-3.5-turbo
-
-# Base URLs (set for non-OpenAI providers)
+```bash
+# LLM provider settings
+MAIN_MODEL=claude-sonnet-4
+CLUSTER_MODEL=claude-sonnet-4
 LLM_BASE_URL=https://api.anthropic.com/v1
+MAIN_API_KEY=your_dev_api_key
 
-# Token limits (optional)
-MAX_OUTPUT_TOKENS=16384
+# Output token limit (reduce for faster dev cycles)
+MAX_OUTPUT_TOKENS=8192
 
-# Web app port (Docker)
-APP_PORT=8000
+# Max token field (use max_completion_tokens for o3 reasoning models)
+CODEWIKI_GENERATION_MAX_TOKEN_FIELD=max_tokens
+CODEWIKI_CLUSTER_MAX_TOKEN_FIELD=max_tokens
+CODEWIKI_FALLBACK_MAX_TOKEN_FIELD=max_tokens
 ```
 
-> **Security:** The `.env` file is for local development only. In production, inject secrets via your container runtime or secrets manager. Never commit `.env` to source control.
+> **Note:** The `.env` file is loaded automatically by `python-dotenv` when running the web app. CLI mode uses the OS keychain instead.
 
 ---
 
-## Python Path Configuration
+## Code Style
 
-For running backend scripts directly without the CLI entrypoint, set `PYTHONPATH`:
+CodeWiki follows standard Python conventions:
 
-```bash
-# From the repo root
-export PYTHONPATH=$(pwd)
+- **PEP 8** style guidelines
+- **88-character** line length (matching Black/Ruff defaults)
+- Type annotations are encouraged for function signatures
+- Docstrings use standard Python docstring format
 
-# Then you can run backend modules directly
-python -m codewiki.src.be.main --repo-path /path/to/repo
-```
-
----
-
-## Linting and Formatting
-
-CodeWiki uses **Ruff** for linting and formatting:
+**Linting and formatting:**
 
 ```bash
-# Install ruff if not already available
+# Install ruff (if not installed)
 pip install ruff
 
-# Lint all files
-ruff check .
+# Lint the codebase
+ruff check codewiki/
 
-# Auto-fix fixable issues
-ruff check --fix .
+# Auto-fix where possible
+ruff check --fix codewiki/
 
 # Format code
-ruff format .
+ruff format codewiki/
 ```
 
 ---
 
-## Pre-commit Hooks (Optional)
+## Tree-sitter Language Bindings
 
-To automatically lint before each commit:
+CodeWiki uses Tree-sitter for AST-based code parsing across 8 languages. On first use, language grammars are compiled or downloaded automatically. No manual setup is required.
+
+If you are working on language analyzer code, you may want to install the Tree-sitter CLI for grammar development:
 
 ```bash
-pip install pre-commit
-pre-commit install
+pip install tree-sitter
 ```
 
-Create a `.pre-commit-config.yaml` if one doesn't exist:
+Language-specific analyzer files are in:
 
-```yaml
-repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.0
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
+```text
+codewiki/src/be/dependency_analyzer/analyzers/
+├── python.py
+├── javascript.py
+├── typescript.py
+├── java.py
+├── csharp.py
+├── c.py
+├── cpp.py
+└── php.py
 ```
 
 ---
 
-## Docker Development Setup
+## Working with the Docker Setup
 
-For working on the web application in a containerized environment:
+For full-stack local testing with Docker:
 
 ```bash
 # Build the image
+docker build -f docker/Dockerfile -t codewiki:0.0.1 .
+
+# Start with Docker Compose
 cd docker
-docker compose build
-
-# Start with environment file
-docker compose --env-file ../.env up
-
-# Tail logs
-docker compose logs -f codewiki
+docker-compose up
 ```
 
 The web app will be available at `http://localhost:8000`.
+
+**Volume mounts (from `docker-compose.yml`):**
+
+- `../output` → `/app/output` — Persistent cache and output storage
+- `~/.ssh` → `/root/.ssh:ro` — Git credentials for private repositories (read-only)
+
+---
+
+## Keyring (CLI Development)
+
+When developing CLI features, configuration is stored in:
+
+- **API keys:** OS keychain under the service name `codewiki`
+- **Other settings:** `~/.codewiki/config.json`
+
+To inspect or reset configuration during development:
+
+```bash
+# Show current configuration
+codewiki config show
+
+# Reset a specific setting
+codewiki config set --main-model gpt-4o-mini
+
+# Clear all configuration
+# Manually delete: ~/.codewiki/config.json
+# Manually remove keychain entries via your OS keychain manager
+```

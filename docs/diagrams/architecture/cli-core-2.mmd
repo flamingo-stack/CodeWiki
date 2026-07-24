@@ -1,0 +1,14 @@
+flowchart TD
+    Start["Start Generation"] --> ConfigLoad["Load CLI Configuration"]
+    ConfigLoad --> BackendConfig["Create Backend Config"]
+
+    BackendConfig --> Stage1["Dependency Analysis"]
+    Stage1 --> Stage2["Module Clustering"]
+    Stage2 --> Stage3["Module Documentation Generation"]
+
+    Stage3 --> HTMLDecision{"Generate HTML?"}
+    HTMLDecision -->|"Yes"| Stage4["Generate index.html"]
+    HTMLDecision -->|"No"| Stage5["Finalize Job"]
+    Stage4 --> Stage5
+
+    Stage5 --> Complete["Job Completed"]

@@ -1,0 +1,6 @@
+flowchart TD
+    Browser["User Browser"] --> Routes["WebRoutes"]
+    Routes --> Worker["BackgroundWorker"]
+    Worker --> DocGen["DocumentationGenerator"]
+    Worker --> Cache["CacheManager"]
+    Routes --> Render["Render HTML"]

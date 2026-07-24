@@ -1,0 +1,5 @@
+flowchart TD
+    Request["LLM Request"] --> Main["Main Model"]
+    Main -->|Success| ReturnMain["Return"]
+    Main -->|Failure| Fallback["Fallback Model"]
+    Fallback --> ReturnFallback["Return"]

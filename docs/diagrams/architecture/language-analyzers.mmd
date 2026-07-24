@@ -1,0 +1,9 @@
+flowchart LR
+    SourceFile["Source File"] --> Analyzer["Language Analyzer"]
+    Analyzer --> Nodes["Node Models"]
+    Analyzer --> Relationships["CallRelationship Models"]
+
+    Nodes --> Parser["Dependency Parser"]
+    Relationships --> Parser
+
+    Parser --> GraphBuilder["Dependency Graph Builder"]

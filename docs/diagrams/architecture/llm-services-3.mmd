@@ -1,0 +1,5 @@
+flowchart TD
+    Request["Generation Request"] --> TryMain["Main Model"]
+    TryMain -->|"Success"| ReturnMain["Return Response"]
+    TryMain -->|"Failure"| TryFallback["Fallback Model"]
+    TryFallback --> ReturnFallback["Return Fallback Response"]
