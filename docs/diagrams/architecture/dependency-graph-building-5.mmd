@@ -1,0 +1,5 @@
+flowchart TD
+    RepoAnalyzer["Repository Analyzer"] --> Parser["Dependency Parser"]
+    Parser --> Builder["Dependency Graph Builder"]
+    Builder --> AnalysisCore["Analysis Core"]
+    AnalysisCore --> DocumentationGen["Documentation Generation"]

@@ -1,0 +1,8 @@
+flowchart TD
+    Repo["Repository Path(s)"] --> Parser["DependencyParser"]
+    Parser --> Structure["Analyze Structure"]
+    Structure --> CallGraph["Analyze Call Graph"]
+    CallGraph --> Normalize["Normalize to Node Models"]
+    Normalize --> Namespace["Apply Namespacing"]
+    Namespace --> Resolve["Resolve Dependencies"]
+    Resolve --> Export["Export JSON Graph"]

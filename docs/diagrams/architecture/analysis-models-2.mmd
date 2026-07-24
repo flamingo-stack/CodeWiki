@@ -1,0 +1,8 @@
+flowchart TD
+    AnalysisResult["AnalysisResult"] --> RepositoryField["repository: Repository"]
+    AnalysisResult --> FunctionsField["functions: List[Node]"]
+    AnalysisResult --> RelationshipsField["relationships: List[CallRelationship]"]
+    AnalysisResult --> FileTreeField["file_tree: Dict[str, Any]"]
+    AnalysisResult --> SummaryField["summary: Dict[str, Any]"]
+    AnalysisResult --> VisualizationField["visualization: Dict[str, Any]"]
+    AnalysisResult --> ReadmeField["readme_content: Optional[str]"]

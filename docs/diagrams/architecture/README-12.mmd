@@ -1,0 +1,15 @@
+flowchart TD
+    CLI["CLI Core"] --> DG["DocumentationGenerator"]
+    FE["Frontend Core"] --> DG
+
+    DG --> DA["Dependency Analysis"]
+    DG --> AO["Agent Orchestration"]
+
+    AO --> LLM["LLM Services"]
+
+    DA --> Graph["Dependency Graph"]
+    Graph --> DG
+
+    DG --> Utils["FileManager"]
+    FE --> Utils
+    CLI --> Utils

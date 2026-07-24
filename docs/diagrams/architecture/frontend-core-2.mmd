@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Browser
+    participant Routes as "WebRoutes"
+    participant Worker as "BackgroundWorker"
+    participant Cache
+    participant GitHub
+    participant DocGen as "DocumentationGenerator"
+
+    Browser->>Routes: POST / (repo_url, commit_id)
+    Routes->>Cache: Check cache
+    Cache-->>Routes: Cached path or null
+    Routes->>Worker: Add job to queue
+    Worker->>GitHub: Clone repository
+    Worker->>DocGen: Run documentation generation
+    DocGen-->>Worker: Write docs to output directory
+    Worker->>Cache: Store docs path
+    Worker-->>Routes: Update job status
+    Browser->>Routes: GET /docs/{job_id}
+    Routes-->>Browser: Rendered HTML

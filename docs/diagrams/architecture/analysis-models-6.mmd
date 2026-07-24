@@ -1,0 +1,5 @@
+flowchart TD
+    AnalysisResultFull["Full AnalysisResult"] --> NodeSelectionInput["NodeSelection"]
+    NodeSelectionInput --> FilterStep["Filter Nodes"]
+    FilterStep --> RelationshipFilter["Filter Relationships"]
+    RelationshipFilter --> PartialResult["Scoped Analysis Output"]

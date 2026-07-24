@@ -1,0 +1,9 @@
+flowchart TD
+    Client["Client Layer"] --> Orchestrator["Agent Orchestrator"]
+    Orchestrator --> AnalysisCore["Analysis Core"]
+    AnalysisCore --> RepoAnalyzer["Repo Analyzer"]
+    AnalysisCore --> CallGraphAnalyzer["Call Graph Analyzer"]
+    CallGraphAnalyzer --> LanguageAnalyzers["Language Analyzers"]
+    AnalysisCore --> Models["Analysis Models"]
+    AnalysisCore --> CoreModels["Core Models"]
+    AnalysisCore --> Visualization["Visualization Data"]

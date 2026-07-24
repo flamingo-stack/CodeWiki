@@ -1,0 +1,5 @@
+flowchart TD
+    CheckClean{"Working Directory Clean?"}
+    CheckClean -->|"No"| Abort["Abort or Force"]
+    CheckClean -->|"Yes"| CreateBranch["Create docs/codewiki-timestamp Branch"]
+    CreateBranch --> Checkout["Checkout Branch"]

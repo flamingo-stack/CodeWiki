@@ -1,0 +1,5 @@
+flowchart TD
+    Agent["Agent Orchestrator"] --> ClusterStage["Clustering"]
+    Agent --> GenerationStage["Generation"]
+    ClusterStage --> LlmServices["Llm Services"]
+    GenerationStage --> LlmServices

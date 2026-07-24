@@ -1,0 +1,6 @@
+flowchart TD
+    CLI["CLI User"] --> Generator["CLIDocumentationGenerator"]
+    Generator --> Backend["DocumentationGenerator"]
+    Generator --> Git["GitManager"]
+    Generator --> HTML["HTMLGenerator"]
+    Generator --> Job["DocumentationJob"]
