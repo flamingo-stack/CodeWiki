@@ -5,11 +5,18 @@ import os
 import logging
 from typing import Any
 
-from pydantic_ai.models.openai import OpenAIModel
+# pydantic-ai >= 1.x renamed OpenAIModel -> OpenAIChatModel and
+# OpenAIModelSettings -> OpenAIChatModelSettings. Import under the historical
+# names so the rest of this module stays unchanged and both versions work.
+try:
+    from pydantic_ai.models.openai import OpenAIChatModel as OpenAIModel
+    from pydantic_ai.models.openai import OpenAIChatModelSettings as OpenAIModelSettings
+except ImportError:  # older pydantic-ai (< 1.x) still exposes the pre-rename names
+    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.models.openai import OpenAIModelSettings
 
 logger = logging.getLogger(__name__)
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.models.openai import OpenAIModelSettings
 from pydantic_ai.models.fallback import FallbackModel
 from openai import OpenAI, OpenAIError
 
