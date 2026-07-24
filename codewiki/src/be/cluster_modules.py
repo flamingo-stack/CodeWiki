@@ -307,8 +307,14 @@ def cluster_modules(
     logger.info(f"   ├─ Max token per module: {config.max_token_per_module}")
     logger.info(f"   └─ ID-based system: {len(id_to_fqdn)} components mapped")
 
-    if token_count <= config.max_token_per_module:
-        logger.info(f"   └─ ⏭️  Skipping clustering - components fit in single module ({token_count} ≤ {config.max_token_per_module})")
+    # Only skip clustering for RECURSIVE sub-module calls (current_module_name is set):
+    # a sub-module that already fits under the threshold must not be split further.
+    # At the TOP level (current_module_name is None) we must ALWAYS cluster — otherwise
+    # a repo whose components fit under max_token_per_module returns an empty module tree,
+    # and the caller falls back to arbitrary synthetic `module_1/module_2/...` buckets
+    # instead of real, semantically-named modules.
+    if current_module_name is not None and token_count <= config.max_token_per_module:
+        logger.info(f"   └─ ⏭️  Skipping clustering - sub-module fits in single unit ({token_count} ≤ {config.max_token_per_module})")
         return {}
 
     logger.info(f"   └─ ✅ Proceeding with clustering - components exceed threshold")
