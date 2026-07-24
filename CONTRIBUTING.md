@@ -1,147 +1,61 @@
 # Contributing to CodeWiki
 
-Thank you for your interest in contributing to CodeWiki! This guide covers everything you need to get started — from setting up your development environment to submitting your first pull request.
-
-> **Community-first**: We don't use GitHub Issues or GitHub Discussions. All questions, feedback, and collaboration happen on the **OpenMSP Slack Community**. [Join us here](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA).
+Thank you for your interest in contributing to CodeWiki! CodeWiki is an open-source project maintained by the [Flamingo](https://flamingo.run) team and the [OpenMSP community](https://www.openmsp.ai/).
 
 ---
 
-## Table of Contents
+## Community
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Environment](#development-environment)
-- [Project Structure](#project-structure)
-- [Development Workflow](#development-workflow)
-- [Code Style](#code-style)
-- [Submitting a Pull Request](#submitting-a-pull-request)
-- [Community](#community)
+All contributions, discussions, and support happen in the **OpenMSP Slack community** — we do not use GitHub Issues or GitHub Discussions.
+
+- **Join OpenMSP Slack:** [Join here](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
+- **Community portal:** [openmsp.ai](https://www.openmsp.ai/)
+
+Before opening a pull request, please discuss your proposed change in Slack first.
 
 ---
 
-## Code of Conduct
-
-CodeWiki is part of the OpenFrame open-source ecosystem. We are committed to fostering a welcoming, inclusive community. Please be respectful in all interactions — on Slack, in pull requests, and in code reviews.
-
----
-
-## Getting Started
+## Development Setup
 
 ### Prerequisites
 
-Before contributing, make sure you have:
-
 | Tool | Minimum Version |
-|---|---|
+|------|----------------|
 | Python | 3.9+ |
-| pip | 22.0+ |
-| Git | 2.30+ |
-| Node.js | 18.0+ (optional, for VoltAgent tooling) |
-| Docker | 24.0+ (optional, for container testing) |
+| pip | 22+ |
+| Git | 2.x |
 
-### Fork and Clone
+### Clone and install
 
 ```bash
-# Fork the repository on GitHub, then clone your fork
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
-```
 
----
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate        # Linux / macOS
+# .venv\Scripts\Activate.ps1    # Windows PowerShell
 
-## Development Environment
-
-### 1. Create a Virtual Environment
-
-```bash
-python -m venv .venv
-
-# Activate on Linux / macOS
-source .venv/bin/activate
-
-# Activate on Windows PowerShell
-.venv\Scripts\Activate.ps1
-```
-
-### 2. Install in Editable Mode
-
-```bash
+# Install in editable mode
 pip install -e .
 
-# Verify the CLI is available
+# Verify installation
 codewiki --version
-# Expected: CodeWiki CLI v1.0.1
 ```
 
-### 3. Install Node.js Dependencies (Optional)
-
-Required only if working on the VoltAgent orchestration layer:
-
-```bash
-npm install
-```
-
-### 4. Configure Environment Variables
-
-Create a `.env` file in the project root. **Never commit this file.**
-
-```bash
-# .env — DO NOT COMMIT
-MAIN_API_KEY=sk-your-main-key
-FALLBACK_API_KEY=sk-your-fallback-key
-CLUSTER_API_KEY=sk-your-cluster-key
-
-MAIN_MODEL=claude-sonnet-4-5
-CLUSTER_MODEL=claude-3-haiku-20240307
-FALLBACK_MODEL=gpt-3.5-turbo
-
-LLM_BASE_URL=https://api.anthropic.com/v1
-MAX_OUTPUT_TOKENS=16384
-APP_PORT=8000
-```
-
-### 5. Configure API Keys for CLI
+### Configure LLM credentials (for testing)
 
 ```bash
 codewiki config set \
-  --cluster-api-key sk-your-key \
-  --main-api-key sk-your-key \
-  --fallback-api-key sk-your-key \
-  --cluster-base-url https://api.anthropic.com/v1 \
+  --main-model claude-sonnet-4 \
+  --main-api-key YOUR_API_KEY \
   --main-base-url https://api.anthropic.com/v1 \
-  --fallback-base-url https://api.anthropic.com/v1 \
-  --cluster-model claude-3-haiku-20240307 \
-  --main-model claude-sonnet-4-5 \
-  --fallback-model claude-3-haiku-20240307
-```
-
-### Recommended IDE: VS Code
-
-**Recommended Extensions:**
-
-| Extension | ID | Purpose |
-|---|---|---|
-| Python | `ms-python.python` | Python language support |
-| Pylance | `ms-python.vscode-pylance` | Type checking and IntelliSense |
-| Ruff | `charliermarsh.ruff` | Linter and formatter |
-| Docker | `ms-azuretools.vscode-docker` | Docker file management |
-| GitLens | `eamodio.gitlens` | Enhanced Git integration |
-| Markdown All in One | `yzhang.markdown-all-in-one` | Markdown preview |
-
-**Workspace settings (`.vscode/settings.json`):**
-
-```json
-{
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
-  },
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  },
-  "python.analysis.typeCheckingMode": "basic"
-}
+  --cluster-model claude-sonnet-4 \
+  --cluster-api-key YOUR_API_KEY \
+  --cluster-base-url https://api.anthropic.com/v1 \
+  --fallback-model claude-sonnet-4 \
+  --fallback-api-key YOUR_API_KEY \
+  --fallback-base-url https://api.anthropic.com/v1
 ```
 
 ---
@@ -150,98 +64,185 @@ codewiki config set \
 
 ```text
 CodeWiki/
-├── codewiki/                  # Main Python package
-│   ├── cli/                   # CLI commands, config, git manager
-│   │   ├── adapters/          # CLIDocumentationGenerator adapter
-│   │   ├── commands/          # Click commands: generate, config
-│   │   ├── models/            # Config and Job dataclasses
-│   │   └── utils/             # Validation, logging, errors
-│   ├── src/
-│   │   ├── be/                # Backend: agents, LLM, dependency analysis
-│   │   │   ├── agent_tools/   # pydantic-ai tool implementations
-│   │   │   ├── dependency_analyzer/  # AST parsing + graph building
-│   │   │   └── ...
-│   │   ├── fe/                # FastAPI web application
-│   │   │   ├── web_app.py     # Main FastAPI app
-│   │   │   ├── background_worker.py
-│   │   │   ├── cache_manager.py
-│   │   │   └── ...
-│   │   └── config.py          # Central Config dataclass
-│   └── run_web_app.py         # Web app startup script
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── examples/                  # Usage examples
-├── package.json               # Node.js dependencies
-└── test_*.py                  # Test files
+│
+├── codewiki/                    → Main Python package
+│   ├── cli/                     → CLI Core (commands, config, git, html)
+│   └── src/
+│       ├── be/                  → Backend (doc generator, agent orchestrator, LLM services)
+│       │   └── dependency_analyzer/  → Multi-language AST analysis
+│       └── fe/                  → Web frontend (FastAPI)
+│
+├── docker/                      → Dockerfile and docker-compose.yml
+└── examples/                    → Usage examples
+```
+
+Key files to understand:
+
+- `codewiki/src/be/documentation_generator.py` — Main orchestration engine
+- `codewiki/src/be/agent_orchestrator.py` — AI agent lifecycle
+- `codewiki/src/be/llm_services.py` — LLM provider factory
+- `codewiki/src/be/dependency_analyzer/` — Multi-language AST parsing
+- `codewiki/cli/commands/generate.py` — The `codewiki generate` command
+- `codewiki/cli/config_manager.py` — Configuration and keyring management
+
+---
+
+## Code Style
+
+CodeWiki follows standard Python conventions:
+
+- **PEP 8** style guidelines
+- **88-character** line length (Ruff/Black defaults)
+- Type annotations encouraged for all function signatures
+- Standard Python docstring format
+
+### Linting and formatting
+
+```bash
+# Install ruff
+pip install ruff
+
+# Lint
+ruff check codewiki/
+
+# Auto-fix
+ruff check --fix codewiki/
+
+# Format
+ruff format codewiki/
+```
+
+### Recommended VS Code extensions
+
+| Extension | Purpose |
+|-----------|---------|
+| `ms-python.python` | Python language support |
+| `ms-python.vscode-pylance` | Type checking and IntelliSense |
+| `charliermarsh.ruff` | Linting and formatting |
+| `bierner.markdown-mermaid` | Mermaid diagram preview |
+
+---
+
+## Making Changes
+
+### Working on CLI commands
+
+CLI commands are in `codewiki/cli/commands/`:
+
+- `generate.py` — The `codewiki generate` command
+- `config.py` — The `codewiki config` command group
+
+The editable install (`pip install -e .`) picks up changes immediately — no reinstall needed.
+
+```bash
+codewiki generate --help
+```
+
+### Working on backend logic
+
+Core backend files:
+
+- `codewiki/src/be/documentation_generator.py` — Main orchestration
+- `codewiki/src/be/agent_orchestrator.py` — AI agent lifecycle
+- `codewiki/src/be/llm_services.py` — LLM provider factory
+- `codewiki/src/be/cluster_modules.py` — Module clustering
+
+### Working on language analyzers
+
+Analyzer files follow a per-language pattern:
+
+```text
+codewiki/src/be/dependency_analyzer/analyzers/
+├── python.py       ← PythonASTAnalyzer
+├── javascript.py   ← TreeSitterJSAnalyzer
+├── typescript.py   ← TreeSitterTSAnalyzer
+├── java.py         ← TreeSitterJavaAnalyzer
+├── csharp.py       ← TreeSitterCSharpAnalyzer
+├── c.py            ← TreeSitterCAnalyzer
+├── cpp.py          ← TreeSitterCppAnalyzer
+└── php.py          ← TreeSitterPHPAnalyzer
+```
+
+### Running the web app locally
+
+```bash
+# Create a .env file in the project root
+MAIN_MODEL=claude-sonnet-4
+LLM_BASE_URL=https://api.anthropic.com/v1
+MAIN_API_KEY=your_dev_api_key
+
+# Start with hot reload
+python -m codewiki.run_web_app --reload
+```
+
+The app starts at `http://localhost:8000`.
+
+---
+
+## Docker Development
+
+For fully containerized local testing:
+
+```bash
+# Build the Docker image
+docker build -f docker/Dockerfile -t codewiki:0.0.1 .
+
+# Create the Docker network
+docker network create codewiki-network
+
+# Create output directory
+mkdir -p output
+
+# Start with Docker Compose
+cd docker
+docker-compose up
+```
+
+Stop the service:
+
+```bash
+docker-compose down
 ```
 
 ---
 
-## Development Workflow
+## Debugging
 
-### Running the CLI Locally
+### CLI verbose mode
 
 ```bash
-# Generate docs for the CodeWiki repo itself (a great "hello world" test)
-codewiki generate --output ./docs --doc-type architecture
-
-# Verbose mode — see detailed logs including LLM requests
 codewiki generate --verbose
 ```
 
-### Running the Web App Locally
+### Web app debug mode
 
 ```bash
-# Default: http://127.0.0.1:8000
-python codewiki/run_web_app.py
-
-# With hot reload and debug output
-python -m codewiki.src.fe.web_app --host 0.0.0.0 --port 8080 --reload --debug
+python -m codewiki.run_web_app --debug --reload
 ```
 
-### Running with Docker Compose
-
-```bash
-cp .env.example .env
-# Edit .env with your keys
-
-cd docker
-docker compose up --build
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
-```
-
-### VS Code Debugger
-
-Add to `.vscode/launch.json`:
+### VS Code launch configuration
 
 ```json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "CodeWiki CLI Generate",
+      "name": "CodeWiki CLI",
       "type": "debugpy",
       "request": "launch",
-      "module": "codewiki.cli.main",
-      "args": ["generate", "--output", "./docs", "--doc-type", "architecture"],
-      "cwd": "${workspaceFolder}",
+      "module": "codewiki",
+      "args": ["generate", "--output", "/tmp/test-docs"],
+      "cwd": "/path/to/some-repo",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
-      },
-      "justMyCode": false
+      }
     },
     {
       "name": "CodeWiki Web App",
       "type": "debugpy",
       "request": "launch",
-      "module": "codewiki.src.fe.web_app",
-      "args": ["--host", "127.0.0.1", "--port", "8000", "--debug"],
+      "module": "codewiki.run_web_app",
+      "args": ["--reload", "--debug"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env"
     }
@@ -251,116 +252,37 @@ Add to `.vscode/launch.json`:
 
 ---
 
-## Code Style
+## Pull Request Guidelines
 
-CodeWiki uses **Ruff** for linting and formatting.
-
-```bash
-# Install ruff
-pip install ruff
-
-# Lint all files
-ruff check .
-
-# Auto-fix fixable issues
-ruff check --fix .
-
-# Format code
-ruff format .
-```
-
-### Pre-commit Hooks (Recommended)
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-Create `.pre-commit-config.yaml` if it doesn't exist:
-
-```yaml
-repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.0
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-```
-
-### Development Philosophy
-
-Please follow these principles when writing code for CodeWiki:
-
-1. **Idempotent outputs** — Re-running documentation generation must always be safe. Existing files should be skipped.
-2. **Leaf-first processing** — Child modules must be documented before parents so overviews are accurate.
-3. **Provider-agnostic LLM** — All model interactions go through OpenAI-compatible APIs. No provider lock-in.
-4. **Security by default** — File reads must use path traversal guards. API keys stay in the system keychain, never in plain text.
-5. **Separation of concerns** — CLI, web app, and backend must remain clearly separated. `DocumentationGenerator` should have no CLI or web-app dependencies.
+1. **Discuss first** — Open a thread in [OpenMSP Slack](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA) before starting large changes
+2. **One concern per PR** — Keep pull requests focused and minimal
+3. **Follow code style** — Run `ruff check` and `ruff format` before submitting
+4. **Test your change** — Run `codewiki generate` against a real repository to verify end-to-end behaviour
+5. **Describe your change** — Write a clear PR description explaining what changed and why
+6. **Keep secrets out** — Never commit API keys, `.env` files, or credentials
 
 ---
 
-## Submitting a Pull Request
+## Security
 
-1. **Create a feature branch** from `main`:
-
-```bash
-git checkout -b feat/your-feature-name
-```
-
-2. **Make your changes** — follow the code style guidelines above.
-
-3. **Test your changes** — run the CLI against a real repository and confirm output is correct.
-
-4. **Lint before pushing**:
-
-```bash
-ruff check --fix .
-ruff format .
-```
-
-5. **Commit with a clear message**:
-
-```bash
-git commit -m "feat: add support for Rust language analysis"
-```
-
-6. **Push and open a Pull Request** on GitHub:
-
-```bash
-git push origin feat/your-feature-name
-```
-
-Then open a PR at [https://github.com/flamingo-stack/CodeWiki/pulls](https://github.com/flamingo-stack/CodeWiki/pulls).
-
-### PR Guidelines
-
-- Keep PRs focused — one feature or fix per PR
-- Include a clear description of what changed and why
-- Reference any related Slack discussion if applicable
-- Ensure the CLI still works end-to-end before requesting review
+- **API keys** are stored in the OS keychain via the `keyring` library — never in any file
+- **Never commit** `.env` files, API keys, or any credentials to the repository
+- `.env` must be listed in `.gitignore`
 
 ---
 
-## Troubleshooting
+## Architecture Reference
 
-| Issue | Likely Cause | Fix |
-|---|---|---|
-| `codewiki: command not found` | Package not installed | Run `pip install -e .` |
-| `ConfigurationError: API key not found` | Keys not set | Run `codewiki config set --main-api-key ...` |
-| `RepositoryError: Not a git repository` | Running outside a git repo | Run `git init` or navigate to a git repo |
-| Port 8000 already in use | Another process using the port | Use `--port 8080` or stop the conflicting process |
+Before making significant changes, review the architecture documentation:
+
+- [Architecture Overview](./docs/development/architecture/README.md)
+- [Full Reference Documentation](./docs/README.md)
 
 ---
 
-## Community
+## License
 
-All support, questions, and discussion happen on **Slack** — not GitHub Issues.
-
-- 💬 **Join OpenMSP Slack**: [https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
-- 🌐 **Community Hub**: [https://www.openmsp.ai/](https://www.openmsp.ai/)
-- 🦩 **Flamingo**: [https://flamingo.run](https://flamingo.run)
-- 🖥️ **OpenFrame**: [https://openframe.ai](https://openframe.ai)
+By contributing to CodeWiki, you agree that your contributions will be licensed under the same license as the project. See [LICENSE.md](./LICENSE.md) for details.
 
 ---
 
