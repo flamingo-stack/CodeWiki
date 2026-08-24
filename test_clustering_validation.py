@@ -6,14 +6,61 @@ Tests the new json.loads() + validation code with various invalid inputs.
 
 import json
 import logging
+import sys
+import os
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "codewiki", "src", "be"))
+
+from cluster_modules import validate_cluster_response
+
+
+class TestResults:
+    """Accumulates test results and prints a summary."""
+
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.failures = []
+
+    def add_test(self, name: str, passed: bool, details: str = ""):
+        if passed:
+            self.passed += 1
+            logger.info(f"✅ TEST PASSED: {name}")
+        else:
+            self.failed += 1
+            self.failures.append((name, details))
+            logger.error(f"❌ TEST FAILED: {name} {details}")
+
+    def print_summary(self):
+        total = self.passed + self.failed
+        print("\n" + "="*70)
+        print("TEST SUMMARY")
+        print("="*70)
+        print(f"Total tests: {total}")
+        print(f"✅ Passed: {self.passed}")
+        print(f"❌ Failed: {self.failed}")
+        if total:
+            print(f"Success rate: {self.passed/total*100:.1f}%")
+
+        if self.failed == 0:
+            print("\n🎉 ALL TESTS PASSED! Validation logic is working correctly.")
+        else:
+            print(f"\n⚠️  {self.failed} test(s) failed. Please review the validation logic.")
+            for name, details in self.failures:
+                print(f"   - {name}: {details}")
+
+    @property
+    def success(self):
+        return self.failed == 0
+
+
 def simulate_validation(response_content: str, max_id: int):
     """
-    Simulates the validation logic from cluster_modules.py (lines 338-369)
+    Exercises the real validation logic from cluster_modules.py.
 
     Args:
         response_content: JSON string with component IDs
@@ -26,44 +73,14 @@ def simulate_validation(response_content: str, max_id: int):
     logger.info(f"Testing response with max_id={max_id}")
     logger.info(f"Response: {response_content[:200]}")
 
-    # Parse JSON safely (no code execution)
-    try:
-        module_tree = json.loads(response_content)
-        logger.info(f"✅ JSON parsing succeeded")
-    except json.JSONDecodeError as e:
-        logger.error(f"❌ Invalid JSON in LLM response: {e}")
-        logger.error(f"Response excerpt: {response_content[:500]}...")
-        return (False, None)
+    success, module_tree = validate_cluster_response(response_content, max_id)
 
-    if not isinstance(module_tree, dict):
-        logger.error(f"❌ Invalid module tree format - expected dict, got {type(module_tree)}")
-        return (False, None)
+    if success:
+        logger.info(f"✅ LLM response validation passed: All IDs are integers in valid range")
+    else:
+        logger.error(f"❌ LLM response validation failed")
 
-    # CRITICAL: Validate all component IDs are integers
-    for module_name, module_info in module_tree.items():
-        if "components" not in module_info:
-            continue
-
-        component_ids = module_info["components"]
-        invalid_ids = []
-
-        for comp_id in component_ids:
-            # Check if ID is an integer
-            if not isinstance(comp_id, int):
-                invalid_ids.append(f"{comp_id} (type: {type(comp_id).__name__})")
-            # Check if ID is in valid range
-            elif comp_id < 0 or comp_id > max_id:
-                invalid_ids.append(f"{comp_id} (out of range 0-{max_id})")
-
-        if invalid_ids:
-            logger.error(f"❌ Module '{module_name}' contains invalid component IDs:")
-            logger.error(f"   Invalid IDs: {invalid_ids}")
-            logger.error(f"   Expected: Integers in range 0-{max_id}")
-            logger.error(f"   LLM ignored instructions and returned non-integer IDs!")
-            return (False, None)
-
-    logger.info(f"✅ LLM response validation passed: All IDs are integers in valid range")
-    return (True, module_tree)
+    return (success, module_tree)
 
 
 # Test cases
@@ -136,8 +153,7 @@ def run_tests():
     print("CODEWIKI CLUSTERING VALIDATION TEST SUITE")
     print("="*70)
 
-    passed = 0
-    failed = 0
+    results = TestResults()
 
     for i, test_case in enumerate(test_cases, 1):
         print(f"\n{'='*70}")
@@ -149,28 +165,15 @@ def run_tests():
             test_case['max_id']
         )
 
-        if success == test_case['should_pass']:
-            logger.info(f"✅ TEST PASSED: Got expected result (success={success})")
-            passed += 1
-        else:
-            logger.error(f"❌ TEST FAILED: Expected {test_case['should_pass']}, got {success}")
-            failed += 1
+        results.add_test(
+            test_case['name'],
+            success == test_case['should_pass'],
+            f"(expected {test_case['should_pass']}, got {success})"
+        )
 
-    # Summary
-    print("\n" + "="*70)
-    print("TEST SUMMARY")
-    print("="*70)
-    print(f"Total tests: {len(test_cases)}")
-    print(f"✅ Passed: {passed}")
-    print(f"❌ Failed: {failed}")
-    print(f"Success rate: {passed/len(test_cases)*100:.1f}%")
+    results.print_summary()
 
-    if failed == 0:
-        print("\n🎉 ALL TESTS PASSED! Validation logic is working correctly.")
-    else:
-        print(f"\n⚠️  {failed} test(s) failed. Please review the validation logic.")
-
-    return failed == 0
+    return results.success
 
 if __name__ == "__main__":
     success = run_tests()
