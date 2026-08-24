@@ -231,13 +231,16 @@ class CallGraphAnalyzer:
         """
         from codewiki.src.be.dependency_analyzer.analyzers.c import analyze_c_file
 
-        functions, relationships = analyze_c_file(file_path, content, repo_path=repo_dir)
+        try:
+            functions, relationships = analyze_c_file(file_path, content, repo_path=repo_dir)
 
-        for func in functions:
-            func_id = func.id if func.id else f"{file_path}:{func.name}"
-            self.functions[func_id] = func
+            for func in functions:
+                func_id = func.id if func.id else f"{file_path}:{func.name}"
+                self.functions[func_id] = func
 
-        self.call_relationships.extend(relationships)
+            self.call_relationships.extend(relationships)
+        except Exception as e:
+            logger.error(f"Failed to analyze C file {file_path}: {e}", exc_info=True)
 
     def _analyze_cpp_file(self, file_path: str, content: str, repo_dir: str):
         """
@@ -249,15 +252,18 @@ class CallGraphAnalyzer:
         """
         from codewiki.src.be.dependency_analyzer.analyzers.cpp import analyze_cpp_file
 
-        functions, relationships = analyze_cpp_file(
-            file_path, content, repo_path=repo_dir
-        )
+        try:
+            functions, relationships = analyze_cpp_file(
+                file_path, content, repo_path=repo_dir
+            )
 
-        for func in functions:
-            func_id = func.id if func.id else f"{file_path}:{func.name}"
-            self.functions[func_id] = func
+            for func in functions:
+                func_id = func.id if func.id else f"{file_path}:{func.name}"
+                self.functions[func_id] = func
 
-        self.call_relationships.extend(relationships)
+            self.call_relationships.extend(relationships)
+        except Exception as e:
+            logger.error(f"Failed to analyze C++ file {file_path}: {e}", exc_info=True)
 
     def _analyze_java_file(self, file_path: str, content: str, repo_dir: str):
         """
