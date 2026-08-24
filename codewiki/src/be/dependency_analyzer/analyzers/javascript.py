@@ -1,3 +1,12 @@
+"""Tree-sitter based dependency analyzer for JavaScript and TypeScript source files.
+
+This module parses JS/TS files using tree-sitter grammars to extract top-level
+components (classes, interfaces, functions, methods) as Node objects and to
+detect call/inheritance/type relationships between them as CallRelationship
+objects. It is used as part of the dependency-analysis pipeline to build the
+project-wide dependency graph.
+"""
+
 import logging
 import os
 import traceback
@@ -97,11 +106,11 @@ class TreeSitterJSAnalyzer:
         module_path = self._get_module_path()
         
         if is_method and class_name:
-            return f"{module_path}.{class_name}.{name}"
+            return f"{module_path}::{class_name}.{name}"
         elif class_name and not is_method: 
-            return f"{module_path}.{name}"
+            return f"{module_path}::{name}"
         else:  
-            return f"{module_path}.{name}"
+            return f"{module_path}::{name}"
 
     def _find_containing_class(self, node) -> Optional[str]:
         parent = node.parent
