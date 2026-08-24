@@ -47,11 +47,43 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-# Test repo
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
 
-# Create config
-config = Config(
+class TestResults:
+    """Accumulates test results and reports a summary with a non-zero exit on failure."""
+
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, details=""):
+        self.tests.append((name, passed, details))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("TEST SUMMARY")
+        print("=" * 80)
+        failed = 0
+        for name, passed, details in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {name}")
+            if details:
+                print(f"   {details}")
+            if not passed:
+                failed += 1
+        print("=" * 80)
+        print(f"Total: {len(self.tests)}, Passed: {len(self.tests) - failed}, Failed: {failed}")
+        return failed == 0
+
+
+results = TestResults()
+
+# Test repo (portable: env var override, else a relative fixture path)
+test_repo = os.getenv(
+    "CODEWIKI_TEST_REPO",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "sample_repo")
+)
+
+# Create config via factory (not direct construction) to satisfy validation/env-resolution
+config = Config.from_args(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",
@@ -111,10 +143,17 @@ if captured_response:
 
 # Show result
 if len(module_tree) == 0:
-    print("\n❌ FAILED: Empty module tree")
+    details = "Empty module tree"
     if captured_response:
         has_tags = "<GROUPED_COMPONENTS>" in captured_response
-        print(f"   Has <GROUPED_COMPONENTS> tag: {has_tags}")
+        details += f"; Has <GROUPED_COMPONENTS> tag: {has_tags}"
+    results.add_test("clustering produces non-empty module tree", False, details)
 else:
-    print(f"\n✅ SUCCESS: {len(module_tree)} modules created")
-    print(json.dumps(module_tree, indent=2, default=str))
+    results.add_test(
+        "clustering produces non-empty module tree",
+        True,
+        f"{len(module_tree)} modules created:\n{json.dumps(module_tree, indent=2, default=str)}"
+    )
+
+success = results.print_summary()
+sys.exit(0 if success else 1)
