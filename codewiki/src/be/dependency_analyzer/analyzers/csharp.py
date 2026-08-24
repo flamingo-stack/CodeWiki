@@ -1,3 +1,9 @@
+"""C# source analyzer using tree-sitter for extracting components and call relationships.
+
+This module parses C# source files with tree-sitter-c-sharp to identify
+top-level components (classes, interfaces, structs, enums, records, delegates)
+and derive call relationships between them for dependency analysis.
+"""
 import logging
 from typing import List, Optional, Tuple
 from pathlib import Path
@@ -45,7 +51,7 @@ class TreeSitterCSharpAnalyzer:
 	
 	def _get_component_id(self, name: str) -> str:
 		module_path = self._get_module_path()
-		return f"{module_path}.{name}" if module_path else name
+		return f"{module_path}::{name}" if module_path else name
 
 	def _analyze(self):
 		language_capsule = tree_sitter_c_sharp.language()
@@ -294,4 +300,5 @@ class TreeSitterCSharpAnalyzer:
 def analyze_csharp_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
 	analyzer = TreeSitterCSharpAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+
 
