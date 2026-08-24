@@ -18,10 +18,10 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
 # Test repo
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv("TEST_REPO_PATH", os.path.join(os.getcwd(), "test_repo"))
 
 # Create simple config with all required fields
-config = Config(
+config = Config.from_args(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",
@@ -106,3 +106,4 @@ else:
         comp_count = len(module_info.get("components", []))
         print(f"   - {module_name}: {comp_count} components")
     sys.exit(0)
+
