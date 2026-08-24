@@ -1,3 +1,18 @@
+"""Configuration module for CodeWiki.
+
+This module defines the central `Config` dataclass used throughout the
+CodeWiki documentation-generation pipeline. It encapsulates repository
+paths, output directories, LLM provider settings (models, API keys, base
+URLs, temperatures, and token limits), and agent instruction customization
+(include/exclude patterns, focus modules, doc type, custom instructions).
+
+It also provides constructors for building a `Config` instance from CLI
+arguments (`from_args`), from explicit CLI parameters (`from_cli`), and
+from a `ConfigManager` (`from_config_manager`), along with helpers for
+multi-path source validation and prompt-addition generation used by the
+downstream documentation generation stages.
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 import argparse
