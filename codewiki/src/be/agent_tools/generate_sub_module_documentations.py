@@ -1,3 +1,21 @@
+"""Sub-module documentation generation pipeline step.
+
+This module implements the recursive agent-dispatch tool used by CodeWiki to
+split a module into smaller sub-modules and generate documentation for each
+one. It is responsible for:
+
+- Normalizing the component identifiers returned by the LLM (which may be
+  either FQDN strings or integer IDs from the ID-based clustering system)
+  into canonical FQDNs that exist in ``deps.components``.
+- Updating the in-memory module tree with the newly created sub-modules.
+- Spawning nested ``pydantic_ai`` agents (leaf or non-leaf, depending on
+  module complexity and depth) to recursively generate documentation for
+  each sub-module.
+
+It is exposed to the top-level documentation agent as
+``generate_sub_module_documentation_tool``.
+"""
+
 from pydantic_ai import RunContext, Tool, Agent
 from pydantic_ai.usage import UsageLimits
 
@@ -7,7 +25,7 @@ from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_to
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
-from codewiki.src.be.cluster_modules import format_potential_core_components
+from codewiki.src.be.cluster_modules import format_potential_core_components, normalize_component_ids_by_lookup
 
 import logging
 logger = logging.getLogger(__name__)
@@ -40,45 +58,9 @@ async def generate_sub_module_documentation(
     # This returns (str1, str2, id_to_fqdn, id_descriptions) but we only need id_to_fqdn
     _, _, id_to_fqdn, _ = format_potential_core_components(all_component_ids, deps.components)
 
-    normalized_specs = {}
-    total_normalized = 0
-    total_failed = 0
-
-    for sub_module_name, component_ids in sub_module_specs.items():
-        normalized_ids = []
-        for comp_id in component_ids:
-            # Try exact FQDN match first (component_ids might already be FQDNs)
-            if comp_id in deps.components:
-                normalized_ids.append(comp_id)
-            # Try converting integer ID to FQDN (ID-based system)
-            else:
-                try:
-                    # LLM should return integer IDs
-                    idx = int(comp_id)
-                    if idx in id_to_fqdn:
-                        fqdn = id_to_fqdn[idx]
-                        normalized_ids.append(fqdn)
-                        total_normalized += 1
-                        logger.debug(f"   ✅ Normalized ID {idx} → '{fqdn}'")
-                    else:
-                        logger.warning(
-                            f"   ⚠️  Failed to normalize ID {idx} in sub-module '{sub_module_name}'\n"
-                            f"      ├─ ID out of range (valid: 0-{len(id_to_fqdn)-1})\n"
-                            f"      └─ LLM returned invalid integer ID"
-                        )
-                        total_failed += 1
-                except (ValueError, TypeError):
-                    # comp_id is not an integer - likely a class name (LLM ignored instructions)
-                    similar_fqdns = [fqdn for fqdn in deps.components.keys() if str(comp_id).lower() in fqdn.lower()][:5]
-                    logger.warning(
-                        f"   ⚠️  Failed to normalize '{comp_id}' in sub-module '{sub_module_name}'\n"
-                        f"      ├─ Not an integer ID (type: {type(comp_id).__name__})\n"
-                        f"      ├─ LLM returned class name instead of integer ID\n"
-                        f"      └─ FQDNs containing '{comp_id}': {similar_fqdns if similar_fqdns else 'None found'}"
-                    )
-                    total_failed += 1
-
-        normalized_specs[sub_module_name] = normalized_ids
+    normalized_specs, total_normalized, total_failed = normalize_component_ids_by_lookup(
+        sub_module_specs, deps.components, id_to_fqdn
+    )
 
     if total_normalized > 0:
         logger.info(f"   ✅ Normalized {total_normalized} integer IDs to FQDNs")
@@ -172,28 +154,22 @@ generate_sub_module_documentation_tool = Tool(
     description="""Generate detailed documentation for sub-modules by grouping related components.
 
 CRITICAL FORMAT REQUIREMENTS:
-- Use the EXACT component identifiers as shown in the <CORE_COMPONENT_CODES> section
+- Use the EXACT integer component IDs as shown in the <CORE_COMPONENT_CODES> section
 - DO NOT extract just class names (e.g., "AuthService", "ApiApplicationConfig")
-- Use the COMPLETE identifiers like: "main-repo.src/services/auth.py::AuthService"
+- DO NOT invent full FQDN strings; use the integer IDs assigned to each component
 
 Example CORRECT format:
 {
-    "Authentication": [
-        "main-repo.src/services/auth.py::AuthService",
-        "main-repo.src/services/auth.py::LoginController"
-    ],
-    "Configuration": [
-        "main-repo.src/config/api.py::ApiApplicationConfig",
-        "main-repo.src/config/security.py::SecurityConfig"
-    ]
+    "Authentication": [0, 1],
+    "Configuration": [2, 3]
 }
 
 Example WRONG format (DO NOT USE):
 {
     "Authentication": ["AuthService", "LoginController"],  # ❌ Class names only
-    "Configuration": ["ApiApplicationConfig"]              # ❌ Missing full path
+    "Configuration": ["main-repo.src/config/api.py::ApiApplicationConfig"]  # ❌ Full FQDN string instead of integer ID
 }
 
-The component identifiers must match exactly what appears in <CORE_COMPONENT_CODES>.""",
+The integer IDs must match exactly what appears in <CORE_COMPONENT_CODES>.""",
     takes_ctx=True
 )
