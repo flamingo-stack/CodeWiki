@@ -1,3 +1,13 @@
+"""Agent orchestration for documentation generation.
+
+This module defines AgentOrchestrator, the component responsible for
+creating and running pydantic_ai agents that generate documentation for
+modules discovered in a repository. It selects agent configurations based
+on module complexity, wires up the required tools and dependencies, and
+drives the per-module documentation generation pipeline (loading/saving the
+module tree, invoking the agent, and persisting generated docs).
+"""
+
 from pydantic_ai import Agent
 from pydantic_ai.usage import UsageLimits
 # import logfire
@@ -61,9 +71,6 @@ class AgentOrchestrator:
     """Orchestrates the AI agents for documentation generation."""
 
     def __init__(self, config: Config):
-        import logging
-        logger = logging.getLogger(__name__)
-
         self.config = config
         self.fallback_models = create_fallback_models(config)
         self.custom_instructions = config.get_prompt_addition() if config else None
