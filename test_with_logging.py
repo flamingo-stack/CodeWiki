@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-import logging
-
-# Setup logging FIRST
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s',
-    force=True
-)
 
 # Add CodeWiki to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,13 +11,17 @@ load_dotenv('.env.local')
 
 from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
+from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
 from codewiki.src.config import Config
 
+# Setup logging FIRST
+setup_logging()
+
 # Test repo
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
 # Create config
-config = Config(
+config = Config.from_args(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",
@@ -82,3 +78,4 @@ else:
     print(f"✅ SUCCESS: {len(module_tree)} modules created")
     for name, info in module_tree.items():
         print(f"   - {name}: {len(info.get('components', []))} components")
+
