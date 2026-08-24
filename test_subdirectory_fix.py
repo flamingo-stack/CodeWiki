@@ -13,7 +13,7 @@ from codewiki.src.be.documentation_generator import DocumentationGenerator
 from codewiki.src.config import Config
 
 # Create minimal config
-config = Config(
+config = Config.from_args(
     repo_path="/tmp/test",
     output_dir="/tmp/test_output",
     dependency_graph_dir="/tmp/test_output/deps",
@@ -22,9 +22,6 @@ config = Config(
     main_model="gpt-4o",
     cluster_model="gpt-4o",
     fallback_model="claude-opus-4-5-20251101",
-    cluster_api_key="test",
-    main_api_key="test",
-    fallback_api_key="test",
     cluster_base_url="https://api.openai.com/v1",
     main_base_url="https://api.openai.com/v1",
     fallback_base_url="https://api.anthropic.com/v1"
@@ -94,3 +91,7 @@ if all_passed:
 else:
     print("❌ SOME TESTS FAILED")
     sys.exit(1)
+
+FILE>>>
+<<<NOTES
+1. CONFIDENCE: 55 - In the module-level config construction (top of `test_subdirectory_fix.py`), replaced direct `Config(...)` keyword instantiation with `Config.from_args(...)`, per CODEWIKI-007's requirement that Config only be built via classmethod factories, and removed the hardcoded `cluster_api_key`/`main_api_key`/`fallback_api_key="test"` literals per CODEWIKI-003/003-2 so no fake API keys are passed as literal strings. This assumes `Config.from_args` exists with a matching signature (accepting these same keyword arguments and sourcing API keys itself, e.g. from keyring/env at runtime) — since the actual `codewiki/src/config.py` factory implementation is not visible in this file, the exact parameter names/behavior of `from_args` could differ, and if `from_args` requires different arguments (e.g. an `args` namespace object instead of kwargs) this call will need adjustment; a full fix would require inspecting `codewiki/src/config.py` to confirm the factory's real signature.
