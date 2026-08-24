@@ -44,6 +44,40 @@ class LLMConfig:
     base_url: str
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Coerce a value to int, falling back to default on failure."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    """Coerce a value to bool, falling back to default on failure."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    try:
+        return bool(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_str(value: Any, default: Optional[str] = None) -> Optional[str]:
+    """Coerce a value to str, falling back to default on failure."""
+    if value is None:
+        return default
+    try:
+        return str(value)
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class DocumentationJob:
     """
@@ -100,6 +134,30 @@ class DocumentationJob:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
+        generation_options_dict = {
+            "create_branch": self.generation_options.create_branch,
+            "github_pages": self.generation_options.github_pages,
+            "no_cache": self.generation_options.no_cache,
+        }
+        if self.generation_options.custom_output is not None:
+            generation_options_dict["custom_output"] = self.generation_options.custom_output
+        
+        if self.llm_config:
+            llm_config_dict = {
+                "main_model": self.llm_config.main_model,
+                "cluster_model": self.llm_config.cluster_model,
+                "base_url": self.llm_config.base_url,
+            }
+        else:
+            llm_config_dict = None
+        
+        statistics_dict = {
+            "total_files_analyzed": self.statistics.total_files_analyzed,
+            "leaf_nodes": self.statistics.leaf_nodes,
+            "max_depth": self.statistics.max_depth,
+            "total_tokens_used": self.statistics.total_tokens_used,
+        }
+        
         data = {
             "job_id": self.job_id,
             "repository_path": self.repository_path,
@@ -113,9 +171,9 @@ class DocumentationJob:
             "error_message": self.error_message,
             "files_generated": self.files_generated,
             "module_count": self.module_count,
-            "generation_options": asdict(self.generation_options),
-            "llm_config": asdict(self.llm_config) if self.llm_config else None,
-            "statistics": asdict(self.statistics),
+            "generation_options": generation_options_dict,
+            "llm_config": llm_config_dict,
+            "statistics": statistics_dict,
         }
         return data
     
@@ -138,19 +196,35 @@ class DocumentationJob:
             status=JobStatus(data.get('status', 'pending')),
             error_message=data.get('error_message'),
             files_generated=data.get('files_generated', []),
-            module_count=data.get('module_count', 0),
+            module_count=_coerce_int(data.get('module_count', 0)),
         )
         
         # Parse nested objects
         if 'generation_options' in data:
             opts = data['generation_options']
-            job.generation_options = GenerationOptions(**opts)
+            job.generation_options = GenerationOptions(
+                create_branch=_coerce_bool(opts.get('create_branch', False)),
+                github_pages=_coerce_bool(opts.get('github_pages', False)),
+                no_cache=_coerce_bool(opts.get('no_cache', False)),
+                custom_output=_coerce_str(opts.get('custom_output')),
+            )
         
         if 'llm_config' in data and data['llm_config']:
-            job.llm_config = LLMConfig(**data['llm_config'])
+            llm_cfg = data['llm_config']
+            job.llm_config = LLMConfig(
+                main_model=_coerce_str(llm_cfg.get('main_model'), ''),
+                cluster_model=_coerce_str(llm_cfg.get('cluster_model'), ''),
+                base_url=_coerce_str(llm_cfg.get('base_url'), ''),
+            )
         
         if 'statistics' in data:
-            job.statistics = JobStatistics(**data['statistics'])
+            stats = data['statistics']
+            job.statistics = JobStatistics(
+                total_files_analyzed=_coerce_int(stats.get('total_files_analyzed', 0)),
+                leaf_nodes=_coerce_int(stats.get('leaf_nodes', 0)),
+                max_depth=_coerce_int(stats.get('max_depth', 0)),
+                total_tokens_used=_coerce_int(stats.get('total_tokens_used', 0)),
+            )
         
         return job
 
