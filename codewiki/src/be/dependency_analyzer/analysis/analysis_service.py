@@ -252,18 +252,6 @@ class AnalysisService:
 
     def _read_readme_file(self, repo_dir: str) -> Optional[str]:
         """Find and read the README file from the repository root."""
-        # possible_readme_names = ["README.md", "README", "readme.md", "README.txt"]
-        # for name in possible_readme_names:
-        #     readme_path = Path(repo_dir) / name
-        #     if readme_path.exists():
-        #         try:
-        #             logger.debug(f"Found README file at {readme_path}")
-        #             return readme_path.read_text(encoding="utf-8")
-        #         except Exception as e:
-        #             logger.warning(f"Could not read README file at {readme_path}: {e}")
-        #             return None
-        # logger.debug("No README file found in repository root.")
-        # return None
         base = Path(repo_dir)
         possible_readme_names = ["README.md", "README", "readme.md", "README.txt"]
         for name in possible_readme_names:
@@ -396,3 +384,4 @@ def analyze_repository_structure_only(
         github_url, include_patterns, exclude_patterns
     )
     return result, None
+
