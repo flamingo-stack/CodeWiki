@@ -16,9 +16,9 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
-config = Config(
+config = Config.from_args(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
     docs_dir="/tmp/test/docs", max_depth=2,
     main_model=os.getenv("MAIN_MODEL", "gpt-4o"),
@@ -62,3 +62,4 @@ else:
     for name, info in module_tree.items():
         print(f"   - {name}: {len(info.get('components', []))} components")
     sys.exit(0)
+
