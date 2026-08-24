@@ -1,3 +1,11 @@
+"""C++ dependency analyzer using tree-sitter.
+
+This module implements a tree-sitter based analyzer for C++ source files.
+It extracts top-level components (classes, structs, functions, methods,
+namespaces and global variables) as `Node` objects and detects relationships
+between them (calls, inheritance, instantiation and usage) as
+`CallRelationship` objects, for use by the dependency analysis pipeline.
+"""
 import logging
 from typing import List, Optional, Tuple
 from pathlib import Path
@@ -46,8 +54,8 @@ class TreeSitterCppAnalyzer:
 	def _get_component_id(self, name: str, parent_class: str = None) -> str:
 		module_path = self._get_module_path()
 		if parent_class:
-			return f"{module_path}.{parent_class}.{name}" if module_path else f"{parent_class}.{name}"
-		return f"{module_path}.{name}" if module_path else name
+			return f"{module_path}::{parent_class}.{name}" if module_path else f"{parent_class}.{name}"
+		return f"{module_path}::{name}" if module_path else name
 
 	def _analyze(self):
 		language_capsule = tree_sitter_cpp.language()
@@ -366,3 +374,4 @@ class TreeSitterCppAnalyzer:
 def analyze_cpp_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
 	analyzer = TreeSitterCppAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+
