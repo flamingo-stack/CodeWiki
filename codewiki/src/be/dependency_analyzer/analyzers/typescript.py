@@ -1,3 +1,13 @@
+"""TypeScript dependency analyzer built on tree-sitter.
+
+This module parses TypeScript/TSX source files using the `tree_sitter_typescript`
+grammar to extract top-level declarations (functions, classes, interfaces,
+type aliases, enums, variables, etc.) as `Node` objects and to infer call,
+instantiation, member-access, type-usage, and inheritance relationships
+between them as `CallRelationship` objects. It is invoked by the dependency
+analysis pipeline for `.ts`/`.tsx` files to build the project's dependency
+graph.
+"""
 import logging
 import os
 import traceback
@@ -199,6 +209,7 @@ class TreeSitterTSAnalyzer:
             if node.parent.parent and node.parent.parent.type in ["module", "ambient_declaration"]:
                 return "module_block"
             return "statement_block"
+        return "unknown"
     def _extract_function_entity(self, node, func_type: str, depth: int) -> dict:
         name_node = self._find_child_by_type(node, "identifier")
         if not name_node:
