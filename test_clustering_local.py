@@ -18,27 +18,54 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-def test_clustering():
+
+class TestResults:
+    """Simple pass/fail accumulator for standalone integration test scripts."""
+
+    def __init__(self):
+        self.results = []
+
+    def add_test(self, name, passed, message=""):
+        self.results.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("📊 TEST SUMMARY")
+        print("=" * 80)
+        for name, passed, message in self.results:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status} - {name}" + (f": {message}" if message else ""))
+        total = len(self.results)
+        passed_count = sum(1 for _, passed, _ in self.results if passed)
+        print(f"\n{passed_count}/{total} tests passed")
+        return passed_count == total
+
+def test_clustering(results):
     """Test clustering on a small sample to verify prompt fix."""
 
     print("=" * 80)
     print("🧪 TESTING CODEWIKI CLUSTERING LOCALLY")
     print("=" * 80)
 
-    # Setup test repo path
-    test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+    # Setup test repo path (override with CODEWIKI_TEST_REPO env var)
+    test_repo = os.getenv("CODEWIKI_TEST_REPO")
 
-    if not os.path.exists(test_repo):
+    if not test_repo or not os.path.exists(test_repo):
         print(f"❌ Test repo not found: {test_repo}")
-        print("   Update test_repo variable to point to your local repo")
-        return
+        print("   Set the CODEWIKI_TEST_REPO environment variable to point to your local repo")
+        results.add_test("test_repo_exists", False, f"Test repo not found: {test_repo}")
+        return False
 
     print(f"\n📂 Test repository: {test_repo}")
 
-    # Create minimal config
-    config = Config(
+    # Create minimal config via the required factory method
+    config = Config.from_args(
         repo_path=test_repo,
         output_path="/tmp/codewiki_test_output",
+        cluster_provider="openai",
+        cluster_model="gpt-4o",
+        cluster_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("CLUSTER_API_KEY"),
+        cluster_base_url="https://api.openai.com/v1",
         main_provider="openai",
         main_model="gpt-4o",  # Use gpt-4o instead of gpt-5.2
         main_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("MAIN_API_KEY"),
@@ -120,18 +147,21 @@ def test_clustering():
             print("\n❌ FAILED: Empty module tree returned")
             print("   This means the LLM did not follow the prompt format")
             print("   Check logs above for 'Invalid LLM response format' error")
+            results.add_test("clustering_produces_modules", False, "Empty module tree returned")
             return False
         else:
             print(f"\n✅ SUCCESS: Created {len(module_tree)} modules")
             for module_name, module_info in module_tree.items():
                 comp_count = len(module_info.get("components", []))
                 print(f"   - {module_name}: {comp_count} components")
+            results.add_test("clustering_produces_modules", True, f"Created {len(module_tree)} modules")
             return True
 
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
+        results.add_test("clustering_produces_modules", False, str(e))
         return False
 
 if __name__ == "__main__":
@@ -141,5 +171,8 @@ if __name__ == "__main__":
         print("   Set it with: export OPENAI_API_KEY='your-key-here'")
         sys.exit(1)
 
-    success = test_clustering()
+    test_results = TestResults()
+    success = test_clustering(test_results)
+    test_results.print_summary()
     sys.exit(0 if success else 1)
+
