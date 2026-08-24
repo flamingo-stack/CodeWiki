@@ -1,3 +1,16 @@
+"""AST parsing and dependency graph construction for multi-repository codebases.
+
+This module implements the core dependency analysis pipeline stage that:
+- Parses one or more repositories (single-path or multi-path modes) into
+  structural and call-graph representations using the AnalysisService.
+- Builds Node-based components keyed by fully-qualified domain names (FQDNs)
+  in the canonical `module.path::ComponentName` format.
+- Namespaces components originating from multiple repositories to avoid ID
+  collisions and tracks module membership for each component.
+- Resolves intra- and cross-namespace dependency edges between components.
+- Persists the resulting dependency graph to disk for downstream consumers
+  (e.g., clustering, LLM-based summarization, and documentation generation).
+"""
 import os
 import json
 import logging
@@ -12,7 +25,6 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class DependencyParser:
@@ -104,7 +116,7 @@ class DependencyParser:
         Parse multiple repositories and merge components with namespace prefixes.
 
         Each repository gets a namespace prefix based on its directory name.
-        Component IDs are prefixed to avoid collisions: {namespace}.{original_id}
+        Component IDs are prefixed to avoid collisions: {namespace}::{original_id}
 
         Returns:
             Dictionary of all components from all repositories with namespaced IDs
@@ -225,8 +237,9 @@ class DependencyParser:
             if not original_id:
                 continue
 
-            # Create FQDN (namespaced component ID)
-            fqdn = f"{namespace}.{original_id}"
+            # Create FQDN (namespaced component ID) using '::' to separate
+            # the namespace/module path from the component identifier
+            fqdn = f"{namespace}::{original_id}"
 
             # Store mapping for dependency resolution
             namespace_mapping[original_id] = fqdn
@@ -314,8 +327,8 @@ class DependencyParser:
                     for other_id, other_component in sorted(all_components.items()):  # ✅ SORT for determinism
                         if other_component.name == dep_name and other_id != component_id:
                             # Extract namespaces to check if it's cross-namespace
-                            source_namespace = component_id.split(".")[0]
-                            target_namespace = other_id.split(".")[0]
+                            source_namespace = component_id.split("::")[0]
+                            target_namespace = other_id.split("::")[0]
                             if source_namespace != target_namespace:
                                 logger.debug(f"   ├─ Cross-namespace dependency: {component_id} → {other_id}")
                                 cross_deps_resolved += 1
@@ -343,8 +356,8 @@ class DependencyParser:
             if not original_id:
                 continue
 
-            # Construct FQDN: {namespace}.{original_id}
-            fqdn = f"{namespace}.{original_id}"
+            # Construct FQDN: {namespace}::{original_id}
+            fqdn = f"{namespace}::{original_id}"
 
             node = Node(
                 id=fqdn,  # FQDN as primary identifier
@@ -443,3 +456,4 @@ class DependencyParser:
         
         logger.debug(f"Saved {len(self.components)} components to {output_path}")
         return result
+
