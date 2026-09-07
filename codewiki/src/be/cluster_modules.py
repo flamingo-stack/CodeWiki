@@ -20,8 +20,18 @@ def extract_module_hint(fqdn: str) -> str:
         "openframe-oss-lib.openframe-api-service-core..." → "api-service"
         "main-repo.src/services/auth.py::AuthService" → "auth"
     """
+    if '::' not in fqdn:
+        logger.warning(
+            f"FQDN '{fqdn}' does not conform to the required 'module.path::ClassName' "
+            f"format (missing '::' separator); rejecting dot-only FQDN for module hint extraction"
+        )
+        return "unknown"
+
+    # Only operate on the module/path portion before the '::' separator
+    module_part = fqdn.split('::')[0]
+
     # Strategy 1: Look for service-like patterns (openframe-api-service → api-service)
-    parts = fqdn.split('.')
+    parts = module_part.split('.')
     for part in parts:
         if '-service' in part or '-api' in part:
             # Extract meaningful part (e.g., "openframe-api-service" → "api-service")
@@ -30,13 +40,10 @@ def extract_module_hint(fqdn: str) -> str:
                 return '-'.join(segments[-2:])
 
     # Strategy 2: Extract from file path (src/services/auth.py → auth)
-    if '::' in fqdn:
-        file_path = fqdn.split('::')[0]
-        # Get last meaningful directory or file name
-        path_parts = file_path.replace('\\', '/').split('/')
-        for part in reversed(path_parts):
-            if part and part not in ['src', 'main', 'java', 'com']:
-                return part.replace('.py', '').replace('.java', '').replace('.ts', '')
+    path_parts = module_part.replace('\\', '/').split('/')
+    for part in reversed(path_parts):
+        if part and part not in ['src', 'main', 'java', 'com']:
+            return part.replace('.py', '').replace('.java', '').replace('.ts', '')
 
     # Fallback: Use first segment
     return parts[0] if parts else "unknown"
@@ -50,26 +57,34 @@ def extract_package_hint(fqdn: str) -> str:
         "...src.main.java.com.openframe.api.controller.Class" → "controller"
         "main-repo.src/models/device.py::DeviceModel" → "models"
     """
+    if '::' not in fqdn:
+        logger.warning(
+            f"FQDN '{fqdn}' does not conform to the required 'module.path::ClassName' "
+            f"format (missing '::' separator); rejecting dot-only FQDN for package hint extraction"
+        )
+        return "core"
+
+    # Only operate on the module/path portion before the '::' separator
+    module_part = fqdn.split('::')[0]
+
     # Strategy 1: Look for common package patterns
     common_packages = ['controller', 'service', 'repository', 'model', 'dto',
                       'config', 'util', 'helper', 'handler', 'processor']
 
-    fqdn_lower = fqdn.lower()
+    module_part_lower = module_part.lower()
     for pkg in common_packages:
-        if pkg in fqdn_lower:
+        if pkg in module_part_lower:
             return pkg
 
     # Strategy 2: Extract from file path structure
-    if '::' in fqdn:
-        file_path = fqdn.split('::')[0]
-        path_parts = file_path.replace('\\', '/').split('/')
-        # Look for meaningful directory names
-        for part in reversed(path_parts[:-1]):  # Skip filename
-            if part and part not in ['src', 'main', 'java', 'com', 'org']:
-                return part
+    path_parts = module_part.replace('\\', '/').split('/')
+    # Look for meaningful directory names
+    for part in reversed(path_parts[:-1]):  # Skip filename
+        if part and part not in ['src', 'main', 'java', 'com', 'org']:
+            return part
 
-    # Fallback: Extract from path
-    parts = fqdn.split('.')
+    # Fallback: Extract from dotted module path
+    parts = module_part.split('.')
     if len(parts) >= 2:
         return parts[-2]
 
