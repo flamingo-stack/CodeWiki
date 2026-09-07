@@ -29,7 +29,7 @@ def check_ast_parser():
     
     checks = {
         'FQDN comment in multi-path': '# FQDN metadata fields' in content,
-        'fqdn = f"{namespace}.{original_id}"': 'fqdn = f"{namespace}.{original_id}"' in content,
+        'fqdn = f"{namespace}::{original_id}"': 'fqdn = f"{namespace}::{original_id}"' in content,
         'components[fqdn] = node': 'components[fqdn] = node' in content,
         'id=fqdn': 'id=fqdn' in content,
         'short_id=original_id': 'short_id=original_id' in content,
