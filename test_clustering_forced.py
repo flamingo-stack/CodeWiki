@@ -16,17 +16,17 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv(
+    "TEST_REPO_PATH",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
-config = Config(
+config = Config.from_env(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
     docs_dir="/tmp/test/docs", max_depth=2,
     main_model=os.getenv("MAIN_MODEL", "gpt-4o"),
     cluster_model=os.getenv("CLUSTER_MODEL", "gpt-4o"),
     fallback_model=os.getenv("FALLBACK_MODEL", "claude-opus-4-5-20251101"),
-    cluster_api_key=os.getenv("CLUSTER_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-    main_api_key=os.getenv("MAIN_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-    fallback_api_key=os.getenv("FALLBACK_API_KEY", os.getenv("ANTHROPIC_API_KEY", "")),
     cluster_base_url="https://api.openai.com/v1",
     main_base_url="https://api.openai.com/v1",
     fallback_base_url="https://api.anthropic.com/v1",
@@ -71,3 +71,4 @@ else:
         print(f"   - {name}: {comp_count} components")
     print("\n🎉 THE FIX WORKS! LLM followed the <GROUPED_COMPONENTS> tag format!")
     sys.exit(0)
+
