@@ -11,6 +11,37 @@ import json
 import sys
 from typing import Dict
 
+
+class TestResults:
+    """Accumulator for standalone integration test scripts."""
+
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name: str, passed: bool):
+        self.tests.append((name, passed))
+
+    def print_summary(self) -> bool:
+        print("=" * 60)
+        print("TEST SUMMARY")
+        print("=" * 60)
+
+        all_passed = True
+        for test_name, passed in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {test_name}")
+            if not passed:
+                all_passed = False
+
+        print()
+        if all_passed:
+            print("✅ ALL TESTS PASSED")
+        else:
+            print("❌ SOME TESTS FAILED")
+
+        return all_passed
+
+
 # Test 1: Verify json.loads() works with integer IDs
 def test_json_parsing():
     print("Test 1: JSON parsing with integer IDs")
@@ -227,27 +258,15 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
 
-    results = []
-    results.append(("JSON parsing", test_json_parsing()))
-    results.append(("Return types", test_return_types()))
-    results.append(("ID validation", test_id_validation()))
-    results.append(("Normalization", test_normalization()))
+    results = TestResults()
+    results.add_test("JSON parsing", test_json_parsing())
+    results.add_test("Return types", test_return_types())
+    results.add_test("ID validation", test_id_validation())
+    results.add_test("Normalization", test_normalization())
 
-    print("=" * 60)
-    print("TEST SUMMARY")
-    print("=" * 60)
+    all_passed = results.print_summary()
 
-    all_passed = True
-    for test_name, passed in results:
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"{status}: {test_name}")
-        if not passed:
-            all_passed = False
-
-    print()
     if all_passed:
-        print("✅ ALL TESTS PASSED")
         sys.exit(0)
     else:
-        print("❌ SOME TESTS FAILED")
         sys.exit(1)

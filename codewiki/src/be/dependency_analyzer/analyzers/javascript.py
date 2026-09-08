@@ -1,10 +1,12 @@
-"""Tree-sitter based dependency analyzer for JavaScript and TypeScript source files.
+"""Tree-sitter based analyzer for JavaScript/TypeScript source files.
 
-This module parses JS/TS files using tree-sitter grammars to extract top-level
-components (classes, interfaces, functions, methods) as Node objects and to
-detect call/inheritance/type relationships between them as CallRelationship
-objects. It is used as part of the dependency-analysis pipeline to build the
-project-wide dependency graph.
+This module implements the dependency-analysis pipeline component responsible
+for parsing JavaScript and TypeScript files using tree-sitter grammars,
+extracting top-level and class-member declarations (functions, classes,
+methods, arrow functions, etc.) as `Node` objects, and inferring
+`CallRelationship` edges between them (function calls, class inheritance,
+and JSDoc-derived type dependencies). The extracted nodes and relationships
+feed into the broader dependency graph built by the dependency analyzer.
 """
 
 import logging
