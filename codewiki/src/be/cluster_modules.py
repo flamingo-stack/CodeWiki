@@ -222,6 +222,63 @@ def format_potential_core_components(
     return potential_core_components, potential_core_components_with_code, id_to_fqdn, id_descriptions
 
 
+def normalize_component_id_list(
+    component_ids: List[Any],
+    id_to_fqdn: Dict[int, str],
+    components: Optional[Dict[str, Any]] = None,
+    context: str = "",
+) -> tuple[List[str], int, int]:
+    """Resolve one list of LLM-returned component ids to FQDNs.
+
+    The LLM is asked for integer ids, but may return an FQDN it copied verbatim
+    out of the prompt. When ``components`` is supplied, such an id is accepted
+    as-is; otherwise only integer ids in ``id_to_fqdn`` resolve.
+
+    Args:
+        component_ids: Raw ids from the LLM response.
+        id_to_fqdn: Integer id -> FQDN mapping for this prompt.
+        components: Optional component registry, enabling the exact-FQDN path.
+        context: Label used in warnings (module or sub-module name).
+
+    Returns:
+        (resolved FQDNs, number normalized, number that could not be resolved)
+    """
+    max_id = len(id_to_fqdn) - 1
+    resolved: List[str] = []
+    normalized = 0
+    failed = 0
+
+    for comp_id in component_ids:
+        # The LLM sometimes echoes a full FQDN straight out of the prompt.
+        if components is not None and comp_id in components:
+            resolved.append(comp_id)
+            continue
+        try:
+            idx = int(comp_id)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                f"   \u274c Non-integer component ID in '{context}'\n"
+                f"      \u251c\u2500 Received: {comp_id} (type: {type(comp_id).__name__})\n"
+                f"      \u251c\u2500 Error: {e}\n"
+                f"      \u2514\u2500 LLM must return integer IDs only"
+            )
+            failed += 1
+            continue
+        if idx in id_to_fqdn:
+            resolved.append(id_to_fqdn[idx])
+            normalized += 1
+            logger.debug(f"   \u2705 ID {idx} \u2192 {id_to_fqdn[idx]}")
+        else:
+            logger.warning(
+                f"   \u274c Invalid ID {idx} in '{context}'\n"
+                f"      \u251c\u2500 Valid range: 0-{max_id}\n"
+                f"      \u2514\u2500 LLM returned out-of-range ID"
+            )
+            failed += 1
+
+    return resolved, normalized, failed
+
+
 def normalize_component_ids_by_lookup(
     module_tree: Dict,
     id_to_fqdn: Dict[int, str]
@@ -237,46 +294,24 @@ def normalize_component_ids_by_lookup(
     Returns:
         Module tree with IDs replaced by FQDNs
     """
-    logger.info("🔄 Normalizing component IDs via direct lookup")
+    logger.info("\U0001f504 Normalizing component IDs via direct lookup")
 
     total_normalized = 0
     total_failed = 0
-    max_id = len(id_to_fqdn) - 1
 
     for module_name, module_data in module_tree.items():
-        component_ids = module_data.get('components', [])
-        normalized_components = []
+        resolved, normalized, failed = normalize_component_id_list(
+            module_data.get('components', []),
+            id_to_fqdn,
+            context=f"module '{module_name}'",
+        )
+        module_data['components'] = resolved
+        total_normalized += normalized
+        total_failed += failed
 
-        for comp_id in component_ids:
-            # Convert to int and validate
-            try:
-                idx = int(comp_id)
-                if idx in id_to_fqdn:
-                    fqdn = id_to_fqdn[idx]
-                    normalized_components.append(fqdn)
-                    total_normalized += 1
-                    logger.debug(f"   ✅ ID {idx} → {fqdn}")
-                else:
-                    logger.warning(
-                        f"   ❌ Invalid ID {idx} in module '{module_name}'\n"
-                        f"      ├─ Valid range: 0-{max_id}\n"
-                        f"      └─ LLM returned out-of-range ID"
-                    )
-                    total_failed += 1
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"   ❌ Non-integer ID in module '{module_name}'\n"
-                    f"      ├─ Received: {comp_id} (type: {type(comp_id).__name__})\n"
-                    f"      ├─ Error: {e}\n"
-                    f"      └─ LLM must return integer IDs only"
-                )
-                total_failed += 1
-
-        module_data['components'] = normalized_components
-
-    logger.info(f"   ✅ Normalized {total_normalized} component IDs")
+    logger.info(f"   \u2705 Normalized {total_normalized} component IDs")
     if total_failed > 0:
-        logger.warning(f"   ⚠️  Failed to normalize {total_failed} IDs")
+        logger.warning(f"   \u26a0\ufe0f  Failed to normalize {total_failed} IDs")
 
     return module_tree
 
