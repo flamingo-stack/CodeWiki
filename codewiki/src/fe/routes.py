@@ -3,6 +3,7 @@
 FastAPI route handlers for the CodeWiki web application.
 """
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from dataclasses import asdict
@@ -178,6 +179,9 @@ class WebRoutes:
     
     async def serve_generated_docs(self, job_id: str, filename: str = "overview.md") -> HTMLResponse:
         """Serve generated documentation files."""
+        if not re.match(r'^[A-Za-z0-9_.-]+$', job_id):
+            raise HTTPException(status_code=400, detail="Invalid job ID")
+        
         job = self.background_worker.get_job_status(job_id)
         docs_path = None
         repo_url = None
@@ -238,7 +242,10 @@ class WebRoutes:
                 pass
         
         # Serve the requested file
-        file_path = docs_path / filename
+        docs_path_resolved = docs_path.resolve()
+        file_path = (docs_path / filename).resolve()
+        if docs_path_resolved != file_path and docs_path_resolved not in file_path.parents:
+            raise HTTPException(status_code=400, detail="Invalid file path")
         if not file_path.exists():
             raise HTTPException(status_code=404, detail=f"File {filename} not found")
         

@@ -18,10 +18,13 @@ from codewiki.src.config import Config
 setup_logging()
 
 # Test repo
-test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
+test_repo = os.getenv("TEST_REPO_PATH", sys.argv[1] if len(sys.argv) > 1 else "")
+if not test_repo:
+    print("❌ ERROR: No test repo path provided. Set TEST_REPO_PATH env var or pass it as the first argument.")
+    sys.exit(1)
 
 # Create config
-config = Config.from_args(
+config = Config(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",

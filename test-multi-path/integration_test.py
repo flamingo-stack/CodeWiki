@@ -303,7 +303,7 @@ class MetricsCollector:
         output_dir = str(self.test_dir / "output")
 
         # Create config with main path as root, others as additional
-        self.config = Config.from_args(
+        self.config = Config(
             repo_path=str(self.main_path),
             output_dir=output_dir,
             dependency_graph_dir=output_dir,

@@ -12,7 +12,7 @@ from codewiki.src.config import Config
 
 test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
-config = Config.from_args(
+config = Config(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
     docs_dir="/tmp/test/docs", max_depth=2,
     main_model="gpt-4o", cluster_model="gpt-4o", fallback_model="claude-opus-4-5-20251101",

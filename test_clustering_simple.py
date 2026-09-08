@@ -21,7 +21,7 @@ from codewiki.src.config import Config
 test_repo = os.getenv("TEST_REPO_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "openframe-oss-tenant"))
 
 # Create simple config with all required fields
-config = Config.from_args(
+config = Config(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",

@@ -16,6 +16,10 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
+test_repo = os.getenv(
+    "TEST_REPO_PATH",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
 class TestResults:
     def __init__(self):

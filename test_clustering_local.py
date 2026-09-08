@@ -59,26 +59,24 @@ def test_clustering(results):
     print(f"\n📂 Test repository: {test_repo}")
 
     # Create minimal config via the required factory method
-    config = Config.from_args(
+    config = Config(
         repo_path=test_repo,
-        output_path="/tmp/codewiki_test_output",
-        cluster_provider="openai",
+        output_dir="/tmp/codewiki_test_output",
+        dependency_graph_dir="/tmp/codewiki_test_output/deps",
+        docs_dir="/tmp/codewiki_test_output/docs",
+        max_depth=2,
         cluster_model="gpt-4o",
-        cluster_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("CLUSTER_API_KEY"),
+        cluster_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("CLUSTER_API_KEY") or "",
         cluster_base_url="https://api.openai.com/v1",
-        main_provider="openai",
-        main_model="gpt-4o",  # Use gpt-4o instead of gpt-5.2
-        main_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("MAIN_API_KEY"),
+        main_model="gpt-4o",
+        main_api_key=os.getenv("OPENAI_API_KEY") or os.getenv("MAIN_API_KEY") or "",
         main_base_url="https://api.openai.com/v1",
-        fallback_provider="anthropic",
         fallback_model="claude-opus-4-5-20251101",
-        fallback_api_key=os.getenv("ANTHROPIC_API_KEY") or os.getenv("FALLBACK_API_KEY"),
+        fallback_api_key=os.getenv("ANTHROPIC_API_KEY") or os.getenv("FALLBACK_API_KEY") or "",
         fallback_base_url="https://api.anthropic.com/v1",
-        verbose=True
     )
 
     print(f"\n🤖 Using model: {config.main_model}")
-    print(f"   Provider: {config.main_provider}")
 
     # Create sample components (minimal test set)
     test_file_1 = os.path.join(test_repo, "openframe/services/openframe-api/src/main/java/com/openframe/api/controller/AuthController.java")

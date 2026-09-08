@@ -126,7 +126,7 @@ def create_test_config(
     Returns:
         Config instance
     """
-    return Config.from_args(
+    return Config(
         repo_path=repo_path,
         output_dir=output_dir,
         dependency_graph_dir=os.path.join(output_dir, "graphs"),
