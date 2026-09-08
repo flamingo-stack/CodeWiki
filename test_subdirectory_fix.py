@@ -14,6 +14,9 @@ from codewiki.src.config import Config
 
 # Create minimal config
 config = Config(
+    cluster_api_key=os.getenv("CLUSTER_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+    main_api_key=os.getenv("MAIN_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+    fallback_api_key=os.getenv("FALLBACK_API_KEY", os.getenv("ANTHROPIC_API_KEY", "")),
     repo_path="/tmp/test",
     output_dir="/tmp/test_output",
     dependency_graph_dir="/tmp/test_output/deps",
@@ -22,9 +25,6 @@ config = Config(
     main_model="gpt-4o",
     cluster_model="gpt-4o",
     fallback_model="claude-opus-4-5-20251101",
-    cluster_api_key="test",
-    main_api_key="test",
-    fallback_api_key="test",
     cluster_base_url="https://api.openai.com/v1",
     main_base_url="https://api.openai.com/v1",
     fallback_base_url="https://api.anthropic.com/v1"
@@ -94,3 +94,4 @@ if all_passed:
 else:
     print("❌ SOME TESTS FAILED")
     sys.exit(1)
+

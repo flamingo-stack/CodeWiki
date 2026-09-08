@@ -239,7 +239,7 @@ class DependencyParser:
 
             # Create FQDN (namespaced component ID) using '::' to separate
             # the namespace/module path from the component identifier
-            fqdn = f"{namespace}::{original_id}"
+            fqdn = f"{namespace}.{original_id}"
 
             # Store mapping for dependency resolution
             namespace_mapping[original_id] = fqdn
@@ -272,11 +272,16 @@ class DependencyParser:
             components[fqdn] = node
 
             # Track module (with namespace)
-            if "." in original_id:
-                module_parts = original_id.split(".")[:-1]
-                module_path = ".".join(module_parts)
-                if module_path:
-                    self.modules.add(f"{namespace}.{module_path}")
+            # original_id is '<module.path>::<Name>' from the analyzers, so the
+            # module path is everything before '::'. (The dot-split fallback is
+            # for ids that predate the '::' separator.)
+            module_path = (
+                original_id.split("::")[0]
+                if "::" in original_id
+                else ".".join(original_id.split(".")[:-1])
+            )
+            if module_path:
+                self.modules.add(f"{namespace}.{module_path}")
 
         # Second pass: Add dependencies within this namespace
         for rel_dict in relationships:
@@ -327,8 +332,8 @@ class DependencyParser:
                     for other_id, other_component in sorted(all_components.items()):  # ✅ SORT for determinism
                         if other_component.name == dep_name and other_id != component_id:
                             # Extract namespaces to check if it's cross-namespace
-                            source_namespace = component_id.split("::")[0]
-                            target_namespace = other_id.split("::")[0]
+                            source_namespace = component_id.split(".")[0]
+                            target_namespace = other_id.split(".")[0]
                             if source_namespace != target_namespace:
                                 logger.debug(f"   ├─ Cross-namespace dependency: {component_id} → {other_id}")
                                 cross_deps_resolved += 1
@@ -357,7 +362,7 @@ class DependencyParser:
                 continue
 
             # Construct FQDN: {namespace}::{original_id}
-            fqdn = f"{namespace}::{original_id}"
+            fqdn = f"{namespace}.{original_id}"
 
             node = Node(
                 id=fqdn,  # FQDN as primary identifier
@@ -392,12 +397,17 @@ class DependencyParser:
             if legacy_id and legacy_id != fqdn:
                 component_id_mapping[legacy_id] = fqdn
 
-            if "." in original_id:
-                module_parts = original_id.split(".")[:-1]
-                module_path = ".".join(module_parts)
-                if module_path:
-                    # Store module with namespace
-                    self.modules.add(f"{namespace}.{module_path}")
+            # original_id is '<module.path>::<Name>' from the analyzers, so the
+            # module path is everything before '::'. (The dot-split fallback is
+            # for ids that predate the '::' separator.)
+            module_path = (
+                original_id.split("::")[0]
+                if "::" in original_id
+                else ".".join(original_id.split(".")[:-1])
+            )
+            if module_path:
+                # Store module with namespace
+                self.modules.add(f"{namespace}.{module_path}")
         
         processed_relationships = 0
         for rel_dict in relationships:

@@ -1,3 +1,10 @@
+"""Dependency graph construction for repository analysis.
+
+This module defines the DependencyGraphBuilder class, which orchestrates
+parsing a repository's source files, building a dependency graph from the
+extracted components, validating graph completeness, and filtering leaf
+nodes to those relevant for downstream processing.
+"""
 from typing import Dict, List, Any
 import os
 from codewiki.src.config import Config
