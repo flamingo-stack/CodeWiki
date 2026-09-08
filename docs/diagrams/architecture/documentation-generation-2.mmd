@@ -1,0 +1,19 @@
+flowchart TD
+    Start["Start run()"]
+    Graph["Build Dependency Graph"]
+    Cluster["Cluster Modules"]
+    Order["Topological Processing Order"]
+    Leaf["Generate Leaf Module Docs"]
+    Parent["Generate Parent Module Docs"]
+    Overview["Generate Repository Overview"]
+    Metadata["Create metadata.json"]
+    EndNode["END"]
+
+    Start --> Graph
+    Graph --> Cluster
+    Cluster --> Order
+    Order --> Leaf
+    Leaf --> Parent
+    Parent --> Overview
+    Overview --> Metadata
+    Metadata --> EndNode

@@ -1,0 +1,5 @@
+flowchart TD
+    RepoAnalyzer["Repository Analyzer"] --> LanguageAnalyzers["Language Analyzers"]
+    LanguageAnalyzers --> ASTParser["AST and Dependency Parsing"]
+    ASTParser --> AnalysisService["Analysis Service"]
+    AnalysisService --> GraphBuilder["Dependency Graph Builder"]

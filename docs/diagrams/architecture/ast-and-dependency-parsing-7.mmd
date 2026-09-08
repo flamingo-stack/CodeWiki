@@ -1,0 +1,5 @@
+flowchart TD
+    Components["Component Map"] --> SortKeys["Sort Component IDs"]
+    SortKeys --> NormalizeDeps["Sort depends_on Lists"]
+    NormalizeDeps --> Serialize["JSON Dump"]
+    Serialize --> WriteFile["Write to Output Path"]

@@ -1,0 +1,10 @@
+sequenceDiagram
+    participant RepoAnalyzer
+    participant LanguageAnalyzer
+    participant Models
+
+    RepoAnalyzer->>LanguageAnalyzer: analyze(file_path, content)
+    LanguageAnalyzer->>LanguageAnalyzer: Parse AST
+    LanguageAnalyzer->>LanguageAnalyzer: Extract top-level entities
+    LanguageAnalyzer->>LanguageAnalyzer: Extract relationships
+    LanguageAnalyzer->>Models: Return Nodes + CallRelationships

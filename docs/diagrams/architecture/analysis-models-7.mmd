@@ -1,0 +1,5 @@
+flowchart LR
+    LanguageAnalyzers["Language Analyzers"] --> CoreModels["Core Models"]
+    CoreModels --> AnalysisModels["Analysis Models"]
+    AnalysisModels --> DocumentationGen["Documentation Generator"]
+    AnalysisModels --> FrontendConsumers["Frontend Consumers"]

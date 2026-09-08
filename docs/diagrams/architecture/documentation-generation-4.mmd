@@ -1,0 +1,10 @@
+sequenceDiagram
+    participant DG as DocumentationGenerator
+    participant FM as FileManager
+    participant LLM as LLM Service
+
+    DG->>FM: load module_tree.json
+    DG->>FM: load child module docs
+    DG->>LLM: generate overview prompt
+    LLM-->>DG: return overview markdown
+    DG->>FM: save overview file

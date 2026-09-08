@@ -1,0 +1,6 @@
+flowchart TD
+    CLI["CLI Core"] --> Analyzer["Dependency Analysis"]
+    Analyzer --> Orchestrator["Agent Orchestration"]
+    Orchestrator --> LLM["LLM Services"]
+    Orchestrator --> Tools["Agent Tools"]
+    Tools --> Docs["Generated Documentation"]

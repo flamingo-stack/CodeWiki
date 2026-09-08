@@ -1,0 +1,7 @@
+flowchart TD
+    RepoAnalyzer["Repository Analyzer"] --> Parser["Dependency Parser"]
+    Parser --> LangAnalyzers["Language Analyzers"]
+    LangAnalyzers --> NodeModel["Node Model"]
+    NodeModel --> GraphBuilder["Dependency Graph Builder"]
+    GraphBuilder --> AnalysisService["Analysis Service"]
+    AnalysisService --> AnalysisModels["Analysis Models"]

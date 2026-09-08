@@ -1,0 +1,7 @@
+flowchart TD
+    Start["Start Structure Analysis"] --> Build["Build File Tree"]
+    Build --> Exclude["Apply Exclude Patterns"]
+    Exclude --> Include["Apply Include Patterns"]
+    Include --> Validate["Reject Symlinks and Escapes"]
+    Validate --> Aggregate["Aggregate Summary Stats"]
+    Aggregate --> End["Return File Tree"]

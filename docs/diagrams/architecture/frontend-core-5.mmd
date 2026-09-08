@@ -1,0 +1,9 @@
+flowchart TD
+    Submit["User Submits Repo"] --> Validate{"Valid GitHub URL?"}
+    Validate -->|"No"| Error["Return Error"]
+    Validate -->|"Yes"| Normalize["Normalize URL"]
+    Normalize --> Existing{"Existing Job?"}
+    Existing -->|"Yes"| Reject["Reject or Wait"]
+    Existing -->|"No"| Cached{"Cached Docs?"}
+    Cached -->|"Yes"| CreateDone["Create Completed Job"]
+    Cached -->|"No"| Enqueue["Add Job to Worker"]

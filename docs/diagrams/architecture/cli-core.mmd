@@ -1,0 +1,13 @@
+flowchart TD
+    User["CLI User"] --> CLI["Cli Core"]
+
+    CLI --> DocGen["DocumentationGenerator (Backend)"]
+    CLI --> DepAnalysis["Dependency Analysis Module"]
+    CLI --> Cluster["Module Clustering (LLM)"]
+    CLI --> LLM["LLM Services"]
+    CLI --> Git["Git Repository"]
+    CLI --> HTML["HTML Viewer Generator"]
+
+    DocGen --> DepAnalysis
+    Cluster --> LLM
+    DocGen --> LLM

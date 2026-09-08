@@ -1,0 +1,24 @@
+classDiagram
+    class Node {
+        +string id
+        +string name
+        +string component_type
+        +string file_path
+        +string relative_path
+        +Set~string~ depends_on
+        +string source_code
+        +int start_line
+        +int end_line
+        +bool has_docstring
+        +string docstring
+        +List~string~ parameters
+        +string node_type
+        +List~string~ base_classes
+        +string class_name
+        +string display_name
+        +string component_id
+        +string short_id
+        +string namespace
+        +bool is_from_deps
+        +get_display_name()
+    }

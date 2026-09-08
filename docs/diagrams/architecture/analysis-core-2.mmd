@@ -1,0 +1,9 @@
+flowchart TD
+    Start["Start Analysis"] --> Clone["Clone Repository"]
+    Clone --> Structure["Analyze Repository Structure"]
+    Structure --> Extract["Extract Code Files"]
+    Extract --> Filter["Filter Supported Languages"]
+    Filter --> AST["Analyze with Call Graph Analyzer"]
+    AST --> BuildResult["Build AnalysisResult"]
+    BuildResult --> Cleanup["Cleanup Temporary Directory"]
+    Cleanup --> End["End"]

@@ -1,0 +1,8 @@
+flowchart TD
+    RepoAnalyzer["Repository Analyzer"] -->|"produces"| AnalysisResultModel["Analysis Result"]
+    CallGraphAnalyzer["Call Graph Analyzer"] -->|"produces"| AnalysisResultModel
+    DependencyGraphBuilder["Dependency Graph Builder"] -->|"enriches"| AnalysisResultModel
+
+    AnalysisResultModel -->|"consumed by"| DocumentationGenerator["Documentation Generator"]
+    AnalysisResultModel -->|"used for"| VisualizationLayer["Visualization Layer"]
+    AnalysisResultModel -->|"filtered by"| NodeSelectionModel["Node Selection"]

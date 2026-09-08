@@ -1,0 +1,9 @@
+flowchart LR
+    Repo["Repository Source"] --> Structure["Repo Analyzer"]
+    Structure --> Files["Code File List"]
+    Files --> CallGraph["Call Graph Analyzer"]
+    CallGraph --> Nodes["Node Models"]
+    CallGraph --> Relationships["CallRelationship Models"]
+    Nodes --> Result["AnalysisResult"]
+    Relationships --> Result
+    Result --> Consumers["Documentation Generator / LLM Services"]

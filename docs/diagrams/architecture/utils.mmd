@@ -1,0 +1,6 @@
+flowchart TD
+    CLI["CLI Core"] -->|"save config"| Utils["Utils"]
+    Agent["Agent Orchestration"] -->|"persist job state"| Utils
+    Analysis["Dependency Analysis"] -->|"store analysis result"| Utils
+    DocGen["Documentation Generation"] -->|"write markdown files"| Utils
+    Frontend["Frontend Core"] -->|"cache results"| Utils

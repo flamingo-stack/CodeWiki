@@ -1,0 +1,17 @@
+flowchart LR
+    Repo["Repository"] --> RepoAnalyzer["Repo Analyzer"]
+    RepoAnalyzer --> FileTree["File Tree"]
+
+    FileTree --> CallGraphAnalyzer["Call Graph Analyzer"]
+    CallGraphAnalyzer --> Nodes["Node Models"]
+    CallGraphAnalyzer --> Relationships["CallRelationship Models"]
+
+    Nodes --> DependencyParser["Dependency Parser"]
+    Relationships --> DependencyParser
+
+    DependencyParser --> GraphBuilder["Dependency Graph Builder"]
+    GraphBuilder --> AnalysisResult["AnalysisResult"]
+
+    AnalysisResult --> Documentation["Documentation Generator"]
+    AnalysisResult --> Visualization["Visualization Layer"]
+    AnalysisResult --> LLM["LLM Services"]

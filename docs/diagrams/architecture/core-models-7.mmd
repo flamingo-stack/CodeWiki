@@ -1,0 +1,6 @@
+flowchart TD
+    Repo["Repository"] --> Nodes["Nodes"]
+    Nodes --> Dependencies["depends_on Relationships"]
+    Nodes --> Calls["Call Relationships"]
+    Calls --> CallGraph["Call Graph"]
+    Dependencies --> DependencyGraph["Dependency Graph"]

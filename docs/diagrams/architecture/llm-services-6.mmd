@@ -1,0 +1,9 @@
+flowchart TD
+    Model["Requested Model"] --> IsCluster{"Is Cluster Model?"}
+    IsCluster -->|"Yes"| ClusterConfig["Use Cluster Config"]
+    IsCluster -->|"No"| IsFallback{"Is Fallback Model?"}
+    IsFallback -->|"Yes"| FallbackConfig["Use Fallback Config"]
+    IsFallback -->|"No"| MainConfig["Use Main Config"]
+    ClusterConfig --> Client["OpenAI Client"]
+    FallbackConfig --> Client
+    MainConfig --> Client

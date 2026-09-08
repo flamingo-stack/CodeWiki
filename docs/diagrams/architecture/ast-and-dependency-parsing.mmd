@@ -1,0 +1,7 @@
+flowchart TD
+    CLI["CLI Core"] --> Orchestrator["Agent Orchestration"]
+    Orchestrator --> AnalysisCore["Analysis Core"]
+    AnalysisCore --> LanguageAnalyzers["Language Analyzers"]
+    AnalysisCore --> AstParsing["Ast And Dependency Parsing"]
+    AstParsing --> GraphBuilder["Dependency Graph Building"]
+    GraphBuilder --> DocumentationGen["Documentation Generation"]

@@ -1,0 +1,11 @@
+flowchart TD
+    Start["Start Build Process"] --> EnsureDir["Ensure Output Directory Exists"]
+    EnsureDir --> ResolvePaths["Resolve Repository Paths"]
+    ResolvePaths --> InitParser["Initialize DependencyParser"]
+    InitParser --> ParseRepo["Parse Repository Files"]
+    ParseRepo --> SaveGraph["Save Dependency Graph JSON"]
+    SaveGraph --> BuildGraph["Build Graph From Components"]
+    BuildGraph --> Validate["Validate Graph Completeness"]
+    Validate --> FindLeaf["Identify Leaf Nodes"]
+    FindLeaf --> FilterLeaf["Filter Valid Leaf Nodes"]
+    FilterLeaf --> ReturnResult["Return Components And Leaf Nodes"]

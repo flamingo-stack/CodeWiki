@@ -1,0 +1,13 @@
+flowchart TD
+    DG["DocumentationGenerator"]
+    DGB["DependencyGraphBuilder"]
+    AO["AgentOrchestrator"]
+    LLM["LLM Service"]
+    FM["FileManager"]
+    CM["cluster_modules()"]
+
+    DG -->|"build_dependency_graph()"| DGB
+    DG -->|"cluster leaf nodes"| CM
+    DG -->|"process_module()"| AO
+    AO -->|"call_llm()"| LLM
+    DG -->|"save_text() / save_json()"| FM

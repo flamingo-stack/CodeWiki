@@ -1,0 +1,8 @@
+flowchart TD
+    Component["Component A"] --> CheckDep["Dependency X"]
+    CheckDep --> Exists{"Exists in Map?"}
+    Exists -->|"Yes"| Keep["Keep Dependency"]
+    Exists -->|"No"| Search["Search by Name in Other Namespaces"]
+    Search --> Found{"Match Found?"}
+    Found -->|"Yes"| LinkCross["Link Cross-Namespace"]
+    Found -->|"No"| Preserve["Preserve Original"]

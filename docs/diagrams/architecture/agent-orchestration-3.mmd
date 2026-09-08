@@ -1,0 +1,14 @@
+flowchart TD
+    A["Start process_module()"] --> B["Reset Request Counter"]
+    B --> C["Load module_tree.json"]
+    C --> D["Create Agent"]
+    D --> E["Create CodeWikiDeps"]
+    E --> F{"Overview Exists?"}
+    F -->|"Yes"| ReturnTree["Return module tree"]
+    F -->|"No"| G{"Module Doc Exists?"}
+    G -->|"Yes"| ReturnTree
+    G -->|"No"| H["Format User Prompt"]
+    H --> I["Run Agent"]
+    I --> J["Save module_tree.json"]
+    J --> K["Verify Output File"]
+    K --> L["Return Updated Tree"]

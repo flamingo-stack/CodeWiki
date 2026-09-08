@@ -1,0 +1,7 @@
+flowchart TD
+    InputRepo["Source Repository"] --> AnalysisService["Analysis Service"]
+    AnalysisService --> RepoAnalyzer["Repository Analyzer"]
+    RepoAnalyzer --> CallGraphAnalyzer["Call Graph Analyzer"]
+    CallGraphAnalyzer --> GraphBuilder["Dependency Graph Builder"]
+    GraphBuilder --> AnalysisResultObj["AnalysisResult Instance"]
+    AnalysisResultObj --> DocumentationGen["Documentation Generator"]

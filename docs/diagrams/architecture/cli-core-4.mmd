@@ -1,0 +1,22 @@
+classDiagram
+    class Configuration {
+        +main_model
+        +cluster_model
+        +fallback_model
+        +max_depth
+        +max_token_per_module
+        +agent_instructions
+        +validate()
+        +to_backend_config()
+    }
+
+    class AgentInstructions {
+        +include_patterns
+        +exclude_patterns
+        +focus_modules
+        +doc_type
+        +custom_instructions
+        +get_prompt_addition()
+    }
+
+    Configuration --> AgentInstructions

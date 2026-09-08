@@ -1,0 +1,8 @@
+flowchart TD
+    Request["Check Cache"] --> Hash["Compute Repo Hash"]
+    Hash --> Exists{"In Index?"}
+    Exists -->|"No"| Miss["Cache Miss"]
+    Exists -->|"Yes"| Fresh{"Expired?"}
+    Fresh -->|"No"| Hit["Return Docs Path"]
+    Fresh -->|"Yes"| Remove["Remove Entry"]
+    Remove --> Miss

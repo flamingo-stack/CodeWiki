@@ -1,0 +1,10 @@
+flowchart TD
+    User["User Browser"] -->|"Submit Repo URL"| Routes["WebRoutes"]
+    Routes -->|"Create Job"| Worker["BackgroundWorker"]
+    Worker -->|"Check Cache"| Cache["CacheManager"]
+    Worker -->|"Clone Repo"| GitHub["GitHubRepoProcessor"]
+    Worker -->|"Generate Docs"| DocGen["DocumentationGenerator (Backend)"]
+    DocGen -->|"Write Files"| Output["Generated Docs Directory"]
+    Worker -->|"Store Result"| Cache
+    Routes -->|"Serve Docs"| Output
+    Routes -->|"Return HTML"| User

@@ -1,0 +1,12 @@
+flowchart TD
+    CLI["CLI Core"] --> Orchestrator["Agent Orchestration"]
+
+    Orchestrator --> LLM["LLM Services"]
+    Orchestrator --> Tools["Agent Tools"]
+    Orchestrator --> Prompt["Prompt Templates"]
+    Orchestrator --> FileManager["File Manager"]
+    Orchestrator --> DependencyModels["Dependency Models"]
+
+    Tools --> ReadTool["read_code_components_tool"]
+    Tools --> EditTool["str_replace_editor_tool"]
+    Tools --> SubModuleTool["generate_sub_module_documentation_tool"]

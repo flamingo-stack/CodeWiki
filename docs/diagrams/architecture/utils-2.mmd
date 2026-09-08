@@ -1,0 +1,8 @@
+sequenceDiagram
+    participant DG as Documentation Generator
+    participant FM as FileManager
+    participant FS as File System
+    DG->>FM: ensure_directory(output_path)
+    DG->>FM: save_text(markdown, file_path)
+    FM->>FS: create directories if needed
+    FM->>FS: write file contents

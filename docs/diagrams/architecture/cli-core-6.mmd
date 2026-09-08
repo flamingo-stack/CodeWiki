@@ -1,0 +1,5 @@
+flowchart TD
+    LoadTree["Load module_tree.json"] --> LoadMeta["Load metadata.json"]
+    LoadMeta --> LoadTemplate["Load viewer_template.html"]
+    LoadTemplate --> InjectData["Inject JSON + Repo Info"]
+    InjectData --> WriteHTML["Write index.html"]

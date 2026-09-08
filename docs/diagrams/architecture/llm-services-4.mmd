@@ -1,0 +1,4 @@
+flowchart TD
+    Stage["Model Stage"] --> FieldResolver["get_model_max_token_field()"]
+    FieldResolver --> MaxTokens["max_tokens"]
+    FieldResolver --> MaxCompletion["max_completion_tokens"]

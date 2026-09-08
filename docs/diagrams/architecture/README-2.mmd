@@ -1,0 +1,8 @@
+flowchart TD
+    Start["Start Job"] --> Analyze["Dependency Analysis"]
+    Analyze --> Cluster["Module Clustering (LLM)"]
+    Cluster --> LeafDocs["Generate Leaf Module Docs"]
+    LeafDocs --> ParentDocs["Generate Parent Module Docs"]
+    ParentDocs --> Overview["Generate Repository Overview"]
+    Overview --> Metadata["Write metadata.json"]
+    Metadata --> EndNode["END"]

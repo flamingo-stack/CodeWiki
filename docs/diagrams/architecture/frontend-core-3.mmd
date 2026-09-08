@@ -1,0 +1,14 @@
+flowchart TD
+    Start["Start Worker Thread"] --> Loop["Worker Loop"]
+    Loop --> CheckQueue{"Queue Empty?"}
+    CheckQueue -->|"No"| Process["Process Job"]
+    CheckQueue -->|"Yes"| Sleep["Sleep 1s"]
+    Process --> CacheCheck{"Cached?"}
+    CacheCheck -->|"Yes"| Complete["Mark Completed"]
+    CacheCheck -->|"No"| Clone["Clone Repository"]
+    Clone --> Generate["Run DocumentationGenerator"]
+    Generate --> Store["Add to Cache"]
+    Store --> Complete
+    Complete --> Save["Persist Job Status"]
+    Save --> Loop
+    Sleep --> Loop

@@ -1,0 +1,7 @@
+flowchart TD
+    Start["call_llm()"] --> ResolveStage["Determine Stage"]
+    ResolveStage --> BuildClient["create_openai_client()"]
+    BuildClient --> BuildParams["Build Request Parameters"]
+    BuildParams --> SendRequest["client.chat.completions.create()"]
+    SendRequest --> ParseResponse["Extract Response Content"]
+    ParseResponse --> Return["Return Text"]

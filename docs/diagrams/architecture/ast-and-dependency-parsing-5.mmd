@@ -1,0 +1,4 @@
+flowchart TD
+    Relationship["Caller → Callee"] --> MapCaller["Resolve Caller FQDN"]
+    MapCaller --> MapCallee["Resolve Callee FQDN"]
+    MapCallee --> AddDep["Add to depends_on Set"]

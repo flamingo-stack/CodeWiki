@@ -1,0 +1,8 @@
+flowchart TD
+    Start["Multi-Path Mode"] --> Loop["Iterate Repositories"]
+    Loop --> Namespace["Derive Namespace"]
+    Namespace --> Analyze["Analyze Structure + Call Graph"]
+    Analyze --> BuildNS["Build Namespaced Components"]
+    BuildNS --> Merge["Merge Into Global Map"]
+    Merge --> ResolveCross["Resolve Cross-Namespace Dependencies"]
+    ResolveCross --> Done["Return All Components"]
