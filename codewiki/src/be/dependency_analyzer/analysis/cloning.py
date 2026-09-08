@@ -144,10 +144,6 @@ def clone_repository(github_url: str) -> str:
                 os.makedirs(os.path.dirname(sparse_checkout_path), exist_ok=True)
                 with open(sparse_checkout_path, "w") as f:
                     f.write("*\n")
-                    f.write("!**/tests/**/CvnF9nAXfESwhrtdkjGhX2wAkKHzwr8N2rjExPK8eZYS/**\n")
-                    f.write(
-                        "!**/0x0000000000000000000000000000000000000000000000000000000000000002/**\n"
-                    )
 
                 subprocess.run(
                     [

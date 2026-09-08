@@ -25,7 +25,7 @@ from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_to
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
-from codewiki.src.be.cluster_modules import format_potential_core_components, normalize_component_ids_by_lookup
+from codewiki.src.be.cluster_modules import format_potential_core_components, normalize_component_id_list
 
 import logging
 logger = logging.getLogger(__name__)
@@ -58,14 +58,24 @@ async def generate_sub_module_documentation(
     # This returns (str1, str2, id_to_fqdn, id_descriptions) but we only need id_to_fqdn
     _, _, id_to_fqdn, _ = format_potential_core_components(all_component_ids, deps.components)
 
-    normalized_specs, total_normalized, total_failed = normalize_component_ids_by_lookup(
-        sub_module_specs, deps.components, id_to_fqdn
-    )
+    normalized_specs = {}
+    total_normalized = 0
+    total_failed = 0
+    for sub_module_name, component_ids in sub_module_specs.items():
+        resolved, normalized, failed = normalize_component_id_list(
+            component_ids,
+            id_to_fqdn,
+            components=deps.components,
+            context=f"sub-module '{sub_module_name}'",
+        )
+        normalized_specs[sub_module_name] = resolved
+        total_normalized += normalized
+        total_failed += failed
 
     if total_normalized > 0:
-        logger.info(f"   ✅ Normalized {total_normalized} integer IDs to FQDNs")
+        logger.info(f"   \u2705 Normalized {total_normalized} integer IDs to FQDNs")
     if total_failed > 0:
-        logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs (LLM ignored instructions)")
+        logger.warning(f"   \u26a0\ufe0f  Failed to normalize {total_failed} component IDs")
 
     # Replace original specs with normalized specs
     sub_module_specs = normalized_specs
@@ -126,21 +136,22 @@ async def generate_sub_module_documentation(
         # log the current module tree
         # print(f"Current module tree: {json.dumps(deps.module_tree, indent=4)}")
 
-        # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
-        result = await sub_agent.run(
-            format_user_prompt(
-                module_name=deps.current_module_name,
-                core_component_ids=core_component_ids,
-                components=ctx.deps.components,
-                module_tree=ctx.deps.module_tree,
-            ),
-            deps=ctx.deps,
-            usage_limits=UsageLimits(request_limit=1000),
-        )
-
-        # remove the sub-module name from the path to current module and the module tree
-        deps.path_to_current_module.pop()
-        deps.current_depth -= 1
+        try:
+            # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
+            result = await sub_agent.run(
+                format_user_prompt(
+                    module_name=deps.current_module_name,
+                    core_component_ids=core_component_ids,
+                    components=ctx.deps.components,
+                    module_tree=ctx.deps.module_tree,
+                ),
+                deps=ctx.deps,
+                usage_limits=UsageLimits(request_limit=1000),
+            )
+        finally:
+            # remove the sub-module name from the path to current module and the module tree
+            deps.path_to_current_module.pop()
+            deps.current_depth -= 1
 
     # restore the previous module name
     deps.current_module_name = previous_module_name
