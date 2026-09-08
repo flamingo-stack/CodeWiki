@@ -1,3 +1,5 @@
+"""Agent tool for reading the source code of specific CodeWiki components by id."""
+
 from pydantic_ai import RunContext, Tool
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 
