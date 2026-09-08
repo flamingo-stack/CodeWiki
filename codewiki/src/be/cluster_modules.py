@@ -1,3 +1,16 @@
+"""
+Module clustering pipeline for CodeWiki.
+
+This module groups leaf-level code components (classes, functions, files)
+into higher-level "modules" using LLM-driven clustering. It builds an
+integer ID <-> FQDN mapping for components so the LLM prompt/response can
+operate on compact integer IDs instead of full fully-qualified names,
+normalizes the LLM's returned component IDs back to FQDNs, and recursively
+clusters sub-modules until each unit fits under the configured token budget.
+
+Also includes a small backward-compatibility layer for functions that were
+used by the older short-ID based clustering approach.
+"""
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
 import logging
@@ -390,39 +403,31 @@ def cluster_modules(
             logger.error(f"Invalid module tree format - expected dict, got {type(module_tree)}")
             return {}
 
-        # CRITICAL: Validate all component IDs are integers
-        max_id = len(id_to_fqdn) - 1
-        for module_name, module_info in module_tree.items():
-            if "components" not in module_info:
-                continue
-
-            component_ids = module_info["components"]
-            invalid_ids = []
-
-            for comp_id in component_ids:
-                # Check if ID is an integer
-                if not isinstance(comp_id, int):
-                    invalid_ids.append(f"{comp_id} (type: {type(comp_id).__name__})")
-                # Check if ID is in valid range
-                elif comp_id < 0 or comp_id > max_id:
-                    invalid_ids.append(f"{comp_id} (out of range 0-{max_id})")
-
-            if invalid_ids:
-                logger.error(f"❌ Module '{module_name}' contains invalid component IDs:")
-                logger.error(f"   Invalid IDs: {invalid_ids}")
-                logger.error(f"   Expected: Integers in range 0-{max_id}")
-                logger.error(f"   LLM ignored instructions and returned non-integer IDs!")
-                return {}
-
-        logger.info(f"✅ LLM response validation passed: All IDs are integers in valid range")
-
     except Exception as e:
         logger.error(f"Failed to parse LLM response: {e}. Response: {response[:200]}...")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return {}
 
-    # Normalize component IDs using simple lookup (replaces 200+ lines of fuzzy matching)
+    # Normalize component IDs using simple lookup (replaces 200+ lines of fuzzy matching
+    # and the duplicated inline ID validation that previously lived here).
+    #
+    # normalize_component_ids_by_lookup drops ids it cannot resolve and carries on,
+    # which is the right behaviour for the sub-module path but NOT here: a module
+    # left holding an empty component list still gets documented, producing a
+    # plausible-looking but empty page and a run that reports success. The inline
+    # validation this replaced aborted instead, and clustering keeps that contract
+    # by comparing the id count either side of normalization.
+    ids_before = sum(len(m.get('components', [])) for m in module_tree.values())
     module_tree = normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+    ids_after = sum(len(m.get('components', [])) for m in module_tree.values())
+
+    if ids_after < ids_before:
+        logger.error(
+            f"\u274c Clustering aborted: {ids_before - ids_after} of {ids_before} component "
+            f"ID(s) could not be resolved to an FQDN (valid range 0-{len(id_to_fqdn) - 1}).\n"
+            f"   \u2514\u2500 The LLM ignored the integer-ID instruction; see the warnings above."
+        )
+        return {}
 
     # check if the module tree is valid
     if len(module_tree) <= 1:
