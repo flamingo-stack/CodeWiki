@@ -7,7 +7,7 @@ from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_to
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
-from codewiki.src.be.cluster_modules import format_potential_core_components, normalize_component_ids_by_lookup
+from codewiki.src.be.cluster_modules import format_potential_core_components, normalize_component_id_list
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,10 +41,23 @@ async def generate_sub_module_documentation(
     _, _, id_to_fqdn, _ = format_potential_core_components(all_component_ids, deps.components)
 
     normalized_specs = {}
+    total_normalized = 0
+    total_failed = 0
     for sub_module_name, component_ids in sub_module_specs.items():
-        normalized_specs[sub_module_name] = normalize_component_ids_by_lookup(
-            component_ids, deps.components, id_to_fqdn
+        resolved, normalized, failed = normalize_component_id_list(
+            component_ids,
+            id_to_fqdn,
+            components=deps.components,
+            context=f"sub-module '{sub_module_name}'",
         )
+        normalized_specs[sub_module_name] = resolved
+        total_normalized += normalized
+        total_failed += failed
+
+    if total_normalized > 0:
+        logger.info(f"   \u2705 Normalized {total_normalized} integer IDs to FQDNs")
+    if total_failed > 0:
+        logger.warning(f"   \u26a0\ufe0f  Failed to normalize {total_failed} component IDs")
 
     # Replace original specs with normalized specs
     sub_module_specs = normalized_specs
