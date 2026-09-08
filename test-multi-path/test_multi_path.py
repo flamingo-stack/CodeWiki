@@ -42,6 +42,48 @@ class Colors:
     END = '\033[0m'
 
 
+class TestResults:
+    """Accumulates test results across the suite and prints a summary."""
+
+    def __init__(self):
+        self.results = {}
+
+    def add_test(self, name: str, passed: bool):
+        """Record the result of a single test.
+
+        Args:
+            name: Test name
+            passed: Whether the test passed
+        """
+        self.results[name] = passed
+
+    def print_summary(self) -> int:
+        """Print formatted summary of all recorded test results.
+
+        Returns:
+            Exit code: 0 if all tests passed, 1 otherwise
+        """
+        print_header("Test Results Summary")
+
+        passed = sum(1 for r in self.results.values() if r)
+        total = len(self.results)
+
+        for test_name, result in self.results.items():
+            if result:
+                print_success(f"{test_name}")
+            else:
+                print_error(f"{test_name}")
+
+        print(f"\n{Colors.BOLD}Total: {passed}/{total} tests passed{Colors.END}")
+
+        if passed == total:
+            print(f"{Colors.GREEN}{Colors.BOLD}✓ All tests passed!{Colors.END}\n")
+            return 0
+        else:
+            print(f"{Colors.RED}{Colors.BOLD}✗ Some tests failed{Colors.END}\n")
+            return 1
+
+
 def print_header(text: str):
     """Print formatted test header."""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*70}{Colors.END}")
@@ -485,38 +527,19 @@ def run_all_tests():
         ("Relative vs Absolute Paths", test_relative_vs_absolute_paths),
     ]
 
-    results = {}
+    test_results = TestResults()
 
     for test_name, test_func in tests:
         try:
             result = test_func()
-            results[test_name] = result
+            test_results.add_test(test_name, result)
         except Exception as e:
             print_error(f"Test '{test_name}' crashed: {str(e)}")
             import traceback
             traceback.print_exc()
-            results[test_name] = False
+            test_results.add_test(test_name, False)
 
-    # Print summary
-    print_header("Test Results Summary")
-
-    passed = sum(1 for r in results.values() if r)
-    total = len(results)
-
-    for test_name, result in results.items():
-        if result:
-            print_success(f"{test_name}")
-        else:
-            print_error(f"{test_name}")
-
-    print(f"\n{Colors.BOLD}Total: {passed}/{total} tests passed{Colors.END}")
-
-    if passed == total:
-        print(f"{Colors.GREEN}{Colors.BOLD}✓ All tests passed!{Colors.END}\n")
-        return 0
-    else:
-        print(f"{Colors.RED}{Colors.BOLD}✗ Some tests failed{Colors.END}\n")
-        return 1
+    return test_results.print_summary()
 
 
 if __name__ == "__main__":

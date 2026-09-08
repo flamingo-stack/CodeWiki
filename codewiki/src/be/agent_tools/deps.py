@@ -1,7 +1,9 @@
-"""Dependency-injection context for the CodeWiki agent tools pipeline.
+"""Dependency container for CodeWiki agent tools.
 
-Defines the CodeWikiDeps dataclass, which carries paths, registry data,
-component metadata, and configuration through the agent tools pipeline.
+Defines CodeWikiDeps, a dataclass holding the shared context and state
+(paths, component registry, module tree position, configuration, etc.)
+that is passed to agent tools during the CodeWiki documentation generation
+pipeline.
 """
 from dataclasses import dataclass
 from typing import Any

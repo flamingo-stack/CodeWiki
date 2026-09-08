@@ -1,3 +1,11 @@
+"""Tree-sitter based dependency analyzer for C# source files.
+
+This module parses C# files using tree-sitter-c-sharp to extract top-level
+components (classes, interfaces, structs, enums, records, delegates) as
+Node objects and infers CallRelationship edges (e.g. class inheritance,
+property/field/parameter type usage) between them.
+"""
+
 import logging
 from typing import List, Optional, Tuple
 from pathlib import Path
