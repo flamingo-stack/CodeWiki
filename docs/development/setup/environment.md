@@ -1,219 +1,58 @@
 # Development Environment Setup
 
-This guide covers the tools, IDE configuration, and editor extensions recommended for contributing to CodeWiki.
-
----
+This guide covers the tools and settings recommended for developing CodeWiki itself.
 
 ## Required Development Tools
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| **Python** | 3.9+ | Primary runtime |
-| **pip** | 22+ | Package management |
-| **Git** | 2.x+ | Version control |
-| **virtualenv** or **venv** | Any | Isolated Python environments |
+| Tool | Version | Notes |
+|---|---|---|
+| Python | `>=3.12` | Matches `requires-python` in `pyproject.toml`. |
+| pip | Latest | Used to install both runtime and `dev` optional dependencies. |
+| Git | Any recent version | CodeWiki's own CLI and web app both shell out to `git` / use GitPython. |
+| Node.js | `>=14.0.0` | Required by `mermaid-py`, which validates Mermaid diagrams embedded in generated docs during tests and generation. |
+| Docker & Docker Compose | Recent version | Optional, for testing the containerized web app (`docker/docker-compose.yml`, `docker/Dockerfile`). |
 
----
+## Installing Development Dependencies
 
-## Recommended IDE
-
-### Visual Studio Code
-
-VS Code is the recommended IDE for CodeWiki development.
-
-**Recommended extensions:**
-
-| Extension | ID | Purpose |
-|-----------|-----|---------|
-| Python | `ms-python.python` | Python language support |
-| Pylance | `ms-python.vscode-pylance` | Type checking and IntelliSense |
-| Ruff | `charliermarsh.ruff` | Fast Python linter and formatter |
-| GitLens | `eamodio.gitlens` | Enhanced Git history views |
-| Mermaid Preview | `bierner.markdown-mermaid` | Preview Mermaid diagrams in Markdown |
-| YAML | `redhat.vscode-yaml` | YAML support for config files |
-| Docker | `ms-azuretools.vscode-docker` | Docker file editing and container management |
-
-**Suggested VS Code `settings.json`:**
-
-```json
-{
-  "python.defaultInterpreterPath": ".venv/bin/python",
-  "editor.formatOnSave": true,
-  "python.formatting.provider": "none",
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true
-  },
-  "python.analysis.typeCheckingMode": "basic",
-  "editor.rulers": [88]
-}
-```
-
----
-
-### PyCharm
-
-PyCharm Professional or Community also works well.
-
-**Configuration:**
-
-1. Open the project root as a PyCharm project
-2. Set the Python interpreter to your virtual environment
-3. Enable **PEP 8** code style inspection
-4. Install the **Mermaid** plugin for diagram previews
-
----
-
-## Python Environment Setup
-
-Always use a virtual environment for development to avoid polluting your system Python:
+CodeWiki defines an optional `dev` dependency group in `pyproject.toml`:
 
 ```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate it
-# On Linux/macOS:
-source .venv/bin/activate
-
-# On Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-
-# Install in editable mode with all dependencies
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-Verify the CLI is available:
+This installs, in addition to the runtime dependencies:
 
-```bash
-codewiki --version
-```
+- `pytest`, `pytest-cov`, `pytest-asyncio` — testing
+- `black` — code formatting (line length 100, target `py312`)
+- `mypy` — static type checking (`python_version = "3.12"`)
+- `ruff` — linting
 
----
+## IDE Recommendations
 
-## Environment Variables for Development
+Any editor with solid Python tooling works well. If using **VS Code**, the following extensions align with the project's tooling:
 
-Create a `.env` file in the project root for web app development:
+- **Python** (Microsoft) — core language support, linting, debugging
+- **Pylance** — type-checking assistance (complements `mypy`)
+- **Black Formatter** — matches the project's `[tool.black]` configuration (line-length 100, `py312` target)
+- **Ruff** — matches the project's linter configuration
+- **Mermaid Preview** — useful when reviewing generated architecture diagrams in Markdown output
 
-```bash
-# Copy from the template if available
-cp .env.example .env
-```
+If using **PyCharm**, enable Black as the external formatter and configure the line length to 100 to match `[tool.black]` in `pyproject.toml`.
 
-Key variables for local development:
+## Development Environment Variables
 
-```bash
-# LLM provider settings
-MAIN_MODEL=claude-sonnet-4
-CLUSTER_MODEL=claude-sonnet-4
-LLM_BASE_URL=https://api.anthropic.com/v1
-MAIN_API_KEY=your_dev_api_key
+CodeWiki's core CLI configuration lives in `~/.codewiki/config.json` and the OS keyring — it does not require environment variables for normal development use. However, a few areas of the codebase do read environment variables directly:
 
-# Output token limit (reduce for faster dev cycles)
-MAX_OUTPUT_TOKENS=8192
+| Variable | Used By | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | Ad-hoc clustering test scripts (`test_clustering_*.py`) | API key for OpenAI-compatible providers during manual testing. |
+| `ANTHROPIC_API_KEY` | Ad-hoc clustering test scripts | API key for Anthropic providers during manual testing. |
+| `MAIN_API_KEY` / `CLUSTER_API_KEY` / `FALLBACK_API_KEY` | Ad-hoc clustering test scripts | Per-role overrides used when running the standalone clustering diagnostics. |
+| `PYTHONPATH` | Docker image / `run_web_app.py` path setup | Set to `/app` inside the container; locally, `run_web_app.py` inserts `codewiki/src` onto `sys.path` itself. |
+| `APP_PORT` | `docker/docker-compose.yml` | Host port mapping for the containerized web app (defaults to `8000`). |
 
-# Max token field (use max_completion_tokens for o3 reasoning models)
-CODEWIKI_GENERATION_MAX_TOKEN_FIELD=max_tokens
-CODEWIKI_CLUSTER_MAX_TOKEN_FIELD=max_tokens
-CODEWIKI_FALLBACK_MAX_TOKEN_FIELD=max_tokens
-```
+> **Tip:** For scripts that read API keys from the environment, consider using a local `.env.local` file with `python-dotenv` (already a project dependency) rather than exporting secrets into your shell history.
 
-> **Note:** The `.env` file is loaded automatically by `python-dotenv` when running the web app. CLI mode uses the OS keychain instead.
+## Next Steps
 
----
-
-## Code Style
-
-CodeWiki follows standard Python conventions:
-
-- **PEP 8** style guidelines
-- **88-character** line length (matching Black/Ruff defaults)
-- Type annotations are encouraged for function signatures
-- Docstrings use standard Python docstring format
-
-**Linting and formatting:**
-
-```bash
-# Install ruff (if not installed)
-pip install ruff
-
-# Lint the codebase
-ruff check codewiki/
-
-# Auto-fix where possible
-ruff check --fix codewiki/
-
-# Format code
-ruff format codewiki/
-```
-
----
-
-## Tree-sitter Language Bindings
-
-CodeWiki uses Tree-sitter for AST-based code parsing across 8 languages. On first use, language grammars are compiled or downloaded automatically. No manual setup is required.
-
-If you are working on language analyzer code, you may want to install the Tree-sitter CLI for grammar development:
-
-```bash
-pip install tree-sitter
-```
-
-Language-specific analyzer files are in:
-
-```text
-codewiki/src/be/dependency_analyzer/analyzers/
-├── python.py
-├── javascript.py
-├── typescript.py
-├── java.py
-├── csharp.py
-├── c.py
-├── cpp.py
-└── php.py
-```
-
----
-
-## Working with the Docker Setup
-
-For full-stack local testing with Docker:
-
-```bash
-# Build the image
-docker build -f docker/Dockerfile -t codewiki:0.0.1 .
-
-# Start with Docker Compose
-cd docker
-docker-compose up
-```
-
-The web app will be available at `http://localhost:8000`.
-
-**Volume mounts (from `docker-compose.yml`):**
-
-- `../output` → `/app/output` — Persistent cache and output storage
-- `~/.ssh` → `/root/.ssh:ro` — Git credentials for private repositories (read-only)
-
----
-
-## Keyring (CLI Development)
-
-When developing CLI features, configuration is stored in:
-
-- **API keys:** OS keychain under the service name `codewiki`
-- **Other settings:** `~/.codewiki/config.json`
-
-To inspect or reset configuration during development:
-
-```bash
-# Show current configuration
-codewiki config show
-
-# Reset a specific setting
-codewiki config set --main-model gpt-4o-mini
-
-# Clear all configuration
-# Manually delete: ~/.codewiki/config.json
-# Manually remove keychain entries via your OS keychain manager
-```
+Continue to [Local Development](local-development.md) to clone the repository, install it in editable mode, and run the CLI or web app locally.

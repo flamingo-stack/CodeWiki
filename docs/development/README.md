@@ -1,98 +1,23 @@
 # Development Documentation
 
-Welcome to the CodeWiki development documentation. This section covers everything you need to contribute to, extend, or run CodeWiki in a development environment.
+This section covers everything you need to develop, test, and contribute to **CodeWiki** itself — the AI-powered documentation generator, not a repository you're documenting *with* CodeWiki.
 
----
-
-## Overview
-
-CodeWiki is a Python-based AI documentation engine. It is structured as a layered system with clearly separated responsibilities across CLI, backend services, dependency analysis, agent orchestration, LLM services, and a FastAPI web frontend.
-
-The project uses:
-
-- **Python** (3.9+) as the primary language
-- **Click** for the CLI framework
-- **FastAPI + Uvicorn** for the web interface
-- **Pydantic AI** for AI agent orchestration
-- **Tree-sitter** for multi-language AST parsing
-- **VoltAgent** (via `@voltagent/core`) for documentation pipeline tooling
-- **Anthropic SDK** and **OpenAI SDK** for LLM provider integration
-
----
+CodeWiki is a Python package (`pyproject.toml`, Python `>=3.12`) organized around a CLI (`codewiki/cli`), a backend documentation pipeline (`codewiki/src/be`), a FastAPI web application (`codewiki/src/fe`), and a shared runtime configuration model (`codewiki/src/config.py`).
 
 ## Quick Navigation
 
-| Document | Description |
-|---------|-------------|
-| [Environment Setup](setup/environment.md) | IDE setup, tools, editor extensions |
-| [Local Development](setup/local-development.md) | Clone, run, debug locally |
-| [Architecture Overview](architecture/README.md) | High-level system design and component map |
-| [Security Guidelines](security/README.md) | Auth patterns, secrets management, safe coding |
-| [Testing Guide](testing/README.md) | Test structure, running tests, writing new tests |
-| [Contributing Guidelines](contributing/guidelines.md) | Code style, PRs, commit conventions |
+| Guide | Description |
+|---|---|
+| [Environment Setup](setup/environment.md) | IDE recommendations, required tools, and development environment variables. |
+| [Local Development](setup/local-development.md) | Cloning the repo, installing in editable mode, running the CLI and web app locally, and debugging. |
+| [Architecture Overview](architecture/README.md) | High-level module architecture, core components, and data flow through the documentation pipeline. |
+| [Security](security/README.md) | Credential storage, safe file access, input validation, and secure coding practices used in CodeWiki. |
+| [Testing](testing/README.md) | Structure of the diagnostic/validation scripts, how to run them, and expectations for new tests. |
+| [Contributing Guidelines](contributing/guidelines.md) | Code style, branch naming, commit format, and the review checklist for pull requests. |
 
----
+## Where to Start
 
-## Repository Structure
-
-```text
-CodeWiki/
-│
-├── codewiki/                    → Main Python package
-│   ├── __init__.py              → Package entry point (version: 1.0.1)
-│   ├── __main__.py              → CLI entry point
-│   ├── run_web_app.py           → Web application startup script
-│   │
-│   ├── cli/                     → CLI Core
-│   │   ├── main.py              → Click root command group
-│   │   ├── config_manager.py    → Configuration + keyring storage
-│   │   ├── git_manager.py       → Git integration
-│   │   ├── html_generator.py    → GitHub Pages HTML generation
-│   │   ├── adapters/            → CLIDocumentationGenerator
-│   │   ├── commands/            → generate, config subcommands
-│   │   ├── models/              → CLI data models
-│   │   └── utils/               → Logging, progress, validation
-│   │
-│   └── src/                     → Backend core
-│       ├── config.py            → Shared Config dataclass
-│       ├── utils.py             → FileManager utilities
-│       │
-│       ├── be/                  → Backend services
-│       │   ├── agent_orchestrator.py    → AI agent lifecycle
-│       │   ├── documentation_generator.py → Main orchestration engine
-│       │   ├── llm_services.py          → LLM provider factory
-│       │   ├── cluster_modules.py       → Module clustering (LLM)
-│       │   ├── prompt_template.py       → Prompt construction
-│       │   ├── agent_tools/             → AI agent tool implementations
-│       │   └── dependency_analyzer/     → Multi-language AST analysis
-│       │       ├── analysis/            → AnalysisService, CallGraphAnalyzer
-│       │       ├── analyzers/           → Per-language Tree-sitter analyzers
-│       │       ├── models/              → Node, CallRelationship, AnalysisResult
-│       │       ├── ast_parser.py        → DependencyParser
-│       │       ├── dependency_graphs_builder.py → DependencyGraphBuilder
-│       │       └── topo_sort.py         → Topological ordering
-│       │
-│       └── fe/                  → Web frontend (FastAPI)
-│           ├── web_app.py       → FastAPI app definition
-│           ├── routes.py        → HTTP route handlers
-│           ├── background_worker.py → Async job processor
-│           ├── cache_manager.py → SHA-256 based doc cache
-│           ├── github_processor.py → Repo validation + cloning
-│           └── config.py        → WebAppConfig
-│
-├── docker/
-│   ├── Dockerfile               → Container build
-│   └── docker-compose.yml       → Docker Compose deployment
-│
-├── examples/                    → Usage examples
-└── test-multi-path/             → Multi-path integration tests
-```
-
----
-
-## Getting Started as a Developer
-
-1. Read the [Environment Setup](setup/environment.md) guide for tool requirements
-2. Follow [Local Development](setup/local-development.md) to clone and run locally
-3. Study the [Architecture Overview](architecture/README.md) to understand the system
-4. Review [Contributing Guidelines](contributing/guidelines.md) before submitting changes
+1. Read the [Architecture Overview](architecture/README.md) to understand how the CLI, backend, and frontend modules fit together.
+2. Follow [Environment Setup](setup/environment.md) and [Local Development](setup/local-development.md) to get a working local copy of CodeWiki.
+3. Review [Security](security/README.md) and [Testing](testing/README.md) before submitting changes.
+4. Read [Contributing Guidelines](contributing/guidelines.md) before opening a pull request.

@@ -1,223 +1,114 @@
 # Quick Start
 
-Get CodeWiki running and generate your first documentation in under 5 minutes.
+This guide gets you from zero to a generated documentation set in about five minutes, using the `codewiki` CLI against a local repository.
 
----
+> If you'd rather run CodeWiki as a hosted web service (submit a GitHub URL, poll for job status, view cached results), see the Docker-based setup mentioned at the end of this guide instead.
 
-## TL;DR (5-Step Setup)
+## Step 1: Install CodeWiki
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/flamingo-stack/CodeWiki.git
-cd CodeWiki
-
-# 2. Install dependencies
-pip install -e .
-
-# 3. Configure your LLM provider (API key stored in OS keychain)
-codewiki config set \
-  --main-api-key YOUR_API_KEY \
-  --main-model claude-sonnet-4 \
-  --main-base-url https://api.anthropic.com/v1 \
-  --cluster-api-key YOUR_API_KEY \
-  --cluster-model claude-sonnet-4 \
-  --cluster-base-url https://api.anthropic.com/v1 \
-  --fallback-api-key YOUR_API_KEY \
-  --fallback-model claude-sonnet-4 \
-  --fallback-base-url https://api.anthropic.com/v1
-
-# 4. Navigate to your project
-cd /path/to/your/repository
-
-# 5. Generate documentation
-codewiki generate
-```
-
-That's it. Documentation is written to `./docs/` by default.
-
----
-
-## Step-by-Step Guide
-
-### Step 1 — Clone CodeWiki
+Clone the repository and install the package (editable install is convenient for exploring the source):
 
 ```bash
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
-```
-
-### Step 2 — Install
-
-```bash
 pip install -e .
 ```
 
-This installs the `codewiki` CLI command and all required Python dependencies.
+This registers the `codewiki` console command, defined in `pyproject.toml` as:
 
-Verify installation:
+```text
+[project.scripts]
+codewiki = "codewiki.cli.main:cli"
+```
+
+Verify the install:
 
 ```bash
 codewiki --version
+codewiki version
 ```
 
-Expected output:
+## Step 2: Configure Your LLM Credentials
 
-```text
-CodeWiki CLI, version 1.0.1
-```
-
-### Step 3 — Configure Your LLM Provider
-
-CodeWiki supports any OpenAI-compatible LLM endpoint. Configure it once using the CLI:
+CodeWiki needs API credentials for at least a **main model** and a **cluster model** (a fallback model is optional but recommended). Credentials are stored securely in your OS keyring; non-secret settings go to `~/.codewiki/config.json`.
 
 ```bash
 codewiki config set \
-  --main-model gpt-4o \
-  --main-api-key sk-your-openai-key \
-  --main-base-url https://api.openai.com/v1 \
-  --cluster-model gpt-4o-mini \
-  --cluster-api-key sk-your-openai-key \
-  --cluster-base-url https://api.openai.com/v1 \
-  --fallback-model gpt-3.5-turbo \
-  --fallback-api-key sk-your-openai-key \
-  --fallback-base-url https://api.openai.com/v1
+  --cluster-api-key "sk-your-cluster-provider-key" \
+  --main-api-key "sk-your-main-provider-key" \
+  --cluster-model "your-cluster-model-name" \
+  --main-model "your-main-model-name" \
+  --cluster-base-url "https://api.your-provider.com/v1" \
+  --main-base-url "https://api.your-provider.com/v1"
 ```
 
-> **API Key Security:** Keys are stored securely in your OS keychain (macOS Keychain, Windows Credential Manager, or Linux Secret Service). They are never written to disk in plaintext.
+> **Note:** Replace the model names, base URLs, and API keys with values for your actual LLM provider. CodeWiki does not ship with default credentials — you must supply your own.
 
-Verify your configuration was saved:
+Confirm the configuration was saved and is complete:
 
 ```bash
-codewiki config show
+codewiki config validate
 ```
 
-### Step 4 — Generate Documentation
+## Step 3: Generate Documentation for a Repository
 
-Navigate to the repository you want to document and run:
+Navigate to any Git repository you want to document, then run:
 
 ```bash
-cd /path/to/your-project
+cd /path/to/your/project
 codewiki generate
 ```
 
-The CLI will show a progress display with stage-by-stage updates:
+By default, output is written to `./docs`. The CLI runs through four staged checks and then the documentation pipeline itself:
 
 ```text
-[1/5] Dependency Analysis ................... 40%
-[2/5] Module Clustering ..................... 20%
-[3/5] Documentation Generation ............. 30%
-[4/5] HTML Generation ....................... 5%
-[5/5] Finalization .......................... 5%
+Validating configuration...
+Validating repository...
+Analyzing dependencies...
+Generating documentation...
 ```
 
-### Step 5 — View Results
+## Expected Output
 
-Once complete, open the generated documentation:
+After a successful run, you should see a `docs/` directory in your project containing:
+
+- Markdown files for each analyzed module (leaf modules first, then parent overview pages)
+- A `module_tree.json` describing the hierarchical module structure
+- A `metadata.json` describing job statistics and status
+
+## Example: Verbose Run with Custom Output
 
 ```bash
-ls ./docs/
+codewiki generate --output ./generated-docs --verbose
 ```
 
-You will find:
+Add `--verbose` any time you want detailed stage-by-stage progress and debug information printed to your terminal.
 
-```text
-docs/
-├── README.md              ← Repository overview
-├── module_tree.json       ← Module structure metadata
-├── metadata.json          ← Generation metadata
-└── <module-name>/
-    └── <module-name>.md   ← Per-module documentation
-```
-
----
-
-## Using OpenAI
+## Example: Generate a GitHub Pages Site
 
 ```bash
-codewiki config set \
-  --main-model gpt-4o \
-  --main-api-key sk-... \
-  --main-base-url https://api.openai.com/v1 \
-  --cluster-model gpt-4o \
-  --cluster-api-key sk-... \
-  --cluster-base-url https://api.openai.com/v1 \
-  --fallback-model gpt-4o-mini \
-  --fallback-api-key sk-... \
-  --fallback-base-url https://api.openai.com/v1
+codewiki generate --github-pages --create-branch
 ```
 
-## Using Anthropic (Claude)
+This additionally renders a self-contained `index.html` viewer (from the generated `module_tree.json` and `metadata.json`) and creates a timestamped Git branch for the documentation changes, ready to push and open a pull request.
+
+## Running the Web Application Instead
+
+If you prefer the hosted web workflow (submit a GitHub repo URL through a browser, track job status, and view cached results), you can run the FastAPI app directly:
 
 ```bash
-codewiki config set \
-  --main-model claude-sonnet-4 \
-  --main-api-key sk-ant-... \
-  --main-base-url https://api.anthropic.com/v1 \
-  --cluster-model claude-sonnet-4 \
-  --cluster-api-key sk-ant-... \
-  --cluster-base-url https://api.anthropic.com/v1 \
-  --fallback-model claude-haiku-4 \
-  --fallback-api-key sk-ant-... \
-  --fallback-base-url https://api.anthropic.com/v1
+python codewiki/run_web_app.py
 ```
 
----
-
-## Quick Options Reference
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--output / -o` | Output directory | `./docs` |
-| `--create-branch` | Auto-create a Git branch | Off |
-| `--github-pages` | Generate GitHub Pages `index.html` | Off |
-| `--include` | Comma-separated glob patterns to include | All files |
-| `--exclude` | Comma-separated glob patterns to exclude | None |
-| `--doc-type` | Style: `api`, `architecture`, `user-guide`, `developer` | Default |
-| `--max-depth` | Maximum module nesting depth | 2 |
-
-### Example: Architecture docs for a Python project
+Or via Docker Compose:
 
 ```bash
-codewiki generate \
-  --doc-type architecture \
-  --output ./architecture-docs \
-  --exclude "tests/,*.test.py"
+cd docker
+docker compose up --build
 ```
 
-### Example: Focus on specific modules
-
-```bash
-codewiki generate \
-  --focus "src/core,src/api" \
-  --instructions "Focus on public APIs and include usage examples"
-```
-
-### Example: CI/CD pipeline
-
-```bash
-codewiki generate \
-  --create-branch \
-  --github-pages \
-  --output ./docs
-```
-
----
-
-## Try the Web Interface
-
-CodeWiki also provides a web UI. To start it locally:
-
-```bash
-python -m codewiki.run_web_app
-```
-
-Then open your browser at `http://localhost:8000` and paste any public GitHub repository URL to generate documentation.
-
----
+The web app listens on port `8000` by default (configurable via the `APP_PORT` environment variable read by `docker/docker-compose.yml`).
 
 ## Next Steps
 
-After your first successful generation:
-
-- Review [First Steps](first-steps.md) to explore key features in depth
-- Check the [Prerequisites](prerequisites.md) if you encountered setup issues
+Once you've generated your first documentation set, continue to [First Steps](first-steps.md) to learn about customizing what gets documented, exploring the CLI's other options, and where to find help.
