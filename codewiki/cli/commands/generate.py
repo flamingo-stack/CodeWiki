@@ -216,12 +216,6 @@ def generate_command(
     logger = create_logger(verbose=verbose)
     start_time = time.time()
 
-    # Suppress verbose third-party library logs
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-    logging.getLogger("anthropic").setLevel(logging.WARNING)
-    
     try:
         # Pre-generation checks
         logger.step("Validating configuration...", 1, 4)
@@ -552,4 +546,5 @@ def generate_command(
         sys.exit(130)
     except Exception as e:
         sys.exit(handle_error(e, verbose=verbose))
+
 

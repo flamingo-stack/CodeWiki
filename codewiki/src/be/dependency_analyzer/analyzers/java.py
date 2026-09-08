@@ -1,3 +1,13 @@
+"""Java analyzer for the dependency analysis pipeline.
+
+This module uses tree-sitter to parse Java source files and extract
+structural components (classes, interfaces, enums, records, annotations,
+methods) as well as call/relationship information (inheritance, interface
+implementation, field type usage, method invocations, and object creation).
+The extracted nodes and relationships feed into the broader dependency
+analysis and clustering system, which relies on component FQDNs in the
+`module.path::ClassName` format.
+"""
 import logging
 from typing import List, Optional, Tuple
 from pathlib import Path
@@ -47,9 +57,9 @@ class TreeSitterJavaAnalyzer:
 	def _get_component_id(self, name: str, parent_class: str = None) -> str:
 		module_path = self._get_module_path()
 		if parent_class:
-			return f"{module_path}.{parent_class}.{name}"
+			return f"{module_path}::{parent_class}.{name}"
 		else:
-			return f"{module_path}.{name}"
+			return f"{module_path}::{name}"
 
 	def _analyze(self):
 		language_capsule = tree_sitter_java.language()

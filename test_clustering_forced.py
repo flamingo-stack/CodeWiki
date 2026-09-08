@@ -16,9 +16,31 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv(
+    "TEST_REPO_PATH",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
-config = Config(
+class TestResults:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, message=""):
+        self.tests.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n📊 TEST SUMMARY:\n")
+        for name, passed, message in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {name}" + (f" - {message}" if message else ""))
+        return all(passed for _, passed, _ in self.tests)
+
+
+results = TestResults()
+
+test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
+
+config = Config.from_cli(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
     docs_dir="/tmp/test/docs", max_depth=2,
     main_model=os.getenv("MAIN_MODEL", "gpt-4o"),
@@ -59,15 +81,23 @@ print("=" * 80)
 print("\n📊 RESULTS:\n")
 
 if len(module_tree) == 0:
-    print("❌ FAILED: Empty module tree")
-    print("   This means LLM did NOT follow <GROUPED_COMPONENTS> tag format")
-    print("   Check logs above for 'Invalid LLM response format' or 'Invalid JSON'")
-    sys.exit(1)
+    results.add_test(
+        "clustering_produces_module_tree", False,
+        "Empty module tree - LLM did NOT follow <GROUPED_COMPONENTS> tag format"
+    )
+    passed = results.print_summary()
+    sys.exit(0 if passed else 1)
 else:
+    results.add_test(
+        "clustering_produces_module_tree", True,
+        f"{len(module_tree)} modules created"
+    )
     print(f"✅ SUCCESS: {len(module_tree)} modules created")
     print("\nModules generated:")
     for name, info in module_tree.items():
         comp_count = len(info.get('components', []))
         print(f"   - {name}: {comp_count} components")
     print("\n🎉 THE FIX WORKS! LLM followed the <GROUPED_COMPONENTS> tag format!")
-    sys.exit(0)
+    passed = results.print_summary()
+    sys.exit(0 if passed else 1)
+

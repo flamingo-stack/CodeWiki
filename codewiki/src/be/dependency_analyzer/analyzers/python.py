@@ -59,11 +59,11 @@ class PythonASTAnalyzer(ast.NodeVisitor):
                     break
             return path.replace('/', '.').replace('\\', '.')
         except Exception as e:
-            logger.debug(f"Falling back to raw file_path for module path: {e}")
+            logger.debug(f"Failed to compute module path for {self.file_path}: {e}")
             return str(self.file_path).replace('/', '.').replace('\\', '.')
     
     def _get_component_id(self, name: str) -> str:
-        """Generate component ID using '::' separator for module::ClassName FQDN format."""
+        """Generate component ID in '<dotted.module.path>::<ComponentName>' FQDN format."""
         module_path = self._get_module_path()
         if self.current_class_name:
             return f"{module_path}::{self.current_class_name}.{name}"

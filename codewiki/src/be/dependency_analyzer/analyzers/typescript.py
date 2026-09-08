@@ -210,6 +210,7 @@ class TreeSitterTSAnalyzer:
             if node.parent.parent and node.parent.parent.type in ["module", "ambient_declaration"]:
                 return "module_block"
             return "statement_block"
+        return "unknown"
     def _extract_function_entity(self, node, func_type: str, depth: int) -> dict:
         name_node = self._find_child_by_type(node, "identifier")
         if not name_node:
@@ -660,7 +661,7 @@ class TreeSitterTSAnalyzer:
 
     def _get_component_id(self, name: str) -> str:
         module_path = self._get_module_path()
-        return f"{module_path}.{name}"
+        return f"{module_path}::{name}"
 
     def _extract_inheritance(self, node) -> List[str]:
         """Extract inheritance/implementation relationships."""

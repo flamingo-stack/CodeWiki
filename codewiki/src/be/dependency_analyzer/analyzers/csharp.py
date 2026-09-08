@@ -53,7 +53,7 @@ class TreeSitterCSharpAnalyzer:
 	
 	def _get_component_id(self, name: str) -> str:
 		module_path = self._get_module_path()
-		return f"{module_path}.{name}" if module_path else name
+		return f"{module_path}::{name}" if module_path else name
 
 	def _analyze(self):
 		language_capsule = tree_sitter_c_sharp.language()
@@ -302,4 +302,5 @@ class TreeSitterCSharpAnalyzer:
 def analyze_csharp_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
 	analyzer = TreeSitterCSharpAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+
 

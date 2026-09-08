@@ -1,6 +1,11 @@
 """
 FQDN Normalization Fix - Enhanced Component ID Resolution
 
+NOTE: This file is a standalone reference/patch proposal for
+codewiki/src/be/cluster_modules.py. It is kept at the repository root
+temporarily for review purposes; its logic should be integrated into
+codewiki/src/be/cluster_modules.py (or this file removed) once merged.
+
 This file contains the proposed fix for cluster_modules.py to handle:
 1. LLM-added "deps." prefixes
 2. Fuzzy substring matching for nested paths
@@ -139,6 +144,7 @@ def normalize_component_ids_enhanced(
             if '.' in comp_id:
                 # Try matching last 2-4 segments
                 segments = comp_id.split('.')
+                suffix_matches = []
                 for n in range(2, min(5, len(segments) + 1)):
                     suffix = '.'.join(segments[-n:])
                     suffix_matches = [
@@ -320,3 +326,4 @@ if total_failed > 0:
     logger.warning(f"   ⚠️  Failed to normalize {total_failed} component IDs")
 logger.info("")
 """
+

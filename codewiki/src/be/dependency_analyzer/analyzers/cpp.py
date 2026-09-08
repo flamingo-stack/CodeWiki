@@ -55,8 +55,8 @@ class TreeSitterCppAnalyzer:
 	def _get_component_id(self, name: str, parent_class: str = None) -> str:
 		module_path = self._get_module_path()
 		if parent_class:
-			return f"{module_path}.{parent_class}.{name}" if module_path else f"{parent_class}.{name}"
-		return f"{module_path}.{name}" if module_path else name
+			return f"{module_path}::{parent_class}.{name}" if module_path else f"{parent_class}.{name}"
+		return f"{module_path}::{name}" if module_path else name
 
 	def _analyze(self):
 		language_capsule = tree_sitter_cpp.language()

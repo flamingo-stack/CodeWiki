@@ -2,6 +2,7 @@
 Logging utilities for CLI with colored output and progress tracking.
 """
 
+import logging
 import sys
 from datetime import datetime
 from typing import Optional
@@ -71,6 +72,26 @@ class CLILogger:
             return f"{seconds}s"
 
 
+# Third-party HTTP/SDK loggers emit one INFO line per request. Across a
+# documentation run that is thousands of lines of noise in CI, so they are
+# capped at WARNING. Applied from create_logger() rather than at import time:
+# a setLevel() side effect that fires merely because a module was imported is
+# invisible to anyone reading the call site, and fires even for importers that
+# never wanted it.
+_NOISY_THIRD_PARTY_LOGGERS = (
+    "httpx",
+    "openai",
+    "openai._base_client",
+    "anthropic",
+)
+
+
+def quiet_third_party_loggers(level: int = logging.WARNING) -> None:
+    """Cap the noisiest third-party loggers so CLI output stays readable."""
+    for name in _NOISY_THIRD_PARTY_LOGGERS:
+        logging.getLogger(name).setLevel(level)
+
+
 def create_logger(verbose: bool = False) -> CLILogger:
     """
     Create and return a CLI logger.
@@ -81,5 +102,6 @@ def create_logger(verbose: bool = False) -> CLILogger:
     Returns:
         Configured CLILogger instance
     """
+    quiet_third_party_loggers()
     return CLILogger(verbose=verbose)
 
