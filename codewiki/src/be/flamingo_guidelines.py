@@ -12,8 +12,11 @@ Usage:
     # In prompts:
     prompt = f"{get_custom_instructions_section()}{get_guidelines_section()}Your actual prompt here..."
 """
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 GUIDELINES_ENV_VAR = "FLAMINGO_MARKDOWN_GUIDELINES_PATH"
 CUSTOM_INSTRUCTIONS_ENV_VAR = "CUSTOM_REPO_INSTRUCTIONS"
@@ -34,20 +37,20 @@ def load_flamingo_guidelines() -> str:
     guidelines_path = os.environ.get(GUIDELINES_ENV_VAR)
 
     if not guidelines_path:
-        print(f"[CodeWiki] {GUIDELINES_ENV_VAR} not set - continuing without Flamingo guidelines")
+        logger.info(f"[CodeWiki] {GUIDELINES_ENV_VAR} not set - continuing without Flamingo guidelines")
         return ""
 
     try:
         path = Path(guidelines_path)
         if not path.exists():
-            print(f"[CodeWiki] Guidelines file not found: {guidelines_path}")
+            logger.warning(f"[CodeWiki] Guidelines file not found: {guidelines_path}")
             return ""
 
         content = path.read_text(encoding='utf-8')
-        print(f"[CodeWiki] Loaded Flamingo markdown guidelines ({len(content)} chars)")
+        logger.info(f"[CodeWiki] Loaded Flamingo markdown guidelines ({len(content)} chars)")
         return content
     except Exception as e:
-        print(f"[CodeWiki] Failed to load guidelines: {e}")
+        logger.warning(f"[CodeWiki] Failed to load guidelines: {e}")
         return ""
 
 
@@ -75,12 +78,12 @@ def sanitize_problematic_patterns(text: str) -> str:
     """
     import re
 
-    print(f"[DEBUG] sanitize_problematic_patterns called - input length: {len(text)}")
+    logger.debug(f"[DEBUG] sanitize_problematic_patterns called - input length: {len(text)}")
 
     # Count braces before sanitization
     open_count_before = text.count('{')
     close_count_before = text.count('}')
-    print(f"[DEBUG]   BEFORE: {{ count={open_count_before}, }} count={close_count_before}")
+    logger.debug(f"[DEBUG]   BEFORE: {{ count={open_count_before}, }} count={close_count_before}")
 
     # 1. GitHub Actions syntax: ${{...}} → ${...}
     # Use iterative approach for robustness with nested braces
@@ -104,8 +107,8 @@ def sanitize_problematic_patterns(text: str) -> str:
     # Count braces after sanitization
     open_count_after = text.count('{')
     close_count_after = text.count('}')
-    print(f"[DEBUG]   AFTER: {{ count={open_count_after}, }} count={close_count_after}")
-    print(f"[DEBUG]   Sample (first 200 chars): {text[:200]}")
+    logger.debug(f"[DEBUG]   AFTER: {{ count={open_count_after}, }} count={close_count_after}")
+    logger.debug(f"[DEBUG]   Sample (first 200 chars): {text[:200]}")
 
     return text
 
@@ -146,7 +149,7 @@ def sanitize_and_escape_format_braces(text: str) -> str:
     """
     import re
 
-    print(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
+    logger.debug(f"[DEBUG] sanitize_and_escape_format_braces called - input length: {len(text)}")
 
     # STEP 1: SANITIZATION (if not already done)
     # This ensures problematic patterns are normalized before we escape braces
@@ -164,7 +167,7 @@ def sanitize_and_escape_format_braces(text: str) -> str:
 
     # Replace all {digit} patterns with markers
     text = re.sub(r'\{(\d+)\}', preserve_numeric, text)
-    print(f"[DEBUG]   Preserved {len(numeric_placeholders)} numeric placeholders: {list(numeric_placeholders.values())}")
+    logger.debug(f"[DEBUG]   Preserved {len(numeric_placeholders)} numeric placeholders: {list(numeric_placeholders.values())}")
 
     # STEP 3: ESCAPE ALL REMAINING BRACES
     # Now escape ALL braces (non-numeric content like {Decision}, {Component})
@@ -180,8 +183,8 @@ def sanitize_and_escape_format_braces(text: str) -> str:
     # Count braces after escaping
     open_count_after = result.count('{')
     close_count_after = result.count('}')
-    print(f"[DEBUG]   AFTER ESCAPING: {{ count={open_count_after}, }} count={close_count_after}")
-    print(f"[DEBUG]   Sample (first 200 chars): {result[:200]}")
+    logger.debug(f"[DEBUG]   AFTER ESCAPING: {{ count={open_count_after}, }} count={close_count_after}")
+    logger.debug(f"[DEBUG]   Sample (first 200 chars): {result[:200]}")
 
     return result
 
@@ -259,16 +262,16 @@ def load_custom_instructions() -> str:
     custom_instructions = os.environ.get(CUSTOM_INSTRUCTIONS_ENV_VAR, "")
 
     if not custom_instructions:
-        print(f"[CodeWiki] {CUSTOM_INSTRUCTIONS_ENV_VAR} not set - continuing without custom instructions")
+        logger.info(f"[CodeWiki] {CUSTOM_INSTRUCTIONS_ENV_VAR} not set - continuing without custom instructions")
         return ""
 
-    print(f"[CodeWiki] Loaded custom repo instructions ({len(custom_instructions)} chars)")
+    logger.info(f"[CodeWiki] Loaded custom repo instructions ({len(custom_instructions)} chars)")
 
     # CRITICAL: Sanitize on input - this is the ONLY place text sanitization should happen
     # Shell scripts pass raw text, and we handle all sanitization here in Python
     # This prevents double-sanitization and ensures consistent behavior
     sanitized = sanitize_problematic_patterns(custom_instructions)
-    print(f"[CodeWiki] Sanitized custom instructions ({len(sanitized)} chars after sanitization)")
+    logger.info(f"[CodeWiki] Sanitized custom instructions ({len(sanitized)} chars after sanitization)")
 
     return sanitized
 
@@ -291,20 +294,20 @@ def load_validation_rules() -> str:
     rules_path = os.environ.get(VALIDATION_RULES_ENV_VAR)
 
     if not rules_path:
-        print(f"[CodeWiki] {VALIDATION_RULES_ENV_VAR} not set - continuing without validation rules injection")
+        logger.info(f"[CodeWiki] {VALIDATION_RULES_ENV_VAR} not set - continuing without validation rules injection")
         return ""
 
     try:
         path = Path(rules_path)
         if not path.exists():
-            print(f"[CodeWiki] Validation rules file not found: {rules_path}")
+            logger.warning(f"[CodeWiki] Validation rules file not found: {rules_path}")
             return ""
 
         content = path.read_text(encoding='utf-8')
-        print(f"[CodeWiki] Loaded markdown validation rules ({len(content)} chars)")
+        logger.info(f"[CodeWiki] Loaded markdown validation rules ({len(content)} chars)")
         return content
     except Exception as e:
-        print(f"[CodeWiki] Failed to load validation rules: {e}")
+        logger.warning(f"[CodeWiki] Failed to load validation rules: {e}")
         return ""
 
 
@@ -375,3 +378,4 @@ def get_custom_instructions_section() -> str:
         escaped_instructions +
         "\n\n---\n"
     )
+
