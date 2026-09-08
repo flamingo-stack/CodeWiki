@@ -1,3 +1,16 @@
+"""
+Module clustering pipeline for CodeWiki.
+
+This module groups leaf-level code components (classes, functions, files)
+into higher-level "modules" using LLM-driven clustering. It builds an
+integer ID <-> FQDN mapping for components so the LLM prompt/response can
+operate on compact integer IDs instead of full fully-qualified names,
+normalizes the LLM's returned component IDs back to FQDNs, and recursively
+clusters sub-modules until each unit fits under the configured token budget.
+
+Also includes a small backward-compatibility layer for functions that were
+used by the older short-ID based clustering approach.
+"""
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
 import logging
@@ -209,6 +222,63 @@ def format_potential_core_components(
     return potential_core_components, potential_core_components_with_code, id_to_fqdn, id_descriptions
 
 
+def normalize_component_id_list(
+    component_ids: List[Any],
+    id_to_fqdn: Dict[int, str],
+    components: Optional[Dict[str, Any]] = None,
+    context: str = "",
+) -> tuple[List[str], int, int]:
+    """Resolve one list of LLM-returned component ids to FQDNs.
+
+    The LLM is asked for integer ids, but may return an FQDN it copied verbatim
+    out of the prompt. When ``components`` is supplied, such an id is accepted
+    as-is; otherwise only integer ids in ``id_to_fqdn`` resolve.
+
+    Args:
+        component_ids: Raw ids from the LLM response.
+        id_to_fqdn: Integer id -> FQDN mapping for this prompt.
+        components: Optional component registry, enabling the exact-FQDN path.
+        context: Label used in warnings (module or sub-module name).
+
+    Returns:
+        (resolved FQDNs, number normalized, number that could not be resolved)
+    """
+    max_id = len(id_to_fqdn) - 1
+    resolved: List[str] = []
+    normalized = 0
+    failed = 0
+
+    for comp_id in component_ids:
+        # The LLM sometimes echoes a full FQDN straight out of the prompt.
+        if components is not None and comp_id in components:
+            resolved.append(comp_id)
+            continue
+        try:
+            idx = int(comp_id)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                f"   \u274c Non-integer component ID in '{context}'\n"
+                f"      \u251c\u2500 Received: {comp_id} (type: {type(comp_id).__name__})\n"
+                f"      \u251c\u2500 Error: {e}\n"
+                f"      \u2514\u2500 LLM must return integer IDs only"
+            )
+            failed += 1
+            continue
+        if idx in id_to_fqdn:
+            resolved.append(id_to_fqdn[idx])
+            normalized += 1
+            logger.debug(f"   \u2705 ID {idx} \u2192 {id_to_fqdn[idx]}")
+        else:
+            logger.warning(
+                f"   \u274c Invalid ID {idx} in '{context}'\n"
+                f"      \u251c\u2500 Valid range: 0-{max_id}\n"
+                f"      \u2514\u2500 LLM returned out-of-range ID"
+            )
+            failed += 1
+
+    return resolved, normalized, failed
+
+
 def normalize_component_ids_by_lookup(
     module_tree: Dict,
     id_to_fqdn: Dict[int, str]
@@ -224,46 +294,24 @@ def normalize_component_ids_by_lookup(
     Returns:
         Module tree with IDs replaced by FQDNs
     """
-    logger.info("🔄 Normalizing component IDs via direct lookup")
+    logger.info("\U0001f504 Normalizing component IDs via direct lookup")
 
     total_normalized = 0
     total_failed = 0
-    max_id = len(id_to_fqdn) - 1
 
     for module_name, module_data in module_tree.items():
-        component_ids = module_data.get('components', [])
-        normalized_components = []
+        resolved, normalized, failed = normalize_component_id_list(
+            module_data.get('components', []),
+            id_to_fqdn,
+            context=f"module '{module_name}'",
+        )
+        module_data['components'] = resolved
+        total_normalized += normalized
+        total_failed += failed
 
-        for comp_id in component_ids:
-            # Convert to int and validate
-            try:
-                idx = int(comp_id)
-                if idx in id_to_fqdn:
-                    fqdn = id_to_fqdn[idx]
-                    normalized_components.append(fqdn)
-                    total_normalized += 1
-                    logger.debug(f"   ✅ ID {idx} → {fqdn}")
-                else:
-                    logger.warning(
-                        f"   ❌ Invalid ID {idx} in module '{module_name}'\n"
-                        f"      ├─ Valid range: 0-{max_id}\n"
-                        f"      └─ LLM returned out-of-range ID"
-                    )
-                    total_failed += 1
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"   ❌ Non-integer ID in module '{module_name}'\n"
-                    f"      ├─ Received: {comp_id} (type: {type(comp_id).__name__})\n"
-                    f"      ├─ Error: {e}\n"
-                    f"      └─ LLM must return integer IDs only"
-                )
-                total_failed += 1
-
-        module_data['components'] = normalized_components
-
-    logger.info(f"   ✅ Normalized {total_normalized} component IDs")
+    logger.info(f"   \u2705 Normalized {total_normalized} component IDs")
     if total_failed > 0:
-        logger.warning(f"   ⚠️  Failed to normalize {total_failed} IDs")
+        logger.warning(f"   \u26a0\ufe0f  Failed to normalize {total_failed} IDs")
 
     return module_tree
 
@@ -355,39 +403,31 @@ def cluster_modules(
             logger.error(f"Invalid module tree format - expected dict, got {type(module_tree)}")
             return {}
 
-        # CRITICAL: Validate all component IDs are integers
-        max_id = len(id_to_fqdn) - 1
-        for module_name, module_info in module_tree.items():
-            if "components" not in module_info:
-                continue
-
-            component_ids = module_info["components"]
-            invalid_ids = []
-
-            for comp_id in component_ids:
-                # Check if ID is an integer
-                if not isinstance(comp_id, int):
-                    invalid_ids.append(f"{comp_id} (type: {type(comp_id).__name__})")
-                # Check if ID is in valid range
-                elif comp_id < 0 or comp_id > max_id:
-                    invalid_ids.append(f"{comp_id} (out of range 0-{max_id})")
-
-            if invalid_ids:
-                logger.error(f"❌ Module '{module_name}' contains invalid component IDs:")
-                logger.error(f"   Invalid IDs: {invalid_ids}")
-                logger.error(f"   Expected: Integers in range 0-{max_id}")
-                logger.error(f"   LLM ignored instructions and returned non-integer IDs!")
-                return {}
-
-        logger.info(f"✅ LLM response validation passed: All IDs are integers in valid range")
-
     except Exception as e:
         logger.error(f"Failed to parse LLM response: {e}. Response: {response[:200]}...")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return {}
 
-    # Normalize component IDs using simple lookup (replaces 200+ lines of fuzzy matching)
+    # Normalize component IDs using simple lookup (replaces 200+ lines of fuzzy matching
+    # and the duplicated inline ID validation that previously lived here).
+    #
+    # normalize_component_ids_by_lookup drops ids it cannot resolve and carries on,
+    # which is the right behaviour for the sub-module path but NOT here: a module
+    # left holding an empty component list still gets documented, producing a
+    # plausible-looking but empty page and a run that reports success. The inline
+    # validation this replaced aborted instead, and clustering keeps that contract
+    # by comparing the id count either side of normalization.
+    ids_before = sum(len(m.get('components', [])) for m in module_tree.values())
     module_tree = normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+    ids_after = sum(len(m.get('components', [])) for m in module_tree.values())
+
+    if ids_after < ids_before:
+        logger.error(
+            f"\u274c Clustering aborted: {ids_before - ids_after} of {ids_before} component "
+            f"ID(s) could not be resolved to an FQDN (valid range 0-{len(id_to_fqdn) - 1}).\n"
+            f"   \u2514\u2500 The LLM ignored the integer-ID instruction; see the warnings above."
+        )
+        return {}
 
     # check if the module tree is valid
     if len(module_tree) <= 1:

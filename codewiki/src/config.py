@@ -350,6 +350,24 @@ class Config:
         )
     
     @classmethod
+    def from_web_job(cls, repo_path: str, docs_dir: str) -> 'Config':
+        """Create configuration for a web-app documentation job.
+
+        Same environment-driven resolution as :meth:`from_args`, but takes the
+        job's repository path and output directory directly instead of an
+        argparse.Namespace. The web app's background worker has no CLI args to
+        pass, and building a fake Namespace at the call site just to satisfy
+        from_args() hid this dependency.
+
+        Args:
+            repo_path: Path to the cloned repository to document.
+            docs_dir: Job-specific directory for the generated documentation.
+        """
+        config = cls.from_args(argparse.Namespace(repo_path=repo_path))
+        config.docs_dir = docs_dir
+        return config
+
+    @classmethod
     def from_cli(
         cls,
         repo_path: str,
