@@ -1,3 +1,5 @@
+"""File I/O utility helpers used across the CodeWiki backend and web app."""
+
 import os
 import json
 from typing import Any, Optional, Dict
@@ -45,3 +47,4 @@ class FileManager:
             return f.read()
 
 file_manager = FileManager()
+

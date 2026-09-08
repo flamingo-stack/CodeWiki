@@ -136,7 +136,12 @@ def create_main_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None,
+            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+            # openai_client and http_client - there is no default_headers
+            # parameter (verified against pydantic-ai 2.40.0), so passing one
+            # raises TypeError. To send anthropic-version here, build an
+            # AsyncOpenAI client with default_headers and pass it as
+            # openai_client=.
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -186,7 +191,12 @@ def create_fallback_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None,
+            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+            # openai_client and http_client - there is no default_headers
+            # parameter (verified against pydantic-ai 2.40.0), so passing one
+            # raises TypeError. To send anthropic-version here, build an
+            # AsyncOpenAI client with default_headers and pass it as
+            # openai_client=.
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )
@@ -250,7 +260,12 @@ def create_cluster_model(config: Config) -> OpenAIModel:
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
-            default_headers=default_headers if default_headers else None,
+            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+            # openai_client and http_client - there is no default_headers
+            # parameter (verified against pydantic-ai 2.40.0), so passing one
+            # raises TypeError. To send anthropic-version here, build an
+            # AsyncOpenAI client with default_headers and pass it as
+            # openai_client=.
         ),
         settings=OpenAIModelSettings(**settings_dict)
     )

@@ -13,12 +13,6 @@ import os
 import logging
 import sys
 
-# Suppress verbose third-party library logs (OpenAI, Anthropic, httpx)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-logging.getLogger("anthropic").setLevel(logging.WARNING)
-
 from codewiki.cli.utils.progress import ProgressTracker
 from codewiki.cli.models.job import DocumentationJob, LLMConfig
 from codewiki.cli.utils.errors import APIError
@@ -256,10 +250,14 @@ class CLIDocumentationGenerator:
     async def _run_backend_generation(self, backend_config: BackendConfig):
         """Run the backend documentation generation with progress tracking."""
 
+        # Bind logger unconditionally at the top of the function so that any
+        # verbose-gated log line below can safely reference it, regardless of
+        # which branches execute.
+        logger = logging.getLogger(__name__)
+
         # Stage 1: Dependency Analysis
         self.progress_tracker.start_stage(1, "Dependency Analysis")
         if self.verbose:
-            logger = logging.getLogger(__name__)
             logger.info("🔍 Stage 1: Repository Dependency Analysis")
             self.progress_tracker.update_stage(0.1, "Initializing dependency analyzer...")
             print(f"   ├─ Repository: {backend_config.repo_path}")
@@ -320,7 +318,6 @@ class CLIDocumentationGenerator:
         self.progress_tracker.start_stage(2, "Module Clustering")
 
         if self.verbose:
-            logger = logging.getLogger(__name__)
             logger.info("🔍 Stage 2: Module Clustering with LLM")
 
         # Import clustering function
@@ -435,7 +432,6 @@ class CLIDocumentationGenerator:
         # Stage 3: Documentation Generation
         self.progress_tracker.start_stage(3, "Documentation Generation")
         if self.verbose:
-            logger = logging.getLogger(__name__)
             logger.info("🔍 Stage 3: LLM-Powered Documentation Generation")
             self.progress_tracker.update_stage(0.1, "Starting documentation generation...")
             print(f"   ├─ Modules to document: {len(module_tree)}")

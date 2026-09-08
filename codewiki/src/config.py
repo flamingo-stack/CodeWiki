@@ -1,4 +1,20 @@
-from dataclasses import dataclass, field
+"""Configuration module for CodeWiki.
+
+This module defines the central `Config` dataclass used throughout the
+CodeWiki documentation-generation pipeline. It encapsulates repository
+paths, output directories, LLM provider settings (models, API keys, base
+URLs, temperatures, and token limits), and agent instruction customization
+(include/exclude patterns, focus modules, doc type, custom instructions).
+
+It also provides constructors for building a `Config` instance from CLI
+arguments (`from_args`), for a web-app job (`from_web_job`), from explicit
+CLI parameters (`from_cli`), and from a `ConfigManager`
+(`from_config_manager`), along with helpers for
+multi-path source validation and prompt-addition generation used by the
+downstream documentation generation stages.
+"""
+
+from dataclasses import dataclass, field, fields, asdict
 from typing import Optional, List, Dict, Any
 import argparse
 import os
@@ -42,6 +58,14 @@ MAIN_MODEL = os.getenv('MAIN_MODEL', 'claude-sonnet-4')
 CLUSTER_MODEL = os.getenv('CLUSTER_MODEL', MAIN_MODEL)
 LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://0.0.0.0:4000/')
 
+# Fields that must never be included in serialized output (to_dict()).
+# These are runtime-only secrets and should not be persisted, cached, or dumped.
+_RUNTIME_ONLY_SECRET_FIELDS = frozenset({
+    'cluster_api_key',
+    'main_api_key',
+    'fallback_api_key',
+})
+
 @dataclass
 class Config:
     """Configuration class for CodeWiki."""
@@ -54,7 +78,7 @@ class Config:
     main_model: str
     cluster_model: str
     fallback_model: str
-    # Per-provider API keys (required)
+    # Per-provider API keys (required, runtime-only - never serialized via to_dict())
     cluster_api_key: str
     main_api_key: str
     fallback_api_key: str
@@ -93,6 +117,36 @@ class Config:
     # When None, operates in single-path mode (backward compatible)
     # When set, all paths are analyzed and merged into unified documentation
     additional_source_paths: Optional[List[str]] = None
+
+    def to_dict(self, include_secrets: bool = False) -> Dict[str, Any]:
+        """
+        Serialize this Config to a plain dict.
+
+        By default, runtime-only secret fields (cluster_api_key, main_api_key,
+        fallback_api_key) are excluded from the result to prevent accidental
+        persistence, caching, or logging of API keys. Pass include_secrets=True
+        only when the caller explicitly needs to reconstruct a fully-functional
+        Config via from_dict() (e.g. in-process transfer within the same trust
+        boundary).
+        """
+        data = asdict(self)
+        if not include_secrets:
+            for secret_field in _RUNTIME_ONLY_SECRET_FIELDS:
+                data.pop(secret_field, None)
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Config':
+        """
+        Construct a Config from a dict previously produced by to_dict().
+
+        If secret fields (cluster_api_key, main_api_key, fallback_api_key) were
+        excluded (the default for to_dict()), they must be supplied separately
+        in `data` or this will raise a TypeError due to missing required fields.
+        """
+        known_fields = {f.name for f in fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in known_fields}
+        return cls(**filtered)
 
     @property
     def include_patterns(self) -> Optional[List[str]]:
@@ -311,6 +365,24 @@ class Config:
             fallback_base_url=LLM_BASE_URL
         )
     
+    @classmethod
+    def from_web_job(cls, repo_path: str, docs_dir: str) -> 'Config':
+        """Create configuration for a web-app documentation job.
+
+        Same environment-driven resolution as :meth:`from_args`, but takes the
+        job's repository path and output directory directly instead of an
+        argparse.Namespace. The web app's background worker has no CLI args to
+        pass, and building a fake Namespace at the call site just to satisfy
+        from_args() hid this dependency.
+
+        Args:
+            repo_path: Path to the cloned repository to document.
+            docs_dir: Job-specific directory for the generated documentation.
+        """
+        config = cls.from_args(argparse.Namespace(repo_path=repo_path))
+        config.docs_dir = docs_dir
+        return config
+
     @classmethod
     def from_cli(
         cls,

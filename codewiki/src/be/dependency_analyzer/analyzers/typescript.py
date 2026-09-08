@@ -1,3 +1,14 @@
+"""TypeScript/JavaScript dependency analyzer based on tree-sitter parsing.
+
+This module implements TreeSitterTSAnalyzer, which parses TypeScript and
+JavaScript source files using tree-sitter to extract top-level code entities
+(functions, classes, interfaces, type aliases, enums, variables, exports,
+etc.) as `Node` objects and the call/inheritance/type relationships between
+them as `CallRelationship` objects. It is a structurally central part of the
+dependency analyzer pipeline, feeding the extracted nodes and relationships
+into downstream dependency graph construction.
+"""
+
 import logging
 import os
 import traceback
@@ -199,6 +210,7 @@ class TreeSitterTSAnalyzer:
             if node.parent.parent and node.parent.parent.type in ["module", "ambient_declaration"]:
                 return "module_block"
             return "statement_block"
+        return "unknown"
     def _extract_function_entity(self, node, func_type: str, depth: int) -> dict:
         name_node = self._find_child_by_type(node, "identifier")
         if not name_node:
