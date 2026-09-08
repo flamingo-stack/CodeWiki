@@ -16,16 +16,48 @@ on:
     paths:
       - '.github/workflows/flamingo-code-review.yml'
 
-  # READY-FOR-REVIEW ONLY (owner decision 2026-08-12, tightened 2026-08-15):
-  # the ONE automatic trigger is the draft→ready transition. 'synchronize'
-  # (per-push), 'opened', and 'reopened' are deliberately OFF — reviewing every
-  # push is excessive spend, and a PR opened directly as non-draft is NOT
-  # auto-reviewed (GitHub never fires ready_for_review for born-ready PRs;
-  # convert to draft and back, or dispatch from the hub admin, to review one).
-  # A draft→ready re-cycle diffs only the delta since the last reviewed head —
-  # see the incremental anchor in code-review-review.mjs.
+  # ENTERS-REVIEW ONLY (2026-08-12; corrected 2026-09-07). The automatic
+  # triggers are the moments a pull request ENTERS review, and nothing else.
+  #
+  # 'synchronize' (per-push) stays deliberately OFF. Reviewing every commit on
+  # an open PR is the largest avoidable cost in an AI review pipeline, and it
+  # trains authors to tune the bot out; the 2026 industry default is to review
+  # at review moments and offer an explicit re-review on demand.
+  #
+  # 'opened' and 'reopened' were OFF between 2026-08-15 and 2026-09-07, on the
+  # assumption that PRs are opened as drafts and later promoted. They are not
+  # — PRs here are born non-draft, GitHub NEVER fires ready_for_review for
+  # those, and so the automatic review effectively never ran. Drafts stay
+  # excluded: an 'opened' event for a draft is dropped by the job's
+  # draft == false guard, and that PR is reviewed later, on its
+  # ready_for_review.
+  #
+  # 'labeled' is the on-demand re-review — the affordance that makes the
+  # no-per-push default liveable. Commits pushed AFTER the first review are not
+  # auto-reviewed, so adding the flamingo-review label is how a human
+  # asks for another pass. A SEPARATE job removes it the moment the event
+  # arrives, so adding it again asks again, and it can never strand itself on a
+  # pull request the review gate declines. Every other label name is dropped by
+  # the job's if — a skipped run, zero billable minutes.
+  #
+  # A 'synchronize' carrying that label is treated as the same request. GitHub
+  # runs the workflow from the pull request's HEAD, so a label applied to a
+  # branch whose head predates this file fires an event no workflow was there
+  # to handle: the label lands, nothing runs, nothing consumes it, and because
+  # it is now already present, adding it again fires NOTHING AT ALL. Honouring
+  # it on the next push is what breaks that stall — the request gets served
+  # once and consumed, instead of sitting on the pull request looking applied.
+  #
+  # 'synchronize' (every push) is otherwise here ONLY to serve the
+  # flamingo-review-always label, and the job's if drops it on every pull
+  # request that does not carry it. That is the per-PR escalation: subscribe the
+  # risky refactor to continuous review, leave everything else on one review per
+  # pull request. A skipped push run costs no billable minutes.
+  #
+  # Every repeat pass diffs only the delta since the last reviewed head — see
+  # the incremental anchor in code-review-review.mjs.
   pull_request:
-    types: [ready_for_review]
+    types: [opened, ready_for_review, reopened, labeled, synchronize]
   repository_dispatch:
     types: [flamingo-code-review]
   # Lets the hub target a SETUP BRANCH before the install PR merges — the same
@@ -87,12 +119,62 @@ permissions:
   checks: write
 
 jobs:
+  # Consuming the label is its OWN job, gated on nothing but "that label was
+  # added". Living inside the review job meant a label applied to a pull request the
+  # review gate declines — a bot PR, a fork — was never consumed: the label sat
+  # there permanently, and because it was already present, adding it again did
+  # nothing. A silent dead end with no feedback. Split out, the request is
+  # always consumed, whether or not a review follows it.
+  #
+  # It does NOT remove flamingo-review-always: that label is durable state
+  # ("keep reviewing this PR"), not a one-shot request.
+  consume-review-request:
+    # The fork clause is not a token guard — a fork pull_request run gets a
+    # READ-ONLY token whatever this file declares, so the DELETE below could
+    # not succeed there even without it. It is here because a job that
+    # provably cannot do its work should not start: on a fork the label
+    # strands either way, and burning a runner to fail silently only hides
+    # that. Same clause, same reason, as the review job below.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.action == 'labeled' &&
+        github.event.label.name == 'flamingo-review') ||
+       (github.event.action == 'synchronize' &&
+        contains(github.event.pull_request.labels.*.name, 'flamingo-review')))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Consume the on-demand review label
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_FULL: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Best-effort: losing this race must never fail anything.
+        run: |
+          CURL_CFG=$(mktemp) && chmod 600 "$CURL_CFG"
+          printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN" > "$CURL_CFG"
+          curl -sS --max-time 30 -K "$CURL_CFG" -X DELETE \
+            "https://api.github.com/repos/$REPO_FULL/issues/$PR_NUMBER/labels/flamingo-review" > /dev/null || true
+          rm -f "$CURL_CFG"
+
   review:
     # Skip actual work when triggered by push (push only registers the
     # workflow with GitHub, which is what lets workflow_dispatch target a
     # setup branch before the install PR merges).
-    # Drafts, bots and forks never dispatch. A fork's token is read-only
-    # regardless of what is declared here, so running would only waste minutes.
+    # Bots and forks never run, on EVERY event. A fork PR's token is read-only,
+    # so the run could not post a comment or a check even if it finished; the
+    # bot clause is what stops a hub-opened ai-fix PR from being reviewed into
+    # another fix PR, and no label may waive it — "only a human applies a
+    # label" is an assumption, not an invariant, since anything holding
+    # pull-requests: write can label. To review a bot PR, dispatch it from the
+    # hub admin, which is an authenticated, recorded decision.
+    #
+    # DRAFT is different, and only the on-demand label waives it: an explicit
+    # request says "review this now" and means it whether or not the PR is
+    # finished, which is how every comparable tool treats its manual trigger.
+    # Automatic events and subscribed pushes still skip drafts.
     # NOTE: there is deliberately no vars. kill switch here. The hub's
     # per-repo enabled dial already covers it and answers 409 REVIEW_DISABLED,
     # which produces a recorded run. A second switch living in GitHub would be
@@ -101,9 +183,17 @@ jobs:
       github.event_name != 'push' &&
       (github.event_name == 'repository_dispatch' ||
        github.event_name == 'workflow_dispatch' ||
-       (github.event.pull_request.draft == false &&
-        github.event.pull_request.user.type != 'Bot' &&
-        github.event.pull_request.head.repo.full_name == github.repository))
+       (github.event.pull_request.user.type != 'Bot' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        ((github.event.action == 'labeled' &&
+          github.event.label.name == 'flamingo-review') ||
+         (github.event.action == 'synchronize' &&
+          (contains(github.event.pull_request.labels.*.name, 'flamingo-review') ||
+           (github.event.pull_request.draft == false &&
+            contains(github.event.pull_request.labels.*.name, 'flamingo-review-always')))) ||
+         (github.event.action != 'labeled' &&
+          github.event.action != 'synchronize' &&
+          github.event.pull_request.draft == false))))
     runs-on: ubuntu-latest
     # NO custom timeout-minutes — deliberately. GitHub's 6h hosted-runner
     # ceiling is the only clock: on hitting it the always() report step still
@@ -135,7 +225,7 @@ jobs:
         env:
           WEBHOOK_SECRET: ${{ secrets.DOC_ORCH_WEBHOOK_SECRET }}
           HASH_WORKFLOW_HELPERS: "3df9f07c408d987a44e9df7ba1584f01ff57502a596f013dd3218d3b4c30fd4c"
-          HASH_REPORT: "479b45311e6e91e7dc36b90d6a32db57fae25b215fdcd35c2889fb5f0618df0"
+          HASH_REPORT: "479b45311e6e91e7dc36b90d6a32db57fae25b215fdcd35c2889fb5f0618df07"
         run: |
           set -euo pipefail
           SCRIPTS_BASE_URL="${HUB_BASE_URL}/api/doc-orchestrator/scripts"
@@ -222,12 +312,12 @@ jobs:
       - name: Download and verify scripts
         env:
           WEBHOOK_SECRET: ${{ secrets.DOC_ORCH_WEBHOOK_SECRET }}
-          HASH_FETCH_RULES: "a3adb1976b782a6bfe405b68c7adc52f6650535e0d9fbc2ea427c3567f2c994"
-          HASH_RUN: "e4ebfe017a09ed3f783c8aea995a079be46b4add3b3f92db1918291d1b3e741"
-          HASH_MINE: "c12e6fd532bab44c95e855046efef3b45940fbde87d449d5577d198a0d3c4f6"
-          HASH_REVIEW: "fb7fa7802d31c7af69af300a0d7f5898f054b78efd44cd1262e880d1ad85c9b"
-          HASH_LIB: "adeba0f5d1c68ee2531e6c23f4a2ec206f3dc33f67a2b8228ade99509c6a614"
-          HASH_POST: "75404d6cf735f9a9f1332e65efb6e055ccaf18fe678b1fb3d74d0b0b996c6f2"
+          HASH_FETCH_RULES: "a3adb1976b782a6bfe405b68c7adc52f6650535e0d9fbc2ea427c3567f2c9943"
+          HASH_RUN: "e4ebfe017a09ed3f783c8aea995a079be46b4add3b3f92db1918291d1b3e7412"
+          HASH_MINE: "c12e6fd532bab44c95e855046efef3b45940fbde87d449d5577d198a0d3c4f62"
+          HASH_REVIEW: "fb7fa7802d31c7af69af300a0d7f5898f054b78efd44cd1262e880d1ad85c9b7"
+          HASH_LIB: "adeba0f5d1c68ee2531e6c23f4a2ec206f3dc33f67a2b8228ade99509c6a6149"
+          HASH_POST: "75404d6cf735f9a9f1332e65efb6e055ccaf18fe678b1fb3d74d0b0b996c6f2d"
         run: |
           set -euo pipefail
           SCRIPTS_BASE_URL="${HUB_BASE_URL}/api/doc-orchestrator/scripts"
@@ -400,4 +490,3 @@ jobs:
             exit 1
           fi
           /tmp/code-review-report.sh
-
