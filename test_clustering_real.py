@@ -62,3 +62,4 @@ else:
     for name, info in module_tree.items():
         print(f"   - {name}: {len(info.get('components', []))} components")
     sys.exit(0)
+

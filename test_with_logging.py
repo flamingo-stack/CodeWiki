@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-import logging
-
-# Setup logging FIRST
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s',
-    force=True
-)
 
 # Add CodeWiki to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,7 +11,11 @@ load_dotenv('.env.local')
 
 from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
+from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
 from codewiki.src.config import Config
+
+# Setup logging FIRST
+setup_logging()
 
 # Test repo
 test_repo = os.getenv("TEST_REPO_PATH", sys.argv[1] if len(sys.argv) > 1 else "")
