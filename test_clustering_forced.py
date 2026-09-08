@@ -40,7 +40,7 @@ results = TestResults()
 
 test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
-config = Config.from_cli(
+config = Config(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
     docs_dir="/tmp/test/docs", max_depth=2,
     main_model=os.getenv("MAIN_MODEL", "gpt-4o"),
