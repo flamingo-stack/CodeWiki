@@ -10,7 +10,7 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
-test_repo = "/Users/michaelassraf/Documents/GitHub/openframe-oss-tenant"
+test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
 config = Config(
     repo_path=test_repo, output_dir="/tmp/test", dependency_graph_dir="/tmp/test/deps",
@@ -96,3 +96,4 @@ else:
         more = len(info.get('components', [])) - 5
         print(f"   - {name}: {comp_count} components {comp_list}{'...' if more > 0 else ''}")
     sys.exit(0)
+

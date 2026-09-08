@@ -1,3 +1,10 @@
+"""Dependency container for CodeWiki agent tools.
+
+Defines CodeWikiDeps, a dataclass holding the shared context and state
+(paths, component registry, module tree position, configuration, etc.)
+that is passed to agent tools during the CodeWiki documentation generation
+pipeline.
+"""
 from dataclasses import dataclass
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config

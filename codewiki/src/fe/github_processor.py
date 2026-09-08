@@ -3,12 +3,16 @@
 GitHub repository processing utilities.
 """
 
+import logging
 import os
+import shutil
 import subprocess
 from typing import Dict
 from urllib.parse import urlparse
 
 from .config import WebAppConfig
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubRepoProcessor:
@@ -66,7 +70,7 @@ class GitHubRepoProcessor:
                 ], capture_output=True, text=True, timeout=WebAppConfig.CLONE_TIMEOUT)
                 
                 if result.returncode != 0:
-                    print(f"Error cloning repository: {result.stderr}")
+                    logger.error(f"Error cloning repository: {result.stderr}")
                     return False
                 
                 # Checkout specific commit
@@ -75,7 +79,9 @@ class GitHubRepoProcessor:
                 ], cwd=target_dir, capture_output=True, text=True, timeout=30)
                 
                 if result.returncode != 0:
-                    print(f"Error checking out commit {commit_id}: {result.stderr}")
+                    logger.error(f"Error checking out commit {commit_id}: {result.stderr}")
+                    if os.path.isdir(target_dir):
+                        shutil.rmtree(target_dir, ignore_errors=True)
                     return False
             else:
                 # Clone repository with shallow depth (default behavior)
@@ -84,10 +90,12 @@ class GitHubRepoProcessor:
                 ], capture_output=True, text=True, timeout=WebAppConfig.CLONE_TIMEOUT)
                 
                 if result.returncode != 0:
-                    print(f"Error cloning repository: {result.stderr}")
+                    logger.error(f"Error cloning repository: {result.stderr}")
                     return False
             
             return True
         except Exception as e:
-            print(f"Error cloning repository: {e}")
+            logger.error(f"Error cloning repository: {e}")
+            if os.path.isdir(target_dir):
+                shutil.rmtree(target_dir, ignore_errors=True)
             return False
