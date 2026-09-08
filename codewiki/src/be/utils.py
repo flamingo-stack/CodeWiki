@@ -127,6 +127,43 @@ def extract_mermaid_blocks(content: str) -> List[Tuple[int, str]]:
     return mermaid_blocks
 
 
+def _format_diagram_source_window(
+    diagram_content: str,
+    error_line_in_diagram: int,
+    line_start: int,
+    context: int = 3,
+) -> str:
+    """Numbered source window around a mermaid parse error.
+
+    The parser's own excerpt shows the input immediately BEFORE the error
+    offset, and jison collapses newlines when building it, so an error caused
+    by the first token of a line is presented as the tail of the PREVIOUS line
+    with a caret after it. Reading that excerpt alone, the offending line is
+    invisible - which is why a model asked to fix it edits the wrong line and
+    burns every retry. Emitting the real source, numbered in the markdown
+    file's own coordinates, makes the failing line unambiguous.
+    """
+    if not diagram_content.strip():
+        return ""
+
+    lines = diagram_content.split('\n')
+
+    error_line_in_diagram = max(1, min(error_line_in_diagram, len(lines)))
+    lo = max(1, error_line_in_diagram - context)
+    hi = min(len(lines), error_line_in_diagram + context)
+
+    rendered = []
+    for n in range(lo, hi + 1):
+        marker = '>' if n == error_line_in_diagram else ' '
+        rendered.append(f"  {marker} {line_start + n:>4} | {lines[n - 1]}")
+
+    return (
+        f"Diagram source (file lines {line_start + lo}-{line_start + hi}, "
+        f"'>' marks the line the parser stopped on; the unexpected token is on "
+        f"that line or immediately after it):\n" + "\n".join(rendered)
+    )
+
+
 async def validate_single_diagram(diagram_content: str, diagram_num: int, line_start: int) -> str:
     """
     Validate a single mermaid diagram.
@@ -195,7 +232,16 @@ async def validate_single_diagram(diagram_content: str, diagram_num: int, line_s
             error_line_in_diagram = int(line_match.group(1))
             actual_line_in_file = line_start + error_line_in_diagram
             newline = '\n'
-            return f"Diagram {diagram_num}: Parse error on line {actual_line_in_file}:{newline}{newline.join(core_error.split(newline)[1:])}"
+            source_window = _format_diagram_source_window(
+                diagram_content, error_line_in_diagram, line_start
+            )
+            message = (
+                f"Diagram {diagram_num}: Parse error on line {actual_line_in_file}:"
+                f"{newline}{newline.join(core_error.split(newline)[1:])}"
+            )
+            if source_window:
+                message = f"{message}{newline}{newline}{source_window}"
+            return message
         else:
             return f"Diagram {diagram_num}: {core_error}"
     
