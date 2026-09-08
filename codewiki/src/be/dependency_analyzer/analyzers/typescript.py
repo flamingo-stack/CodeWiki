@@ -661,7 +661,7 @@ class TreeSitterTSAnalyzer:
 
     def _get_component_id(self, name: str) -> str:
         module_path = self._get_module_path()
-        return f"{module_path}.{name}"
+        return f"{module_path}::{name}"
 
     def _extract_inheritance(self, node) -> List[str]:
         """Extract inheritance/implementation relationships."""

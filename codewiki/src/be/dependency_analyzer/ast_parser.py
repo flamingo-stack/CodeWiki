@@ -1,3 +1,16 @@
+"""AST parsing and dependency graph construction for multi-repository codebases.
+
+This module implements the core dependency analysis pipeline stage that:
+- Parses one or more repositories (single-path or multi-path modes) into
+  structural and call-graph representations using the AnalysisService.
+- Builds Node-based components keyed by fully-qualified domain names (FQDNs)
+  in the canonical `module.path::ComponentName` format.
+- Namespaces components originating from multiple repositories to avoid ID
+  collisions and tracks module membership for each component.
+- Resolves intra- and cross-namespace dependency edges between components.
+- Persists the resulting dependency graph to disk for downstream consumers
+  (e.g., clustering, LLM-based summarization, and documentation generation).
+"""
 import os
 import json
 import logging
@@ -12,7 +25,6 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class DependencyParser:
@@ -104,7 +116,7 @@ class DependencyParser:
         Parse multiple repositories and merge components with namespace prefixes.
 
         Each repository gets a namespace prefix based on its directory name.
-        Component IDs are prefixed to avoid collisions: {namespace}.{original_id}
+        Component IDs are prefixed to avoid collisions: {namespace}::{original_id}
 
         Returns:
             Dictionary of all components from all repositories with namespaced IDs
@@ -225,7 +237,8 @@ class DependencyParser:
             if not original_id:
                 continue
 
-            # Create FQDN (namespaced component ID)
+            # Create FQDN (namespaced component ID) using '::' to separate
+            # the namespace/module path from the component identifier
             fqdn = f"{namespace}.{original_id}"
 
             # Store mapping for dependency resolution
@@ -259,11 +272,16 @@ class DependencyParser:
             components[fqdn] = node
 
             # Track module (with namespace)
-            if "." in original_id:
-                module_parts = original_id.split(".")[:-1]
-                module_path = ".".join(module_parts)
-                if module_path:
-                    self.modules.add(f"{namespace}.{module_path}")
+            # original_id is '<module.path>::<Name>' from the analyzers, so the
+            # module path is everything before '::'. (The dot-split fallback is
+            # for ids that predate the '::' separator.)
+            module_path = (
+                original_id.split("::")[0]
+                if "::" in original_id
+                else ".".join(original_id.split(".")[:-1])
+            )
+            if module_path:
+                self.modules.add(f"{namespace}.{module_path}")
 
         # Second pass: Add dependencies within this namespace
         for rel_dict in relationships:
@@ -343,7 +361,7 @@ class DependencyParser:
             if not original_id:
                 continue
 
-            # Construct FQDN: {namespace}.{original_id}
+            # Construct FQDN: {namespace}::{original_id}
             fqdn = f"{namespace}.{original_id}"
 
             node = Node(
@@ -379,12 +397,17 @@ class DependencyParser:
             if legacy_id and legacy_id != fqdn:
                 component_id_mapping[legacy_id] = fqdn
 
-            if "." in original_id:
-                module_parts = original_id.split(".")[:-1]
-                module_path = ".".join(module_parts)
-                if module_path:
-                    # Store module with namespace
-                    self.modules.add(f"{namespace}.{module_path}")
+            # original_id is '<module.path>::<Name>' from the analyzers, so the
+            # module path is everything before '::'. (The dot-split fallback is
+            # for ids that predate the '::' separator.)
+            module_path = (
+                original_id.split("::")[0]
+                if "::" in original_id
+                else ".".join(original_id.split(".")[:-1])
+            )
+            if module_path:
+                # Store module with namespace
+                self.modules.add(f"{namespace}.{module_path}")
         
         processed_relationships = 0
         for rel_dict in relationships:
@@ -443,3 +466,4 @@ class DependencyParser:
         
         logger.debug(f"Saved {len(self.components)} components to {output_path}")
         return result
+
