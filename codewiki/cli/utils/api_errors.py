@@ -23,7 +23,10 @@ class APIErrorHandler:
         Args:
             error: The original exception
             context: Additional context (e.g., module name)
-            fail_fast: Whether to fail immediately (default: True)
+            fail_fast: Whether to fail immediately (default: True). Note: this
+                method always returns an APIError describing the failure; it is
+                the caller's responsibility to decide whether to raise
+                immediately or continue based on this flag.
             
         Returns:
             APIError instance
@@ -83,6 +86,9 @@ class APIErrorHandler:
         if context:
             message = f"Context: {context}\n\n{message}"
         
+        if not fail_fast:
+            message = f"{message}\n\nNote: fail_fast is disabled; this error will not halt execution."
+        
         return APIError(message)
     
     @staticmethod
@@ -137,4 +143,5 @@ def wrap_api_call(func, *args, fail_fast: bool = True, context: Optional[str] = 
         else:
             APIErrorHandler.display_api_error(api_error)
             return None
+
 
