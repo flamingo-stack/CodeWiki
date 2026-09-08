@@ -1,3 +1,12 @@
+"""Python AST-based dependency analyzer.
+
+This module implements an AST-based analyzer for Python source files, extracting
+classes, functions, and their call relationships for use in the dependency
+analysis pipeline. Component IDs are generated as module::ClassName style
+fully-qualified names to remain consistent with the dependency graph and
+clustering system's expected FQDN format.
+"""
+
 import ast
 import logging
 import warnings

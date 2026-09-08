@@ -13,6 +13,11 @@ This file contains the proposed fix for cluster_modules.py to handle:
 4. Partial path matching for complex Java packages
 
 Replace the normalization loop in cluster_modules.py:212-233 with this code.
+
+NOTE: This is a scratch/reference module, not imported anywhere in the
+codebase. It documents a proposed patch for cluster_modules.py and should be
+merged into that file (or moved to docs/ or a PR description) rather than
+kept as standalone code at the repository root.
 """
 
 from typing import Dict, List
@@ -135,6 +140,7 @@ def normalize_component_ids_enhanced(
             # This handles cases where LLM includes partial path
             # Example: "deps.openframe-oss-lib.src.main.java.Class"
             #          should match "openframe-oss-lib.different.path.java.Class"
+            suffix_matches: List[str] = []
             if '.' in comp_id:
                 # Try matching last 2-4 segments
                 segments = comp_id.split('.')
