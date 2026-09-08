@@ -4,6 +4,7 @@ Cache management for documentation generation results.
 """
 
 import hashlib
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict
@@ -11,6 +12,8 @@ from typing import Optional, Dict
 from .models import CacheEntry
 from .config import WebAppConfig
 from codewiki.src.utils import file_manager
+
+logger = logging.getLogger(__name__)
 
 
 class CacheManager:
@@ -38,7 +41,13 @@ class CacheManager:
                         last_accessed=datetime.fromisoformat(value['last_accessed'])
                     )
             except Exception as e:
-                print(f"Error loading cache index: {e}")
+                logger.error(f"Error loading cache index: {e}, backing up corrupted file")
+                try:
+                    backup_file = self.cache_dir / f"cache_index.json.corrupted.{int(datetime.now().timestamp())}"
+                    index_file.rename(backup_file)
+                except Exception as backup_error:
+                    logger.error(f"Error backing up corrupted cache index: {backup_error}")
+                self.cache_index = {}
     
     def save_cache_index(self):
         """Save cache index to disk."""
@@ -56,7 +65,7 @@ class CacheManager:
             
             file_manager.save_json(data, index_file)
         except Exception as e:
-            print(f"Error saving cache index: {e}")
+            logger.error(f"Error saving cache index: {e}")
     
     def get_repo_hash(self, repo_url: str) -> str:
         """Generate hash for repository URL."""
