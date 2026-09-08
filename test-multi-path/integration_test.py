@@ -25,6 +25,63 @@ from codewiki.src.config import Config
 from codewiki.src.be.dependency_analyzer import DependencyGraphBuilder
 
 
+class TestResults:
+    """Standardized accumulator for integration test results"""
+
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name: str, passed: bool, details: str = "") -> None:
+        """Record a single test result"""
+        self.tests.append({
+            "name": name,
+            "passed": passed,
+            "details": details
+        })
+
+    def print_summary(self) -> None:
+        """Print final validation summary"""
+        print("\n" + "="*80)
+        print("VALIDATION SUMMARY")
+        print("="*80)
+
+        total = len(self.tests)
+        passed_tests = [t for t in self.tests if t["passed"]]
+        failed_tests = [t for t in self.tests if not t["passed"]]
+        warning_tests = [t for t in self.tests if t["passed"] and t["details"]]
+
+        passed = len(passed_tests)
+        failed = len(failed_tests)
+
+        print(f"\nTotal Assertions: {total}")
+        print(f"  ✓ Passed: {passed}")
+        if failed > 0:
+            print(f"  ✗ Failed: {failed}")
+
+        if failed > 0:
+            print("\nFailed Assertions:")
+            for t in failed_tests:
+                msg = f"  ✗ {t['name']}"
+                if t["details"]:
+                    msg += f" - {t['details']}"
+                print(msg)
+
+        if warning_tests:
+            print("\nWarnings:")
+            for t in warning_tests:
+                print(f"  ⚠ {t['details']}")
+
+        print("\n" + "="*80)
+        if failed == 0:
+            print("✅ INTEGRATION TEST PASSED")
+        else:
+            print("❌ INTEGRATION TEST FAILED")
+        print("="*80)
+
+    def all_passed(self) -> bool:
+        return all(t["passed"] for t in self.tests)
+
+
 class IntegrationTestRunner:
     """Manages end-to-end integration test execution"""
 
@@ -37,11 +94,7 @@ class IntegrationTestRunner:
         self.builder = None
         self.components = None
         self.leaf_nodes = None
-        self.results = {
-            "passed": [],
-            "failed": [],
-            "warnings": []
-        }
+        self.results = TestResults()
 
     def setup_test_environment(self) -> None:
         """Create test directory structure with sample files"""
@@ -75,7 +128,7 @@ class IntegrationTestRunner:
         # Create sample files in vendor/
         self._create_vendor_files()
 
-        self._assert("Test directories created", True)
+        self.results.add_test("Test directories created", True)
 
     def _create_main_files(self) -> None:
         """Create sample Python files in main/ directory"""
@@ -273,7 +326,7 @@ class MetricsCollector:
         for i, path in enumerate(self.config.additional_source_paths, 1):
             print(f"  {i}. {path}")
 
-        self._assert("Config created with 3 source paths", True)
+        self.results.add_test("Config created with 3 source paths", True)
 
     def validate_paths(self) -> None:
         """Validate all configured paths exist"""
@@ -292,7 +345,7 @@ class MetricsCollector:
             print(f"{'✓' if exists else '✗'} Additional path exists: {path}")
             all_valid = all_valid and exists
 
-        self._assert("All paths validated successfully", all_valid)
+        self.results.add_test("All paths validated successfully", all_valid)
 
     def execute_dependency_parser(self) -> None:
         """Run DependencyGraphBuilder with all configured paths"""
@@ -305,7 +358,7 @@ class MetricsCollector:
         # Check if multi-path mode was detected
         is_multi = self.config.is_multi_path_mode()
         print(f"{'✓' if is_multi else '✗'} Multi-path mode detected: {is_multi}")
-        self._assert("Multi-path mode detected", is_multi)
+        self.results.add_test("Multi-path mode detected", is_multi)
 
         # Build dependency graph
         print("\nBuilding dependency graph...")
@@ -345,14 +398,14 @@ class MetricsCollector:
 
         if missing:
             print(f"\n✗ Missing namespaces: {missing}")
-            self._assert("All expected namespaces present", False)
+            self.results.add_test("All expected namespaces present", False)
         else:
             print(f"\n✓ All expected namespaces present: {expected}")
-            self._assert("All expected namespaces present", True)
+            self.results.add_test("All expected namespaces present", True)
 
         if unexpected:
             print(f"⚠ Unexpected namespaces: {unexpected}")
-            self.results["warnings"].append(f"Unexpected namespaces: {unexpected}")
+            self.results.add_test("No unexpected namespaces", True, f"Unexpected namespaces: {unexpected}")
 
         # Verify component counts
         self._verify_namespace_counts(namespaces)
@@ -379,7 +432,7 @@ class MetricsCollector:
                 print(f"      Found components: {sorted(namespaces.get(namespace, []))}")
             all_match = all_match and match
 
-        self._assert("Component counts match expectations", all_match)
+        self.results.add_test("Component counts match expectations", all_match)
 
     def verify_cross_path_dependencies(self) -> None:
         """Verify cross-path dependencies are correctly resolved"""
@@ -413,11 +466,11 @@ class MetricsCollector:
         # but not resolved to specific components across namespaces
         if len(cross_deps) > 0:
             print(f"\n✓ Cross-path dependencies detected: {len(cross_deps)} found")
-            self._assert("Cross-path dependencies detected", True)
+            self.results.add_test("Cross-path dependencies detected", True)
         else:
             print(f"\n✓ No cross-path dependencies detected (expected - not implemented in AST parser yet)")
             print(f"   Note: Import statements are parsed but not resolved across namespaces")
-            self._assert("Multi-path mode working (dependencies optional)", True)
+            self.results.add_test("Multi-path mode working (dependencies optional)", True)
 
     def verify_no_warnings(self) -> None:
         """Verify no 'not found' warnings were generated"""
@@ -430,7 +483,7 @@ class MetricsCollector:
 
         if not has_warnings:
             print("✓ No warning tracking mechanism (expected behavior)")
-            self._assert("No warnings generated", True)
+            self.results.add_test("No warnings generated", True)
             return
 
         warnings = getattr(self.builder, 'warnings', [])
@@ -439,10 +492,10 @@ class MetricsCollector:
             print(f"⚠ Found {len(warnings)} warnings:")
             for warning in warnings:
                 print(f"  - {warning}")
-            self._assert("No warnings generated", False)
+            self.results.add_test("No warnings generated", False)
         else:
             print("✓ No warnings generated")
-            self._assert("No warnings generated", True)
+            self.results.add_test("No warnings generated", True)
 
     def verify_file_counts(self) -> None:
         """Verify expected number of components were analyzed"""
@@ -469,7 +522,7 @@ class MetricsCollector:
         print(f"Expected: {expected_total}")
 
         match = total == expected_total
-        self._assert("Component counts match expectations", match)
+        self.results.add_test("Component counts match expectations", match)
 
     def print_detailed_output(self) -> None:
         """Print comprehensive analysis output"""
@@ -509,53 +562,11 @@ class MetricsCollector:
         for namespace, count in sorted(namespaces.items()):
             print(f"  {namespace}: {count} components")
 
-    def print_validation_summary(self) -> None:
-        """Print final validation summary"""
-        print("\n" + "="*80)
-        print("VALIDATION SUMMARY")
-        print("="*80)
-
-        total = len(self.results["passed"]) + len(self.results["failed"])
-        passed = len(self.results["passed"])
-        failed = len(self.results["failed"])
-        warnings = len(self.results["warnings"])
-
-        print(f"\nTotal Assertions: {total}")
-        print(f"  ✓ Passed: {passed}")
-        if failed > 0:
-            print(f"  ✗ Failed: {failed}")
-        if warnings > 0:
-            print(f"  ⚠ Warnings: {warnings}")
-
-        if failed > 0:
-            print("\nFailed Assertions:")
-            for msg in self.results["failed"]:
-                print(f"  ✗ {msg}")
-
-        if warnings > 0:
-            print("\nWarnings:")
-            for msg in self.results["warnings"]:
-                print(f"  ⚠ {msg}")
-
-        print("\n" + "="*80)
-        if failed == 0:
-            print("✅ INTEGRATION TEST PASSED")
-        else:
-            print("❌ INTEGRATION TEST FAILED")
-        print("="*80)
-
     def cleanup(self) -> None:
         """Clean up test directory"""
         if self.test_dir and self.test_dir.exists():
             shutil.rmtree(self.test_dir)
             print(f"\n🧹 Cleaned up test directory: {self.test_dir}")
-
-    def _assert(self, message: str, condition: bool) -> None:
-        """Record assertion result"""
-        if condition:
-            self.results["passed"].append(message)
-        else:
-            self.results["failed"].append(message)
 
     def run(self) -> int:
         """Execute complete integration test"""
@@ -569,9 +580,9 @@ class MetricsCollector:
             self.verify_no_warnings()
             self.verify_file_counts()
             self.print_detailed_output()
-            self.print_validation_summary()
+            self.results.print_summary()
 
-            return 0 if len(self.results["failed"]) == 0 else 1
+            return 0 if self.results.all_passed() else 1
 
         except Exception as e:
             print(f"\n❌ INTEGRATION TEST CRASHED: {e}")

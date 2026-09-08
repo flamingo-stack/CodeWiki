@@ -18,7 +18,7 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
 # Test repo
-test_repo = os.getenv("TEST_REPO_PATH", os.path.join(os.getcwd(), "test_repo"))
+test_repo = os.getenv("TEST_REPO_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "openframe-oss-tenant"))
 
 # Create simple config with all required fields
 config = Config.from_args(
