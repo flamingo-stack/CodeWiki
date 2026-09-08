@@ -2,7 +2,7 @@
 Documentation job data models.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
@@ -42,6 +42,69 @@ class LLMConfig:
     main_model: str
     cluster_model: str
     base_url: str
+
+
+def _coerce_job_status(value: Any, default: JobStatus = JobStatus.PENDING) -> JobStatus:
+    """Coerce a raw value into a JobStatus, falling back to a default."""
+    if isinstance(value, JobStatus):
+        return value
+    if value is None:
+        return default
+    try:
+        return JobStatus(value)
+    except ValueError:
+        return default
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Coerce a raw value into an int, falling back to a default."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_generation_options(value: Any) -> GenerationOptions:
+    """Coerce a raw dict into a GenerationOptions instance."""
+    if isinstance(value, GenerationOptions):
+        return value
+    if not value:
+        return GenerationOptions()
+    return GenerationOptions(
+        create_branch=bool(value.get('create_branch', False)),
+        github_pages=bool(value.get('github_pages', False)),
+        no_cache=bool(value.get('no_cache', False)),
+        custom_output=value.get('custom_output'),
+    )
+
+
+def _coerce_llm_config(value: Any) -> Optional[LLMConfig]:
+    """Coerce a raw dict into an LLMConfig instance, or None."""
+    if isinstance(value, LLMConfig):
+        return value
+    if not value:
+        return None
+    return LLMConfig(
+        main_model=value.get('main_model', ''),
+        cluster_model=value.get('cluster_model', ''),
+        base_url=value.get('base_url', ''),
+    )
+
+
+def _coerce_statistics(value: Any) -> JobStatistics:
+    """Coerce a raw dict into a JobStatistics instance."""
+    if isinstance(value, JobStatistics):
+        return value
+    if not value:
+        return JobStatistics()
+    return JobStatistics(
+        total_files_analyzed=_coerce_int(value.get('total_files_analyzed'), 0),
+        leaf_nodes=_coerce_int(value.get('leaf_nodes'), 0),
+        max_depth=_coerce_int(value.get('max_depth'), 0),
+        total_tokens_used=_coerce_int(value.get('total_tokens_used'), 0),
+    )
 
 
 @dataclass
@@ -113,9 +176,23 @@ class DocumentationJob:
             "error_message": self.error_message,
             "files_generated": self.files_generated,
             "module_count": self.module_count,
-            "generation_options": asdict(self.generation_options),
-            "llm_config": asdict(self.llm_config) if self.llm_config else None,
-            "statistics": asdict(self.statistics),
+            "generation_options": {
+                "create_branch": self.generation_options.create_branch,
+                "github_pages": self.generation_options.github_pages,
+                "no_cache": self.generation_options.no_cache,
+                "custom_output": self.generation_options.custom_output,
+            },
+            "llm_config": {
+                "main_model": self.llm_config.main_model,
+                "cluster_model": self.llm_config.cluster_model,
+                "base_url": self.llm_config.base_url,
+            } if self.llm_config else None,
+            "statistics": {
+                "total_files_analyzed": self.statistics.total_files_analyzed,
+                "leaf_nodes": self.statistics.leaf_nodes,
+                "max_depth": self.statistics.max_depth,
+                "total_tokens_used": self.statistics.total_tokens_used,
+            },
         }
         return data
     
@@ -135,22 +212,21 @@ class DocumentationJob:
             branch_name=data.get('branch_name'),
             timestamp_start=data.get('timestamp_start', datetime.now().isoformat()),
             timestamp_end=data.get('timestamp_end'),
-            status=JobStatus(data.get('status', 'pending')),
+            status=_coerce_job_status(data.get('status'), JobStatus.PENDING),
             error_message=data.get('error_message'),
             files_generated=data.get('files_generated', []),
-            module_count=data.get('module_count', 0),
+            module_count=_coerce_int(data.get('module_count'), 0),
         )
         
         # Parse nested objects
         if 'generation_options' in data:
-            opts = data['generation_options']
-            job.generation_options = GenerationOptions(**opts)
+            job.generation_options = _coerce_generation_options(data['generation_options'])
         
         if 'llm_config' in data and data['llm_config']:
-            job.llm_config = LLMConfig(**data['llm_config'])
+            job.llm_config = _coerce_llm_config(data['llm_config'])
         
         if 'statistics' in data:
-            job.statistics = JobStatistics(**data['statistics'])
+            job.statistics = _coerce_statistics(data['statistics'])
         
         return job
 
