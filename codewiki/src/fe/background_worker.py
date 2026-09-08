@@ -9,6 +9,7 @@ import time
 import threading
 import subprocess
 import asyncio
+import logging
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
@@ -22,6 +23,8 @@ from .cache_manager import CacheManager
 from .github_processor import GitHubRepoProcessor
 from .config import WebAppConfig
 from codewiki.src.utils import file_manager
+
+logger = logging.getLogger(__name__)
 
 class BackgroundWorker:
     """Background worker for processing documentation generation jobs."""
@@ -41,7 +44,7 @@ class BackgroundWorker:
             self.running = True
             thread = threading.Thread(target=self._worker_loop, daemon=True)
             thread.start()
-            print("Background worker started")
+            logger.info("Background worker started")
     
     def stop(self):
         """Stop the background worker."""
@@ -84,9 +87,9 @@ class BackgroundWorker:
                         progress=job_data.get('progress', ''),
                         docs_path=job_data.get('docs_path')
                     )
-            print(f"Loaded {len([j for j in self.job_status.values() if j.status == 'completed'])} completed jobs from disk")
+            logger.info(f"Loaded {len([j for j in self.job_status.values() if j.status == 'completed'])} completed jobs from disk")
         except Exception as e:
-            print(f"Error loading job statuses: {e}")
+            logger.error(f"Error loading job statuses: {e}")
     
     def _reconstruct_jobs_from_cache(self):
         """Reconstruct job statuses from cache entries for backward compatibility."""
@@ -114,14 +117,14 @@ class BackgroundWorker:
                         )
                         reconstructed_count += 1
                 except Exception as e:
-                    print(f"Failed to reconstruct job for {cache_entry.repo_url}: {e}")
+                    logger.error(f"Failed to reconstruct job for {cache_entry.repo_url}: {e}")
             
             if reconstructed_count > 0:
-                print(f"Reconstructed {reconstructed_count} job statuses from cache")
+                logger.info(f"Reconstructed {reconstructed_count} job statuses from cache")
                 self.save_job_statuses()
                 
         except Exception as e:
-            print(f"Error reconstructing jobs from cache: {e}")
+            logger.error(f"Error reconstructing jobs from cache: {e}")
     
     def save_job_statuses(self):
         """Save job statuses to disk."""
@@ -145,7 +148,7 @@ class BackgroundWorker:
             
             file_manager.save_json(data, self.jobs_file)
         except Exception as e:
-            print(f"Error saving job statuses: {e}")
+            logger.error(f"Error saving job statuses: {e}")
     
     def _worker_loop(self):
         """Main worker loop."""
@@ -157,7 +160,7 @@ class BackgroundWorker:
                 else:
                     time.sleep(1)
             except Exception as e:
-                print(f"Worker error: {e}")
+                logger.error(f"Worker error: {e}")
                 time.sleep(1)
     
     def _process_job(self, job_id: str):
@@ -187,7 +190,7 @@ class BackgroundWorker:
                 # Save job status to disk
                 self.save_job_statuses()
                 
-                print(f"Job {job_id}: Using cached documentation")
+                logger.info(f"Job {job_id}: Using cached documentation")
                 return
             
             # Clone repository
@@ -233,7 +236,7 @@ class BackgroundWorker:
             # Save job status to disk
             self.save_job_statuses()
             
-            print(f"Job {job_id}: Documentation generated successfully")
+            logger.info(f"Job {job_id}: Documentation generated successfully")
             
         except Exception as e:
             # Update job status with error
@@ -242,7 +245,7 @@ class BackgroundWorker:
             job.error_message = str(e)
             job.progress = f"Failed: {str(e)}"
             
-            print(f"Job {job_id}: Failed with error: {e}")
+            logger.error(f"Job {job_id}: Failed with error: {e}")
         
         finally:
             # Cleanup temporary repository
@@ -250,4 +253,4 @@ class BackgroundWorker:
                 try:
                     subprocess.run(['rm', '-rf', temp_repo_dir], check=True)
                 except Exception as e:
-                    print(f"Failed to cleanup temp directory: {e}")
+                    logger.error(f"Failed to cleanup temp directory: {e}")
