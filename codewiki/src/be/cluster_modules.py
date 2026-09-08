@@ -409,8 +409,25 @@ def cluster_modules(
         return {}
 
     # Normalize component IDs using simple lookup (replaces 200+ lines of fuzzy matching
-    # and the duplicated inline ID validation that previously lived here)
+    # and the duplicated inline ID validation that previously lived here).
+    #
+    # normalize_component_ids_by_lookup drops ids it cannot resolve and carries on,
+    # which is the right behaviour for the sub-module path but NOT here: a module
+    # left holding an empty component list still gets documented, producing a
+    # plausible-looking but empty page and a run that reports success. The inline
+    # validation this replaced aborted instead, and clustering keeps that contract
+    # by comparing the id count either side of normalization.
+    ids_before = sum(len(m.get('components', [])) for m in module_tree.values())
     module_tree = normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+    ids_after = sum(len(m.get('components', [])) for m in module_tree.values())
+
+    if ids_after < ids_before:
+        logger.error(
+            f"\u274c Clustering aborted: {ids_before - ids_after} of {ids_before} component "
+            f"ID(s) could not be resolved to an FQDN (valid range 0-{len(id_to_fqdn) - 1}).\n"
+            f"   \u2514\u2500 The LLM ignored the integer-ID instruction; see the warnings above."
+        )
+        return {}
 
     # check if the module tree is valid
     if len(module_tree) <= 1:
