@@ -1,5 +1,22 @@
-flowchart TD
-    Request["Generation Request"] --> TryMain["Main Model"]
-    TryMain -->|"Success"| ReturnMain["Return Response"]
-    TryMain -->|"Failure"| TryFallback["Fallback Model"]
-    TryFallback --> ReturnFallback["Return Fallback Response"]
+sequenceDiagram
+    participant Caller
+    participant Factory as "create_main_model() / create_fallback_model() / create_cluster_model()"
+    participant Config as "Config"
+    participant Provider as "OpenAIProvider"
+    participant Model as "OpenAIModel"
+
+    Caller->>Factory: create_X_model(config)
+    Factory->>Config: getattr(config, "X_max_tokens", None)
+    Factory->>Config: getattr(config, "X_temperature", 0.0)
+    Factory->>Config: getattr(config, "X_temperature_supported", True)
+    Factory->>Config: getattr(config, "X_base_url", None)
+    alt base_url missing
+        Factory-->>Caller: raise ValueError("X_base_url is required...")
+    end
+    Factory->>Config: getattr(config, "X_api_key", None)
+    alt api_key missing
+        Factory-->>Caller: raise ValueError("X_api_key is required...")
+    end
+    Factory->>Provider: OpenAIProvider(base_url, api_key)
+    Factory->>Model: OpenAIModel(model_name, provider, settings)
+    Model-->>Caller: configured OpenAIModel

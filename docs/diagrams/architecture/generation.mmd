@@ -1,0 +1,11 @@
+flowchart TD
+    CLI["CLI Command Entry Point"] --> CDG["CLIDocumentationGenerator"]
+    CDG --> PT["ProgressTracker (utils)"]
+    CDG --> Job["DocumentationJob (job_models)"]
+    CDG --> BC["BackendConfig (config-core)"]
+    CDG --> DG["DocumentationGenerator (backend-core)"]
+    DG --> GB["DependencyGraphBuilder"]
+    DG --> AO["AgentOrchestrator"]
+    CDG --> CM["cluster_modules (backend-core)"]
+    CDG --> HG["HTMLGenerator (html_generation)"]
+    CDG --> LOG["ColoredFormatter (backend-core logging)"]

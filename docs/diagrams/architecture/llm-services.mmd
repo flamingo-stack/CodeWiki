@@ -1,9 +1,24 @@
 flowchart TD
-    AgentOrchestrator["Agent Orchestrator"] --> DocumentationGenerator["Documentation Generator"]
-    DocumentationGenerator --> LlmServices["Llm Services"]
-    LlmServices --> MainModel["Main Model"]
-    LlmServices --> FallbackModel["Fallback Model"]
-    LlmServices --> ClusterModel["Cluster Model"]
-    MainModel --> ProviderAPI["LLM Provider API"]
-    FallbackModel --> ProviderAPI
-    ClusterModel --> ProviderAPI
+    Config["Config"] --> CreateMain["create_main_model()"]
+    Config --> CreateFallback["create_fallback_model()"]
+    Config --> CreateCluster["create_cluster_model()"]
+    Config --> CreateClient["create_openai_client()"]
+
+    CreateMain --> MainModel["OpenAIModel (main)"]
+    CreateFallback --> FallbackModel_["OpenAIModel (fallback)"]
+
+    MainModel --> CreateChain["create_fallback_models()"]
+    FallbackModel_ --> CreateChain
+
+    CreateChain --> CountingModel["CountingFallbackModel"]
+    CountingModel --> IncCounter["increment_request_counter()"]
+    IncCounter --> Counter[("_request_counter")]
+
+    CountingModel --> Agent["pydantic-ai Agent"]
+
+    CreateCluster --> ClusterModel["OpenAIModel (cluster)"]
+    ClusterModel --> ClusterAgent["Clustering LLM calls"]
+
+    CreateClient --> OpenAIClient["openai.OpenAI client"]
+    OpenAIClient --> CallLLM["call_llm()"]
+    CallLLM --> Response["LLM response text"]

@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Caller as "analyze_java_file()"
+    participant Analyzer as "TreeSitterJavaAnalyzer"
+    participant Parser as "tree_sitter.Parser"
+    participant NodesPass as "_extract_nodes()"
+    participant RelsPass as "_extract_relationships()"
+
+    Caller->>Analyzer: "__init__(file_path, content, repo_path)"
+    Analyzer->>Analyzer: "_analyze()"
+    Analyzer->>Parser: "parse(content)"
+    Parser-->>Analyzer: "AST root node"
+    Analyzer->>NodesPass: "_extract_nodes(root, top_level_nodes, lines)"
+    NodesPass-->>Analyzer: "self.nodes populated"
+    Analyzer->>RelsPass: "_extract_relationships(root, top_level_nodes)"
+    RelsPass-->>Analyzer: "self.call_relationships populated"
+    Analyzer-->>Caller: "nodes, call_relationships"

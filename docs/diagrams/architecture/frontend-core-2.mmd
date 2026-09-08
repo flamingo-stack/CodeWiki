@@ -2,18 +2,23 @@ sequenceDiagram
     participant Browser
     participant Routes as "WebRoutes"
     participant Worker as "BackgroundWorker"
-    participant Cache
-    participant GitHub
+    participant Cache as "CacheManager"
+    participant Git as "GitHubRepoProcessor"
     participant DocGen as "DocumentationGenerator"
 
     Browser->>Routes: POST / (repo_url, commit_id)
-    Routes->>Cache: Check cache
-    Cache-->>Routes: Cached path or null
-    Routes->>Worker: Add job to queue
-    Worker->>GitHub: Clone repository
-    Worker->>DocGen: Run documentation generation
-    DocGen-->>Worker: Write docs to output directory
-    Worker->>Cache: Store docs path
-    Worker-->>Routes: Update job status
-    Browser->>Routes: GET /docs/{job_id}
-    Routes-->>Browser: Rendered HTML
+    Routes->>Git: is_valid_github_url / get_repo_info
+    Routes->>Cache: get_cached_docs(repo_url)
+    alt Cache hit
+        Cache-->>Routes: docs_path
+        Routes-->>Browser: Render success message
+    else Cache miss
+        Routes->>Worker: add_job(job_id, JobStatus)
+        Worker-->>Routes: queued
+        Routes-->>Browser: Render "queued" message
+        Worker->>Git: clone_repository(clone_url, temp_dir, commit_id)
+        Worker->>DocGen: run() (async documentation generation)
+        DocGen-->>Worker: docs_dir populated
+        Worker->>Cache: add_to_cache(repo_url, docs_path)
+        Worker->>Worker: save_job_statuses()
+    end

@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph ConfigModule["Configuration Module"]
+        CM["ConfigManager"]
+        Cfg["Configuration"]
+        AI["AgentInstructions"]
+    end
+
+    FS["~/.codewiki/config.json"]
+    KR["System Keyring"]
+    Backend["Backend Config"]
+
+    CM -->|"load() / save()"| FS
+    CM -->|"get/set API keys"| KR
+    CM -->|"holds"| Cfg
+    Cfg -->|"has one"| AI
+    Cfg -->|"to_backend_config()"| Backend

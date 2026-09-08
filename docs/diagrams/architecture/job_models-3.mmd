@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Caller as "CLI Component"
+    participant Job as "DocumentationJob"
+    participant Coerce as "Coercion Helpers"
+
+    Caller->>Job: "DocumentationJob(...)"
+    Job-->>Caller: "job instance (status=PENDING)"
+    Caller->>Job: "job.start()"
+    Caller->>Job: "job.to_dict() / job.to_json()"
+    Job-->>Caller: "dict / JSON string"
+    Note over Caller: "Persisted to disk or transmitted"
+
+    Caller->>Job: "DocumentationJob.from_dict(raw_data)"
+    Job->>Coerce: "_coerce_job_status(raw_data.status)"
+    Job->>Coerce: "_coerce_int(raw_data.module_count)"
+    Job->>Coerce: "_coerce_generation_options(raw_data.generation_options)"
+    Job->>Coerce: "_coerce_llm_config(raw_data.llm_config)"
+    Job->>Coerce: "_coerce_statistics(raw_data.statistics)"
+    Coerce-->>Job: "validated nested objects"
+    Job-->>Caller: "reconstructed DocumentationJob"

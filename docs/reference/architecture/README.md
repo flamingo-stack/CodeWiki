@@ -1,445 +1,123 @@
-# CodeWiki – Repository Overview
+# CodeWiki Overview
 
-**Repository:** https://github.com/flamingo-stack/CodeWiki  
-**Purpose:** AI-powered, multi-language repository documentation generator
+CodeWiki is an AI-powered documentation generator for source repositories. It analyzes a codebase, builds dependency relationships, groups components into meaningful modules, and uses LLM-backed agents to produce structured Markdown documentation with navigation metadata and optional static HTML output.
 
----
+The repository supports two primary entry points:
 
-## 1. Purpose of CodeWiki
+- **CLI workflow** for local repository documentation, configuration management, Git workflows, progress reporting, and static-site generation.
+- **Web workflow** for submitting GitHub repositories, queueing asynchronous generation jobs, caching results, and serving generated documentation.
 
-CodeWiki is an AI-driven documentation engine that transforms source code repositories into structured, hierarchical, and navigable technical documentation.
-
-It combines:
-
-- ✅ Multi-language static analysis (AST-based parsing)
-- ✅ Dependency graph construction
-- ✅ LLM-powered module clustering
-- ✅ Leaf-first hierarchical documentation generation
-- ✅ CLI and Web interfaces
-- ✅ Git-native and GitHub Pages integration
-
-CodeWiki is designed to:
-
-- Automatically document complex repositories
-- Generate architecture-aware module documentation
-- Maintain deterministic output structure
-- Avoid LLM context overflow through staged generation
-- Support multiple LLM providers (OpenAI-compatible, Anthropic-compatible, etc.)
-
-It is structured as a layered system with clearly separated responsibilities.
-
----
-
-# 2. End-to-End Architecture
-
-Below is the complete architectural flow of CodeWiki.
+## End-to-End Architecture
 
 ```mermaid
 flowchart TD
-    User["User (CLI or Web)"] --> CLI["CLI Core"]
-    User --> FE["Frontend Core"]
+    User["Developer or Web User"] --> Entry{{"Choose entry point?"}}
+    Entry -->|CLI| CLI["CLI Core"]
+    Entry -->|Web| Frontend["Frontend Core"]
 
-    CLI --> DG["DocumentationGenerator"]
-    FE --> DG
+    CLI --> RuntimeConfig["Config Core"]
+    Frontend --> RuntimeConfig
 
-    DG --> DA["Dependency Analysis"]
-    DG --> AO["Agent Orchestration"]
+    CLI --> GitOps["Git Integration"]
+    Frontend --> RepoProcessor["GitHub Repository Processor"]
 
-    AO --> LLM["LLM Services"]
+    GitOps --> Source["Source Repository"]
+    RepoProcessor --> Source
 
-    DA --> Graph["Dependency Graph"]
-    Graph --> DG
+    RuntimeConfig --> Generator["DocumentationGenerator"]
+    Source --> Generator
 
-    DG --> FileSystem["Generated Documentation"]
-    DG --> Metadata["metadata.json"]
+    Generator --> Analysis["Dependency Analysis"]
+    Analysis --> Parsers["Language Parsers"]
+    Parsers --> Graph["Dependency Graph"]
 
-    LLM --> External["External LLM Providers"]
+    Graph --> Clustering["Module Clustering"]
+    Clustering --> Agents["LLM Agent Orchestration"]
+    Agents --> Docs["Markdown Documentation"]
+
+    Docs --> Metadata["Module Tree and Metadata"]
+    Metadata --> HTML["Optional HTML Viewer"]
+    Docs --> Output["Generated Documentation Output"]
+    HTML --> Output
 ```
 
----
-
-## Execution Stages (High-Level Pipeline)
+## Documentation Generation Flow
 
 ```mermaid
-flowchart TD
-    Start["Start Job"] --> Analyze["Dependency Analysis"]
-    Analyze --> Cluster["Module Clustering (LLM)"]
-    Cluster --> LeafDocs["Generate Leaf Module Docs"]
-    LeafDocs --> ParentDocs["Generate Parent Module Docs"]
-    ParentDocs --> Overview["Generate Repository Overview"]
-    Overview --> Metadata["Write metadata.json"]
-    Metadata --> EndNode["END"]
+sequenceDiagram
+    participant Caller
+    participant Config as "Config Core"
+    participant Generator as "DocumentationGenerator"
+    participant Analyzer as "Dependency Analyzer"
+    participant Agents as "AgentOrchestrator"
+    participant Output as "Documentation Output"
+
+    Caller->>Config: Build validated runtime configuration
+    Caller->>Generator: Start documentation run
+    Generator->>Analyzer: Analyze repository files and calls
+    Analyzer-->>Generator: Dependency graph and leaf components
+    Generator->>Generator: Cluster components into modules
+    Generator->>Agents: Generate leaf module documentation
+    Agents-->>Generator: Generated module content
+    Generator->>Output: Write Markdown, module tree, and metadata
+    Generator-->>Caller: Generation complete
 ```
 
----
+## Core Modules
 
-# 3. Repository Structure
+| Module | Purpose | Source |
+|---|---|---|
+| [CLI Core](cli-core.md) | Command-line orchestration, local configuration, Git integration, terminal progress, and static HTML generation. | [`codewiki/cli`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/cli) |
+| [Backend Core](backend-core.md) | Repository analysis, dependency-graph construction, module clustering, LLM agent orchestration, and documentation generation. | [`codewiki/src/be`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src/be) |
+| [Frontend Core](frontend-core.md) | FastAPI web application, repository submission, background job processing, caching, and documentation serving. | [`codewiki/src/fe`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src/fe) |
+| [Config Core](config-core.md) | Shared runtime `Config` model for source paths, output locations, provider settings, token limits, and agent instructions. | [`codewiki/src`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src) |
+| [Test Multi Path](test-multi-path.md) | Fixtures and executable checks for analysis across multiple source roots. | [`test-multi-path`](https://github.com/flamingo-stack/CodeWiki/tree/main/test-multi-path) |
+| [Test Clustering](test-clustering.md) | Diagnostic and validation scripts for LLM-based module clustering and component-ID normalization. | [`test_clustering`](https://github.com/flamingo-stack/CodeWiki/tree/main/test_clustering) |
 
-```
-CodeWiki/
-│
-├── codewiki/cli/                    → CLI Core
-├── codewiki/src/be/                 → Backend Core
-│   ├── dependency_analyzer/         → Dependency Analysis
-│   ├── documentation_generator/     → Documentation Generation
-│   ├── agent_orchestrator/          → Agent Orchestration
-│   └── llm_services/                → LLM Services
-│
-├── codewiki/src/fe/                 → Frontend Core (FastAPI Web App)
-└── codewiki/src/utils/              → Shared Utilities
-```
-
-Each major module is described below.
-
----
-
-# 4. Core Modules
-
----
-
-## 4.1 CLI Core
-
-**Path:** `codewiki/cli`
-
-The CLI Core is the command-line execution engine of CodeWiki. It orchestrates the full documentation lifecycle.
-
-### Responsibilities
-
-- Configuration management (secure keyring storage)
-- Git integration (branch creation + commit)
-- Job lifecycle tracking
-- Multi-stage progress tracking
-- HTML viewer generation (GitHub Pages)
-- Delegation to backend modules
-
-### Core Components
-
-- `CLIDocumentationGenerator`
-- `ConfigManager`
-- `GitManager`
-- `HTMLGenerator`
-- `DocumentationJob`
-- `ProgressTracker`
-- `CLILogger`
-
-### CLI-Orchestrated Flow
-
-```mermaid
-flowchart TD
-    CLI["CLI User"] --> Generator["CLIDocumentationGenerator"]
-    Generator --> Backend["DocumentationGenerator"]
-    Generator --> Git["GitManager"]
-    Generator --> HTML["HTMLGenerator"]
-    Generator --> Job["DocumentationJob"]
-```
-
-📖 See detailed module documentation:  
-- `cli-core.md`
-
----
-
-## 4.2 Dependency Analysis
-
-**Path:** `codewiki/src/be/dependency_analyzer`
-
-The structural intelligence layer of CodeWiki.
-
-It converts raw source code into a normalized dependency graph.
-
-### Responsibilities
-
-- Multi-language AST parsing
-- Component extraction (classes, functions, methods)
-- Call graph resolution
-- Cross-file and cross-repository dependency normalization
-- Deterministic graph construction
-
-### Supported Languages
-
-- Python
-- JavaScript
-- TypeScript
-- Java
-- C#
-- C
-- C++
-- PHP
-
-### Architecture
-
-```mermaid
-flowchart TD
-    Repo["Repository"] --> RepoAnalyzer["RepoAnalyzer"]
-    RepoAnalyzer --> CallAnalyzer["CallGraphAnalyzer"]
-    CallAnalyzer --> Lang["Language Analyzers"]
-    Lang --> Nodes["Node Models"]
-    Nodes --> Parser["DependencyParser"]
-    Parser --> GraphBuilder["DependencyGraphBuilder"]
-    GraphBuilder --> AnalysisResult["AnalysisResult"]
-```
-
-### Submodules
-
-- Analysis Core
-- Language Analyzers
-- AST & Dependency Parsing
-- Graph Building
-- Analysis Models
-- Core Domain Models
-
-📖 See detailed documentation:
-- `dependency-analysis.md`
-- `analysis-core.md`
-- `language-analyzers.md`
-- `dependency-graph-building.md`
-
----
-
-## 4.3 Documentation Generation
-
-**Path:** `codewiki/src/be/documentation_generator`
-
-The orchestration backbone of documentation creation.
-
-### Responsibilities
-
-- Build dependency graph
-- Cluster modules using LLM
-- Compute leaf-first processing order
-- Generate module documentation
-- Generate parent overviews
-- Create metadata.json
-- Apply synthetic module fallback
-
-### Bottom-Up Processing Model
+## Module Relationships
 
 ```mermaid
 flowchart LR
-    LeafA["Leaf Module A"] --> Parent["Parent Module"]
-    LeafB["Leaf Module B"] --> Parent
-    Parent --> Root["Repository Overview"]
+    Config["Config Core"] --> CLI["CLI Core"]
+    Config --> Frontend["Frontend Core"]
+    Config --> Backend["Backend Core"]
+
+    CLI --> Backend
+    Frontend --> Backend
+
+    Backend --> AgentTools["Agent Tools Core"]
+    Backend --> Analyzer["Dependency Analyzer Core"]
+    Backend --> Language["Tree-sitter Analyzers"]
+    Backend --> LLM["LLM Services"]
+
+    TestPaths["Test Multi Path"] --> Config
+    TestPaths --> Analyzer
+
+    TestCluster["Test Clustering"] --> Config
+    TestCluster --> Backend
 ```
 
-### Synthetic Module Safety
+## Backend Documentation References
 
-If clustering fails:
+The Backend Core module is decomposed into focused subsystems:
 
-```mermaid
-flowchart TD
-    EmptyTree["Module Tree Empty?"] --> YesNode["Create Synthetic Modules"]
-    YesNode --> ContinueNode["Continue Generation"]
-```
+- [Agent Tools Core](backend-core/agent-tools-core/agent-tools-core.md) — controlled repository inspection and documentation editing tools.
+- [Dependency Analyzer Core](backend-core/dependency-analyzer-core/dependency-analyzer-core.md) — file discovery, AST parsing, call analysis, and graph construction.
+- [Tree Sitter Analyzers](backend-core/tree-sitter-analyzers/tree-sitter-analyzers.md) — language support for C, C++, C#, Java, JavaScript, TypeScript, PHP, and Python.
+- [Dependency Analyzer Models](backend-core/dependency-analyzer-models/dependency-analyzer-models.md) — repository, node, relationship, and analysis-result contracts.
+- [Documentation Generator](backend-core/documentation-generator/documentation-generator.md) — top-level pipeline coordination and documentation output.
+- [LLM Services](backend-core/llm-services/llm-services.md) — LLM model selection, request counting, and fallback handling.
+- [Logging Config](backend-core/logging-config/logging-config.md) — shared colorized logging support.
 
-📖 See:
-- `documentation-generation.md`
+## CLI Documentation References
 
----
+- [Generation](cli-core/generation/generation.md) — CLI adapter for staged documentation generation.
+- [Configuration](cli-core/configuration/configuration.md) — persisted settings, keyring-backed credentials, and agent instructions.
+- [Job Models](cli-core/job_models/job_models.md) — generation job status, statistics, and LLM configuration models.
+- [Git Integration](cli-core/git_integration/git_integration.md) — clean-tree checks, branch creation, commits, and remote URL handling.
+- [HTML Generation](cli-core/html_generation/html_generation.md) — static documentation viewer generation.
+- [Utils](cli-core/utils/utils.md) — terminal logging and progress tracking.
 
-## 4.4 Agent Orchestration
+## Summary
 
-**Path:** `codewiki/src/be/agent_orchestrator`
-
-Runtime controller for AI-based documentation.
-
-### Responsibilities
-
-- Create complex or leaf agents
-- Inject prompts
-- Attach tools
-- Enforce request limits
-- Verify output files
-- Persist module tree
-
-### Agent Creation Strategy
-
-```mermaid
-flowchart TD
-    Module["Process Module"] --> Complex{"Complex?"}
-    Complex -->|Yes| ComplexAgent["Complex Agent"]
-    Complex -->|No| LeafAgent["Leaf Agent"]
-```
-
-### Tooling
-
-- `read_code_components_tool`
-- `str_replace_editor_tool`
-- `generate_sub_module_documentation_tool`
-
-📖 See:
-- `agent-orchestration.md`
-
----
-
-## 4.5 LLM Services
-
-**Path:** `codewiki/src/be/llm_services`
-
-Abstraction layer for all LLM providers.
-
-### Responsibilities
-
-- Main / Cluster / Fallback model creation
-- Dynamic token parameter handling
-- Direct OpenAI SDK invocation
-- Fallback chaining
-- Request counting
-- Multi-provider configuration
-
-### Model Invocation Flow
-
-```mermaid
-flowchart TD
-    Request["LLM Request"] --> Main["Main Model"]
-    Main -->|Success| ReturnMain["Return"]
-    Main -->|Failure| Fallback["Fallback Model"]
-    Fallback --> ReturnFallback["Return"]
-```
-
-Supports:
-
-- OpenAI
-- Azure OpenAI
-- Anthropic-compatible APIs
-- Self-hosted OpenAI-compatible gateways
-
-📖 See:
-- `llm-services.md`
-
----
-
-## 4.6 Frontend Core
-
-**Path:** `codewiki/src/fe`
-
-FastAPI-based web interface.
-
-### Responsibilities
-
-- Accept GitHub repository submissions
-- Manage background jobs
-- Cache generated documentation
-- Serve rendered Markdown as HTML
-- Track job state
-
-### Web Flow
-
-```mermaid
-flowchart TD
-    Browser["User Browser"] --> Routes["WebRoutes"]
-    Routes --> Worker["BackgroundWorker"]
-    Worker --> DocGen["DocumentationGenerator"]
-    Worker --> Cache["CacheManager"]
-    Routes --> Render["Render HTML"]
-```
-
-### Job Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> queued
-    queued --> processing
-    processing --> completed
-    processing --> failed
-    completed --> [*]
-    failed --> [*]
-```
-
-📖 See:
-- `frontend-core.md`
-
----
-
-## 4.7 Utils
-
-**Path:** `codewiki/src/utils`
-
-Foundational file management layer.
-
-### Core Component
-
-- `FileManager`
-
-### Responsibilities
-
-- Ensure directory creation
-- Save/load JSON
-- Save/load text
-- Provide stable file I/O abstraction
-
-```mermaid
-classDiagram
-    class FileManager {
-        +ensure_directory(path)
-        +save_json(data, filepath)
-        +load_json(filepath)
-        +save_text(content, filepath)
-        +load_text(filepath)
-    }
-```
-
-📖 See:
-- `utils.md`
-
----
-
-# 5. Cross-Module Interaction Model
-
-```mermaid
-flowchart TD
-    CLI["CLI Core"] --> DG["DocumentationGenerator"]
-    FE["Frontend Core"] --> DG
-
-    DG --> DA["Dependency Analysis"]
-    DG --> AO["Agent Orchestration"]
-
-    AO --> LLM["LLM Services"]
-
-    DA --> Graph["Dependency Graph"]
-    Graph --> DG
-
-    DG --> Utils["FileManager"]
-    FE --> Utils
-    CLI --> Utils
-```
-
----
-
-# 6. Design Principles
-
-CodeWiki follows strict architectural principles:
-
-- ✅ Separation of concerns
-- ✅ Provider-agnostic LLM abstraction
-- ✅ Deterministic output structure
-- ✅ Bottom-up hierarchical summarization
-- ✅ Synthetic fallback for safety
-- ✅ Idempotent generation
-- ✅ Explicit job lifecycle modeling
-- ✅ Multi-language static analysis
-
----
-
-# 7. Summary
-
-CodeWiki is a full-stack AI documentation system that:
-
-- Parses multi-language repositories
-- Builds deterministic dependency graphs
-- Uses LLMs to cluster and summarize modules
-- Generates structured Markdown documentation
-- Provides CLI and Web interfaces
-- Supports Git-native workflows
-- Remains provider-agnostic and scalable
-
-Its layered architecture ensures:
-
-- Clean separation between analysis, orchestration, generation, and presentation
-- Scalable LLM usage without context overflow
-- Deterministic, reproducible documentation artifacts
-- Extensibility across languages and LLM providers
-
----
-
-For source code, installation, and usage:
-
-https://github.com/flamingo-stack/CodeWiki
+CodeWiki separates user-facing workflows from its reusable generation engine. CLI and web layers construct a shared runtime configuration and delegate to Backend Core, which transforms source code into dependency-aware, module-oriented documentation. Test modules provide targeted coverage for multi-root analysis and the LLM-driven clustering stage.

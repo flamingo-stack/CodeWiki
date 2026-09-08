@@ -1,0 +1,28 @@
+classDiagram
+    class APIController {
+        +service: MainService
+        +request_count: int
+        +__init__()
+        +handle_request(endpoint, data) dict
+    }
+    class MainService {
+        +name: str
+        +active: bool
+        +__init__(name)
+        +start(config) bool
+        +process_request(data) dict
+        +stop()
+    }
+    class PluginInterface {
+        +initialize() bool
+        +execute(context) dict
+    }
+    class DataPlugin {
+        +name: str
+        +initialized: bool
+        +__init__(name)
+        +initialize() bool
+        +execute(context) dict
+    }
+    APIController --> MainService : "uses"
+    DataPlugin --|> PluginInterface : "implements"

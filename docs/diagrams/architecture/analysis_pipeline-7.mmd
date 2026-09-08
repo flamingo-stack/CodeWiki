@@ -1,0 +1,9 @@
+flowchart TD
+    Start["callee: str"] --> Direct{{"callee in func_lookup?"}}
+    Direct -->|"Yes"| Resolved["Mark resolved, rewrite callee to func_id"]
+    Direct -->|"No"| HasDot{{"Contains '.'?"}}
+    HasDot -->|"No"| Unresolved["Leave unresolved"]
+    HasDot -->|"Yes"| MethodName["Extract trailing segment after last '.'"]
+    MethodName --> MethodLookup{{"method_name in func_lookup?"}}
+    MethodLookup -->|"Yes"| Resolved
+    MethodLookup -->|"No"| Unresolved

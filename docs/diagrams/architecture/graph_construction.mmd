@@ -1,0 +1,11 @@
+flowchart TD
+    Config["Config"] --> Builder["DependencyGraphBuilder"]
+    Builder -->|"instantiates"| Parser["DependencyParser"]
+    Parser -->|"uses"| AnalysisSvc["AnalysisService"]
+    AnalysisSvc -->|"structure + call graph"| Parser
+    Parser -->|"produces"| Nodes["Node objects (Dict[str, Node])"]
+    Builder -->|"build_graph_from_components()"| TraversalGraph["In-memory traversal graph"]
+    Builder -->|"validate_graph_completeness()"| Validation["Graph validation"]
+    Builder -->|"get_leaf_nodes()"| LeafFilter["Leaf node filtering"]
+    Parser -->|"save_dependency_graph()"| JSONFile["dependency_graph.json"]
+    LeafFilter --> Output["(components, leaf_nodes)"]

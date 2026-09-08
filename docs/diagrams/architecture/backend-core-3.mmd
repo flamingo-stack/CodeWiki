@@ -1,0 +1,10 @@
+flowchart LR
+    Models["Dependency Analyzer Models"] --> Analyzer["Dependency Analyzer Core"]
+    Language["Tree-sitter Analyzers"] --> Analyzer
+    Logging["Logging Config"] -.-> Analyzer
+
+    Analyzer --> Generator["Documentation Generator"]
+    LLM["LLM Services"] --> Generator
+    Generator --> Orchestrator["AgentOrchestrator"]
+    Orchestrator --> Tools["Agent Tools Core"]
+    Tools --> Output["Markdown Documentation"]

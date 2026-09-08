@@ -1,0 +1,13 @@
+flowchart LR
+    Edit["Edit .md file"] --> Check{{"path ends with .md?"}}
+    Check -->|"no"| Done["Return result"]
+    Check -->|"yes"| Attempts["Read mermaid_attempts counter"]
+    Attempts --> Limit{{"attempts >= MAX?"}}
+    Limit -->|"yes"| Skip["Skip validation, warn agent"]
+    Limit -->|"no"| Validate["validate_mermaid_diagrams"]
+    Validate --> HasError{{"errors found?"}}
+    HasError -->|"yes"| Increment["Increment counter in registry"]
+    HasError -->|"no"| Reset["Reset counter to 0"]
+    Increment --> Done
+    Reset --> Done
+    Skip --> Done

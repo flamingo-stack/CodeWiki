@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant CLI as "CLI Core (ConfigManager)"
+    participant Config as "Config.from_config_manager"
+    participant FromCli as "Config.from_cli"
+    participant Validate as "validate_source_paths"
+
+    CLI->>Config: from_config_manager(manager, repo_path, output_dir)
+    Config->>CLI: manager.get_config()
+    Config->>CLI: get_cluster_api_key / get_main_api_key / get_fallback_api_key
+    Config->>Config: check models and keys are present
+    Config->>FromCli: from_cli(repo_path, output_dir, models, keys, urls, tokens, temps)
+    FromCli->>FromCli: validation block keys urls types ranges enums
+    FromCli->>Validate: validate_source_paths()
+    Validate-->>FromCli: OK or raises ValueError or OSError
+    FromCli-->>Config: Config instance
+    Config-->>CLI: Config instance

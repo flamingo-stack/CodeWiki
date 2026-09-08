@@ -1,0 +1,22 @@
+flowchart TD
+    Caller["Dependency Parser"] -->|"dispatches by file extension"| Router["Language Router"]
+    Router -->|".c / .h"| CAnalyzer["TreeSitterCAnalyzer"]
+    Router -->|".cpp / .hpp / .cc"| CppAnalyzer["TreeSitterCppAnalyzer"]
+    Router -->|".cs"| CSharpAnalyzer["TreeSitterCSharpAnalyzer"]
+    Router -->|".java"| JavaAnalyzer["TreeSitterJavaAnalyzer"]
+    Router -->|".js / .jsx / .mjs"| JSAnalyzer["TreeSitterJSAnalyzer"]
+    Router -->|".ts / .tsx"| TSAnalyzer["TreeSitterTSAnalyzer"]
+    Router -->|".php"| PHPAnalyzer["TreeSitterPHPAnalyzer"]
+    Router -->|".py"| PyAnalyzer["PythonASTAnalyzer"]
+
+    CAnalyzer --> Output["Node and CallRelationship lists"]
+    CppAnalyzer --> Output
+    CSharpAnalyzer --> Output
+    JavaAnalyzer --> Output
+    JSAnalyzer --> Output
+    TSAnalyzer --> Output
+    PHPAnalyzer --> Output
+    PyAnalyzer --> Output
+
+    Output --> Builder["Dependency Graph Builder"]
+    Output --> CallGraph["Call Graph Analyzer"]

@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant Client
+    participant Controller as APIController
+    participant Service as MainService
+
+    Client->>Controller: handle_request("/process", data)
+    Controller->>Controller: request_count += 1
+    Controller->>Service: process_request(data)
+    Service->>Service: check active flag
+    Service-->>Controller: {"status": "success", "result": processed}
+    Controller-->>Client: response dict

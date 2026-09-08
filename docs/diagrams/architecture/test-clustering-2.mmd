@@ -1,0 +1,23 @@
+classDiagram
+    class TestResultsBase {
+        +add_test(name, passed, details)
+        +print_summary() bool
+    }
+    class DebugResults
+    class ForcedResults
+    class LocalResults
+    class IntegrationResults {
+        +passed int
+        +failed int
+    }
+    class ValidationResults {
+        +success bool
+    }
+    class IdBasedResults
+
+    TestResultsBase <|-- DebugResults
+    TestResultsBase <|-- ForcedResults
+    TestResultsBase <|-- LocalResults
+    TestResultsBase <|-- IntegrationResults
+    TestResultsBase <|-- ValidationResults
+    TestResultsBase <|-- IdBasedResults

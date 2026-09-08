@@ -1,0 +1,14 @@
+flowchart LR
+    subgraph CLIConfig["CLI config dict"]
+        A1["main_model / cluster_model / fallback_model"]
+        A2["*_api_key"]
+        A3["*_base_url"]
+        A4["*_api_version"]
+        A5["*_max_tokens / *_temperature"]
+        A6["max_token_per_module / max_depth"]
+        A7["agent_instructions"]
+        A8["additional_paths"]
+    end
+    CLIConfig --> FromCLI["Config.from_cli()"]
+    FromCLI --> BackendConfig["Backend Config instance"]
+    BackendConfig --> DG2["DocumentationGenerator"]

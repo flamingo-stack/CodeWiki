@@ -1,6 +1,18 @@
-flowchart TD
-    CLI["CLI User"] --> Generator["CLIDocumentationGenerator"]
-    Generator --> Backend["DocumentationGenerator"]
-    Generator --> Git["GitManager"]
-    Generator --> HTML["HTMLGenerator"]
-    Generator --> Job["DocumentationJob"]
+flowchart LR
+    Config["Config Core"] --> CLI["CLI Core"]
+    Config --> Frontend["Frontend Core"]
+    Config --> Backend["Backend Core"]
+
+    CLI --> Backend
+    Frontend --> Backend
+
+    Backend --> AgentTools["Agent Tools Core"]
+    Backend --> Analyzer["Dependency Analyzer Core"]
+    Backend --> Language["Tree-sitter Analyzers"]
+    Backend --> LLM["LLM Services"]
+
+    TestPaths["Test Multi Path"] --> Config
+    TestPaths --> Analyzer
+
+    TestCluster["Test Clustering"] --> Config
+    TestCluster --> Backend

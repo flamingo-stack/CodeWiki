@@ -1,13 +1,27 @@
 flowchart TD
-    User["CLI User"] --> CLI["Cli Core"]
+    User["CLI User"] -->|"codewiki generate"| ConfigMgr["ConfigManager"]
+    ConfigMgr -->|"loads/saves"| ConfigFile[("~/.codewiki/config.json")]
+    ConfigMgr -->|"stores API keys"| Keyring[("OS Keyring")]
+    ConfigMgr -->|"provides"| Config["Configuration + AgentInstructions"]
 
-    CLI --> DocGen["DocumentationGenerator (Backend)"]
-    CLI --> DepAnalysis["Dependency Analysis Module"]
-    CLI --> Cluster["Module Clustering (LLM)"]
-    CLI --> LLM["LLM Services"]
-    CLI --> Git["Git Repository"]
-    CLI --> HTML["HTML Viewer Generator"]
+    Config -->|"to_backend_config()"| CLIDocGen["CLIDocumentationGenerator"]
+    GitMgr["GitManager"] -->|"branch/commit info"| CLIDocGen
 
-    DocGen --> DepAnalysis
-    Cluster --> LLM
-    DocGen --> LLM
+    CLIDocGen -->|"drives"| BackendGen["Backend DocumentationGenerator"]
+    CLIDocGen -->|"tracks progress via"| Progress["ProgressTracker"]
+    CLIDocGen -->|"builds"| Job["DocumentationJob"]
+    CLIDocGen -->|"optional"| HTMLGen["HTMLGenerator"]
+
+    HTMLGen -->|"reads"| ModuleTree[("module_tree.json")]
+    HTMLGen -->|"reads"| Metadata[("metadata.json")]
+    HTMLGen -->|"writes"| IndexHTML[("index.html")]
+
+    Job -->|"serializes to"| Metadata
+
+    Logger["CLILogger"] -.->|"used by"| CLIDocGen
+    Logger -.->|"used by"| ConfigMgr
+    Logger -.->|"used by"| GitMgr
+
+    BackendGen -->|"belongs to"| BackendCore["Backend Core module"]
+
+    style BackendCore fill:#eee,stroke:#999,stroke-dasharray: 5 5

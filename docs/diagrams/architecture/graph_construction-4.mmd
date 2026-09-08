@@ -1,0 +1,8 @@
+flowchart TD
+    Start["For each leaf_node in leaf_nodes"] --> V1{{"Is leaf_node a valid non-empty string without error keywords?"}}
+    V1 -->|"No"| SkipInvalid["skipped_invalid += 1"]
+    V1 -->|"Yes"| V2{{"leaf_node in components?"}}
+    V2 -->|"No"| SkipNotFound["skipped_not_found += 1"]
+    V2 -->|"Yes"| V3{{"component_type in valid_types?"}}
+    V3 -->|"No"| SkipType["skipped_type += 1"]
+    V3 -->|"Yes"| Keep["keep_leaf_nodes.append(leaf_node)"]

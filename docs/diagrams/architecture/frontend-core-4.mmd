@@ -1,8 +1,8 @@
-flowchart TD
-    Request["Check Cache"] --> Hash["Compute Repo Hash"]
-    Hash --> Exists{"In Index?"}
-    Exists -->|"No"| Miss["Cache Miss"]
-    Exists -->|"Yes"| Fresh{"Expired?"}
-    Fresh -->|"No"| Hit["Return Docs Path"]
-    Fresh -->|"Yes"| Remove["Remove Entry"]
-    Remove --> Miss
+stateDiagram-v2
+    [*] --> queued: "add_job()"
+    queued --> processing: "worker picks up job"
+    processing --> completed: "cache hit OR generation succeeds"
+    processing --> failed: "clone or generation error"
+    failed --> queued: "resubmission after cooldown"
+    completed --> [*]
+    failed --> [*]

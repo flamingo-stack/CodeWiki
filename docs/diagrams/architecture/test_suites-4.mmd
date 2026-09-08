@@ -1,0 +1,15 @@
+flowchart LR
+    subgraph TS["Test Suites"]
+        SM["Scenario Test Suite (test_multi_path.py)"]
+        IT["Integration Test Runner (integration_test.py)"]
+    end
+    subgraph CC["Config Core"]
+        Config["Config"]
+    end
+    subgraph DA["Dependency Analyzer Core"]
+        DGB["DependencyGraphBuilder"]
+    end
+    SM --> Config
+    IT --> Config
+    SM --> DGB
+    IT --> DGB

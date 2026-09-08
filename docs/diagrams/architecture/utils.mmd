@@ -1,6 +1,36 @@
-flowchart TD
-    CLI["CLI Core"] -->|"save config"| Utils["Utils"]
-    Agent["Agent Orchestration"] -->|"persist job state"| Utils
-    Analysis["Dependency Analysis"] -->|"store analysis result"| Utils
-    DocGen["Documentation Generation"] -->|"write markdown files"| Utils
-    Frontend["Frontend Core"] -->|"cache results"| Utils
+classDiagram
+    class CLILogger {
+        +bool verbose
+        +datetime start_time
+        +debug(message) void
+        +info(message) void
+        +success(message) void
+        +warning(message) void
+        +error(message) void
+        +step(message, step, total) void
+        +elapsed_time() str
+    }
+
+    class ProgressTracker {
+        +int total_stages
+        +int current_stage
+        +float stage_progress
+        +float start_time
+        +bool verbose
+        +STAGE_WEIGHTS dict
+        +STAGE_NAMES dict
+        +start_stage(stage, description) void
+        +update_stage(progress, message) void
+        +complete_stage(message) void
+        +get_overall_progress() float
+        +get_eta() str
+    }
+
+    class ModuleProgressBar {
+        +int total_modules
+        +int current_module
+        +bool verbose
+        +bar
+        +update(module_name, cached) void
+        +finish() void
+    }

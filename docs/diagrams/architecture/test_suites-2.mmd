@@ -1,0 +1,19 @@
+flowchart TD
+    Start["run_all_tests()"] --> T1["test_single_path()"]
+    Start --> T2["test_multiple_paths()"]
+    Start --> T3["test_component_namespacing()"]
+    Start --> T4["test_cross_path_dependencies()"]
+    Start --> T5["test_invalid_path_handling()"]
+    Start --> T6["test_empty_additional_paths()"]
+    Start --> T7["test_relative_vs_absolute_paths()"]
+    T1 --> Builder["DependencyGraphBuilder.build_dependency_graph()"]
+    T2 --> Builder
+    T3 --> Builder
+    T4 --> Builder
+    T6 --> Builder
+    T7 --> Builder
+    T5 --> Validate["Config.validate_source_paths()"]
+    Builder --> Results["TestResults.add_test()"]
+    Validate --> Results
+    Results --> Summary["TestResults.print_summary()"]
+    Summary --> ExitCode["Process exit code (0 or 1)"]

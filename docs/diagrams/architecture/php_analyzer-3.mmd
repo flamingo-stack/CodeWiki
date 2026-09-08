@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Caller as "Caller"
+    participant Analyzer as "TreeSitterPHPAnalyzer"
+    participant Parser as "tree_sitter Parser"
+    participant Resolver as "NamespaceResolver"
+
+    Caller->>Analyzer: "__init__(file_path, content, repo_path)"
+    Analyzer->>Analyzer: "_is_template_file()"
+    alt is template file
+        Analyzer-->>Caller: "return (skip analysis)"
+    else not a template
+        Analyzer->>Parser: "parse(content)"
+        Parser-->>Analyzer: "AST root node"
+        Analyzer->>Analyzer: "_extract_namespace_info(root)"
+        Analyzer->>Resolver: "register_namespace() / register_use()"
+        Analyzer->>Analyzer: "_extract_nodes(root, lines)"
+        Analyzer->>Analyzer: "_extract_relationships(root)"
+        Analyzer->>Resolver: "resolve(type_name)"
+        Analyzer-->>Caller: "nodes, call_relationships populated"
+    end

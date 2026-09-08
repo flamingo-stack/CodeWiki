@@ -1,7 +1,24 @@
-flowchart TD
-    Start["call_llm()"] --> ResolveStage["Determine Stage"]
-    ResolveStage --> BuildClient["create_openai_client()"]
-    BuildClient --> BuildParams["Build Request Parameters"]
-    BuildParams --> SendRequest["client.chat.completions.create()"]
-    SendRequest --> ParseResponse["Extract Response Content"]
-    ParseResponse --> Return["Return Text"]
+sequenceDiagram
+    participant Caller
+    participant CallLLM as "call_llm()"
+    participant ClientFactory as "create_openai_client()"
+    participant Config as "Config"
+    participant OpenAISDK as "openai.OpenAI"
+
+    Caller->>CallLLM: call_llm(prompt, config, model, temperature)
+    CallLLM->>CallLLM: resolve stage (main / cluster / fallback)
+    CallLLM->>ClientFactory: create_openai_client(config, model)
+    ClientFactory->>Config: resolve base_url / api_key / api_version for stage
+    alt base_url or api_key missing
+        ClientFactory-->>CallLLM: raise ValueError(...)
+    end
+    ClientFactory->>OpenAISDK: OpenAI(base_url, api_key, default_headers)
+    OpenAISDK-->>CallLLM: client
+    CallLLM->>CallLLM: get_model_max_token_field(stage)
+    CallLLM->>OpenAISDK: client.chat.completions.create(**kwargs)
+    alt success
+        OpenAISDK-->>CallLLM: response
+        CallLLM-->>Caller: response_content
+    else OpenAIError
+        CallLLM-->>Caller: raise RuntimeError(context-wrapped)
+    end

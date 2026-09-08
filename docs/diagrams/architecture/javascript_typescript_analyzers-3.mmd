@@ -1,0 +1,19 @@
+flowchart TD
+    Start["analyze()"] --> Parse["Parser.parse(content)"]
+    Parse --> ExtractFn["_extract_functions(root_node)"]
+    ExtractFn --> TraverseFn["_traverse_for_functions(node)"]
+    TraverseFn -->|"class/abstract/interface"| ExtractClass["_extract_class_declaration()"]
+    ExtractClass --> ExtractMethods["_extract_methods_from_class()"]
+    TraverseFn -->|"function_declaration"| ExtractFunc["_extract_function_declaration()"]
+    TraverseFn -->|"export_statement"| ExtractExport["_extract_exported_function()"]
+    TraverseFn -->|"lexical_declaration"| ExtractArrow["_extract_arrow_function_from_declaration()"]
+    ExtractFn --> ExtractCalls["_extract_call_relationships(root_node)"]
+    ExtractCalls --> TraverseCalls["_traverse_for_calls(node, current_top_level)"]
+    TraverseCalls -->|"call_expression"| CallRel["_extract_call_from_node()"]
+    TraverseCalls -->|"new_expression"| NewRel["Constructor relationship"]
+    TraverseCalls -->|"class_heritage"| InheritRel["Inheritance relationship"]
+    TraverseCalls -->|"JSDoc comment"| JsdocRel["_parse_jsdoc_types()"]
+    CallRel --> AddRel["_add_relationship() (dedup)"]
+    NewRel --> AddRel
+    InheritRel --> AddRel
+    JsdocRel --> AddRel

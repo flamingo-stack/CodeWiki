@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph Tree["Module Tree Example"]
+        Root["Backend"] --> Auth["Authentication"]
+        Root --> API["API Layer"]
+        Auth --> JWT["JWT"]
+        Auth --> OAuth["OAuth"]
+    end
+    subgraph Order["Processing Order"]
+        O1["1: JWT (leaf)"] --> O2["2: OAuth (leaf)"]
+        O2 --> O3["3: Authentication (parent)"]
+        O3 --> O4["4: API Layer (leaf/parent)"]
+        O4 --> O5["5: Backend (parent)"]
+    end

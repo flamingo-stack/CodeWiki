@@ -1,352 +1,257 @@
 # Frontend Core
 
-## Overview
+## Introduction
 
-The **Frontend Core** module provides the web application layer of CodeWiki. It exposes a FastAPI-based interface that allows users to submit GitHub repositories, track documentation generation jobs, and browse generated documentation through a dynamic HTML interface.
+The Frontend Core module implements CodeWiki's **web application layer** — a FastAPI-based service that lets users submit GitHub repository URLs, tracks documentation-generation jobs asynchronously, caches completed results, and serves the generated documentation back to the browser.
 
-At a high level, Frontend Core is responsible for:
+It acts as the bridge between end users (submitting repositories through a web form) and the heavier documentation-generation machinery implemented in [Backend Core](backend-core.md) (specifically `DocumentationGenerator`) and the shared runtime settings in [Config Core](config-core.md) (`Config`).
 
-- Accepting and validating GitHub repository submissions
-- Managing background documentation generation jobs
-- Caching generated documentation
-- Serving rendered Markdown documentation as HTML
-- Managing job lifecycle and persistence
+Unlike `cli-core` and `backend-core`, this module is not further decomposed into child sub-modules in the module tree — it is a compact, single-layer module. This document therefore covers all of its components directly, without separate sub-module pages.
 
-It acts as a bridge between the user-facing web interface and backend services such as the Documentation Generator and dependency analysis engine.
+## Responsibilities
 
----
+- Validate and normalize submitted GitHub repository URLs
+- Queue documentation-generation jobs and process them on a background thread
+- Cache generated documentation by repository URL to avoid redundant regeneration
+- Persist job status and cache metadata to disk so state survives restarts
+- Render the web UI (submission form, job list, generated docs viewer) via Jinja2 templates
+- Expose HTTP endpoints (via FastAPI route handlers) for submission, status polling, and documentation viewing
 
-## High-Level Architecture
+## Architecture Overview
 
-The Frontend Core coordinates user requests, background processing, caching, and documentation rendering.
+The module is organized around a simple pipeline: a web request creates or looks up a `JobStatus`, which is queued to the `BackgroundWorker`. The worker clones the repository, invokes the documentation generator, and stores results through the `CacheManager`. All directories, timeouts, and queue sizing are centralized in `WebAppConfig`.
 
 ```mermaid
 flowchart TD
-    User["User Browser"] -->|"Submit Repo URL"| Routes["WebRoutes"]
-    Routes -->|"Create Job"| Worker["BackgroundWorker"]
-    Worker -->|"Check Cache"| Cache["CacheManager"]
-    Worker -->|"Clone Repo"| GitHub["GitHubRepoProcessor"]
-    Worker -->|"Generate Docs"| DocGen["DocumentationGenerator (Backend)"]
-    DocGen -->|"Write Files"| Output["Generated Docs Directory"]
-    Worker -->|"Store Result"| Cache
-    Routes -->|"Serve Docs"| Output
-    Routes -->|"Return HTML"| User
+    User["Browser / API Client"] -->|"submit repo_url"| Routes["WebRoutes"]
+    Routes -->|"validate URL"| GitProc["GitHubRepoProcessor"]
+    Routes -->|"check cache"| Cache["CacheManager"]
+    Routes -->|"enqueue job"| Worker["BackgroundWorker"]
+    Routes -->|"render HTML"| Templates["StringTemplateLoader / render_template"]
+
+    Worker -->|"clone repository"| GitProc
+    Worker -->|"build Config.from_web_job"| ConfigCore["Config (config-core)"]
+    Worker -->|"generate docs"| DocGen["DocumentationGenerator (backend-core)"]
+    Worker -->|"store result path"| Cache
+    Worker -->|"persist status"| JobsFile[("jobs.json")]
+
+    Cache -->|"persist index"| CacheFile[("cache_index.json")]
+
+    subgraph models_group["Data Models"]
+        JobStatus["JobStatus"]
+        CacheEntry["CacheEntry"]
+        RepositorySubmission["RepositorySubmission"]
+        JobStatusResponse["JobStatusResponse"]
+    end
+
+    Routes --> models_group
+    Worker --> models_group
+    Cache --> models_group
 ```
 
-### Key Responsibilities by Component
+**Cross-module dependencies:**
+- [Backend Core](backend-core.md) — `DocumentationGenerator` performs the actual dependency analysis and LLM-driven documentation generation invoked by `BackgroundWorker`.
+- [Config Core](config-core.md) — `Config.from_web_job()` builds the runtime configuration (models, API keys, directories) used for each documentation job.
 
-- **WebRoutes**: HTTP endpoints and request orchestration
-- **BackgroundWorker**: Asynchronous job processing and lifecycle management
-- **CacheManager**: Persistent documentation cache with expiration logic
-- **GitHubRepoProcessor**: Repository validation and cloning
-- **WebAppConfig**: Centralized configuration
-- **Models**: Strongly-typed data contracts for jobs and API responses
-- **Template Utilities**: HTML rendering and navigation generation
+## Core Components
 
----
+### WebAppConfig — Central Settings
 
-## Request-to-Documentation Flow
+`WebAppConfig` (in `config.py`) is a plain class holding static configuration constants used across the whole module:
 
-The typical flow for generating documentation is:
+- **Directories**: `CACHE_DIR`, `TEMP_DIR`, `OUTPUT_DIR`
+- **Queue settings**: `QUEUE_SIZE`
+- **Cache settings**: `CACHE_EXPIRY_DAYS`
+- **Job cleanup**: `JOB_CLEANUP_HOURS`, `RETRY_COOLDOWN_MINUTES`
+- **Server defaults**: `DEFAULT_HOST`, `DEFAULT_PORT`
+- **Git clone settings**: `CLONE_TIMEOUT`, `CLONE_DEPTH`
+
+It also provides `ensure_directories()` (creates cache/temp/output folders) and `get_absolute_path()`. Every other component in this module reads its defaults from `WebAppConfig` unless overridden by an explicit constructor argument.
+
+### GitHubRepoProcessor — Repository Validation & Cloning
+
+`GitHubRepoProcessor` is a stateless utility class (all static methods) responsible for:
+
+- `is_valid_github_url(url)` — ensures the URL points to `github.com`/`www.github.com` with a valid `owner/repo` path
+- `get_repo_info(url)` — extracts `owner`, `repo`, `full_name`, and a normalized `clone_url`
+- `clone_repository(clone_url, target_dir, commit_id=None)` — clones via `git clone` (shallow, depth-limited by `WebAppConfig.CLONE_DEPTH`, unless a specific `commit_id` is requested, in which case a full clone + `git checkout` is performed); cleans up the target directory on failure
+
+This component has no dependency on any other module — it only shells out to `git` and reads settings from `WebAppConfig`.
+
+### CacheManager — Documentation Cache
+
+`CacheManager` maintains an on-disk index (`cache_index.json`) mapping a SHA-256 hash of the repository URL (`get_repo_hash`) to a `CacheEntry` describing where the generated docs live and when they were created/last accessed.
+
+Key behaviors:
+- `get_cached_docs(repo_url)` — returns the cached docs path if the entry exists and has not expired (`CACHE_EXPIRY_DAYS`); expired entries are automatically removed
+- `add_to_cache(repo_url, docs_path)` — creates/updates a `CacheEntry` and persists the index
+- `remove_from_cache(repo_url)` / `cleanup_expired_cache()` — cache invalidation utilities
+- Corrupted index files are detected and backed up rather than crashing the app
+
+### BackgroundWorker — Asynchronous Job Processing
+
+`BackgroundWorker` is the core orchestration engine of the module. It owns:
+
+- A bounded `Queue` (`processing_queue`, sized by `WebAppConfig.QUEUE_SIZE`) of job IDs waiting to be processed
+- An in-memory `job_status: Dict[str, JobStatus]` map
+- A `jobs.json` file for persisting completed job state across restarts
+
+Lifecycle:
+1. `start()` launches a daemon thread running `_worker_loop()`, which polls the queue and dispatches jobs to `_process_job()`.
+2. `add_job(job_id, job)` registers a new `JobStatus` and enqueues its ID.
+3. `_process_job(job_id)`:
+   - Checks `CacheManager` first — if valid cached docs exist, marks the job `completed` immediately.
+   - Otherwise resolves repo info via `GitHubRepoProcessor.get_repo_info()`, clones the repository into a per-job temp directory (`GitHubRepoProcessor.clone_repository`, optionally checking out a specific `commit_id`).
+   - Builds a `Config` via `Config.from_web_job(repo_path, docs_dir)` (see [Config Core](config-core.md)).
+   - Instantiates `DocumentationGenerator(config, job.commit_id)` from [Backend Core](backend-core.md) and runs its async `run()` method in a dedicated event loop.
+   - On success, registers the output path with `CacheManager.add_to_cache()` and marks the job `completed`; on failure, marks it `failed` with an `error_message`.
+   - Always cleans up the temporary cloned repository directory.
+
+`load_job_statuses()` / `save_job_statuses()` persist only `completed` jobs to `jobs.json`. If no jobs file exists yet, `_reconstruct_jobs_from_cache()` rebuilds job entries directly from the `CacheManager`'s index for backward compatibility (older deployments that only had cache data).
 
 ```mermaid
 sequenceDiagram
     participant Browser
     participant Routes as "WebRoutes"
     participant Worker as "BackgroundWorker"
-    participant Cache
-    participant GitHub
+    participant Cache as "CacheManager"
+    participant Git as "GitHubRepoProcessor"
     participant DocGen as "DocumentationGenerator"
 
     Browser->>Routes: POST / (repo_url, commit_id)
-    Routes->>Cache: Check cache
-    Cache-->>Routes: Cached path or null
-    Routes->>Worker: Add job to queue
-    Worker->>GitHub: Clone repository
-    Worker->>DocGen: Run documentation generation
-    DocGen-->>Worker: Write docs to output directory
-    Worker->>Cache: Store docs path
-    Worker-->>Routes: Update job status
-    Browser->>Routes: GET /docs/{job_id}
-    Routes-->>Browser: Rendered HTML
+    Routes->>Git: is_valid_github_url / get_repo_info
+    Routes->>Cache: get_cached_docs(repo_url)
+    alt Cache hit
+        Cache-->>Routes: docs_path
+        Routes-->>Browser: Render success message
+    else Cache miss
+        Routes->>Worker: add_job(job_id, JobStatus)
+        Worker-->>Routes: queued
+        Routes-->>Browser: Render "queued" message
+        Worker->>Git: clone_repository(clone_url, temp_dir, commit_id)
+        Worker->>DocGen: run() (async documentation generation)
+        DocGen-->>Worker: docs_dir populated
+        Worker->>Cache: add_to_cache(repo_url, docs_path)
+        Worker->>Worker: save_job_statuses()
+    end
 ```
 
----
+### Data Models
 
-## Core Components
+Defined in `models.py`, these dataclasses and Pydantic models flow between the components above:
 
-### 1. BackgroundWorker
+| Model | Kind | Purpose |
+|---|---|---|
+| `RepositorySubmission` | Pydantic `BaseModel` | Validates form input containing a `repo_url: HttpUrl` |
+| `JobStatusResponse` | Pydantic `BaseModel` | Shape of the `/api/jobs/{job_id}` JSON response (status, timestamps, error, docs path, model used, commit) |
+| `JobStatus` | `dataclass` | In-memory/on-disk representation of a job's lifecycle: `queued` → `processing` → `completed`/`failed` |
+| `CacheEntry` | `dataclass` | Cache index entry: repo URL, its hash, docs path, creation and last-access timestamps |
 
-**Class:** `CodeWiki.codewiki.src.fe.background_worker.BackgroundWorker`
+`JobStatus` and `CacheEntry` are pure data holders serialized manually (via `dataclasses.asdict`/manual dict construction) by `BackgroundWorker` and `CacheManager` respectively — they carry no business logic themselves.
 
-The BackgroundWorker is the heart of Frontend Core. It manages:
+### WebRoutes — HTTP Route Handlers
 
-- A bounded processing queue
-- A background daemon thread
-- Job status tracking
-- Cache integration
-- Repository cloning
-- Backend documentation generation
-- Persistent job state storage
+`WebRoutes` implements the FastAPI-facing handlers, wired to a `BackgroundWorker` and `CacheManager` instance:
 
-#### Internal Workflow
+- `index_get(request)` — renders the main submission form plus the 100 most recent jobs
+- `index_post(request, repo_url, commit_id)` — the primary submission flow:
+  1. Cleans up expired jobs (`cleanup_old_jobs`)
+  2. Validates the URL via `GitHubRepoProcessor`
+  3. Normalizes the URL and derives a URL-safe `job_id` (`owner--repo`)
+  4. Checks for an existing in-flight or recently-failed job (respecting `WebAppConfig.RETRY_COOLDOWN_MINUTES`) to prevent duplicate work
+  5. Checks the cache; if a hit, synthesizes a `completed` `JobStatus` for immediate display
+  6. Otherwise creates a new `queued` `JobStatus` and calls `BackgroundWorker.add_job()`
+- `get_job_status(job_id)` — JSON API returning a `JobStatusResponse`
+- `view_docs(job_id)` — redirects to the static documentation viewer for a completed job
+- `serve_generated_docs(job_id, filename)` — resolves and renders a specific generated Markdown file (with path-traversal protection), falling back to reconstructing job state from the cache if no in-memory job exists; loads `module_tree.json`/`metadata.json` for navigation and converts Markdown to HTML for display
+- Helper methods `_normalize_github_url`, `_repo_full_name_to_job_id`, `_job_id_to_repo_full_name`, `cleanup_old_jobs` support the above flows
+
+### Template Rendering
+
+`template_utils.py` provides a thin Jinja2 integration layer:
+
+- `StringTemplateLoader` — a custom `jinja2.BaseLoader` that serves a template directly from a Python string (no filesystem template directory needed), enabling templates to be defined inline as Python string constants elsewhere in the application
+- `render_template(template, context)` — configures a `Jinja2` `Environment` (autoescaping HTML/XML, `trim_blocks`/`lstrip_blocks` enabled) and renders the given template string against a context dict
+- `render_navigation(module_tree, current_page)` — renders sidebar navigation HTML from a documentation module tree structure
+- `render_job_list(jobs)` — renders the recent-jobs list HTML fragment
+
+`WebRoutes` uses `render_template` to produce every `HTMLResponse` it returns.
+
+## Component Relationships
 
 ```mermaid
-flowchart TD
-    Start["Start Worker Thread"] --> Loop["Worker Loop"]
-    Loop --> CheckQueue{"Queue Empty?"}
-    CheckQueue -->|"No"| Process["Process Job"]
-    CheckQueue -->|"Yes"| Sleep["Sleep 1s"]
-    Process --> CacheCheck{"Cached?"}
-    CacheCheck -->|"Yes"| Complete["Mark Completed"]
-    CacheCheck -->|"No"| Clone["Clone Repository"]
-    Clone --> Generate["Run DocumentationGenerator"]
-    Generate --> Store["Add to Cache"]
-    Store --> Complete
-    Complete --> Save["Persist Job Status"]
-    Save --> Loop
-    Sleep --> Loop
+classDiagram
+    class WebAppConfig {
+        +CACHE_DIR
+        +TEMP_DIR
+        +QUEUE_SIZE
+        +CACHE_EXPIRY_DAYS
+        +CLONE_TIMEOUT
+        +ensure_directories()
+    }
+    class GitHubRepoProcessor {
+        +is_valid_github_url(url)
+        +get_repo_info(url)
+        +clone_repository(clone_url, target_dir, commit_id)
+    }
+    class CacheManager {
+        +cache_index
+        +get_cached_docs(repo_url)
+        +add_to_cache(repo_url, docs_path)
+        +remove_from_cache(repo_url)
+    }
+    class BackgroundWorker {
+        +job_status
+        +processing_queue
+        +start()
+        +add_job(job_id, job)
+        +get_job_status(job_id)
+    }
+    class WebRoutes {
+        +index_get(request)
+        +index_post(request, repo_url, commit_id)
+        +get_job_status(job_id)
+        +serve_generated_docs(job_id, filename)
+    }
+    class JobStatus
+    class CacheEntry
+    class RepositorySubmission
+    class JobStatusResponse
+    class StringTemplateLoader
+
+    WebRoutes --> BackgroundWorker
+    WebRoutes --> CacheManager
+    WebRoutes --> GitHubRepoProcessor
+    WebRoutes --> StringTemplateLoader
+    BackgroundWorker --> CacheManager
+    BackgroundWorker --> GitHubRepoProcessor
+    BackgroundWorker --> JobStatus
+    CacheManager --> CacheEntry
+    WebRoutes --> JobStatusResponse
+    GitHubRepoProcessor --> WebAppConfig
+    CacheManager --> WebAppConfig
+    BackgroundWorker --> WebAppConfig
 ```
 
-#### Key Responsibilities
-
-- Maintains `processing_queue` with maximum size defined in WebAppConfig
-- Stores job states in memory and persists them to disk (`jobs.json`)
-- Reconstructs completed jobs from cache if needed
-- Runs asynchronous documentation generation inside a dedicated event loop
-- Cleans up temporary repositories after execution
-
-It integrates directly with the backend `DocumentationGenerator` and uses shared configuration objects to determine output paths.
-
----
-
-### 2. CacheManager
-
-**Class:** `CodeWiki.codewiki.src.fe.cache_manager.CacheManager`
-
-The CacheManager prevents redundant documentation generation by storing previously generated results.
-
-#### Responsibilities
-
-- Hashes repository URLs using SHA-256
-- Maintains a `cache_index.json` file
-- Stores:
-  - Repository URL
-  - Hashed key
-  - Documentation output path
-  - Creation timestamp
-  - Last access timestamp
-- Enforces expiration via configurable number of days
-
-#### Cache Validation Logic
-
-```mermaid
-flowchart TD
-    Request["Check Cache"] --> Hash["Compute Repo Hash"]
-    Hash --> Exists{"In Index?"}
-    Exists -->|"No"| Miss["Cache Miss"]
-    Exists -->|"Yes"| Fresh{"Expired?"}
-    Fresh -->|"No"| Hit["Return Docs Path"]
-    Fresh -->|"Yes"| Remove["Remove Entry"]
-    Remove --> Miss
-```
-
-This mechanism significantly reduces computation and LLM usage for repeated repository submissions.
-
----
-
-### 3. WebRoutes
-
-**Class:** `CodeWiki.codewiki.src.fe.routes.WebRoutes`
-
-WebRoutes defines the FastAPI route handlers and orchestrates interactions between the browser, worker, and cache.
-
-#### Main Endpoints
-
-- `index_get` – Render submission form and recent jobs
-- `index_post` – Validate and enqueue repository
-- `get_job_status` – Return JSON job state
-- `view_docs` – Redirect to generated documentation
-- `serve_generated_docs` – Render Markdown as HTML
-
-#### Job Submission Logic
-
-```mermaid
-flowchart TD
-    Submit["User Submits Repo"] --> Validate{"Valid GitHub URL?"}
-    Validate -->|"No"| Error["Return Error"]
-    Validate -->|"Yes"| Normalize["Normalize URL"]
-    Normalize --> Existing{"Existing Job?"}
-    Existing -->|"Yes"| Reject["Reject or Wait"]
-    Existing -->|"No"| Cached{"Cached Docs?"}
-    Cached -->|"Yes"| CreateDone["Create Completed Job"]
-    Cached -->|"No"| Enqueue["Add Job to Worker"]
-```
-
-#### Documentation Serving
-
-When serving documentation:
-
-1. Validate job existence or reconstruct from cache
-2. Load `module_tree.json` if available
-3. Load metadata if available
-4. Convert Markdown to HTML
-5. Render using Jinja2 templates
-
-This keeps rendering logic separate from generation logic.
-
----
-
-### 4. GitHubRepoProcessor
-
-**Class:** `CodeWiki.codewiki.src.fe.github_processor.GitHubRepoProcessor`
-
-Encapsulates GitHub-specific logic.
-
-#### Responsibilities
-
-- Validate GitHub URLs
-- Extract owner and repository name
-- Normalize clone URLs
-- Clone repositories using `git`
-- Support shallow cloning by default
-- Checkout specific commit if provided
-
-The cloning behavior changes depending on whether a `commit_id` is specified:
-
-- Without commit: shallow clone using configured depth
-- With commit: full clone followed by `git checkout`
-
-Timeouts and depth are controlled via WebAppConfig.
-
----
-
-### 5. WebAppConfig
-
-**Class:** `CodeWiki.codewiki.src.fe.config.WebAppConfig`
-
-Centralizes configuration for the web layer.
-
-#### Configuration Domains
-
-- Directory paths (cache, temp, output)
-- Queue size limits
-- Cache expiry settings
-- Job cleanup duration
-- Retry cooldown duration
-- Git clone timeout and depth
-- Default server host and port
-
-It also ensures required directories exist before execution.
-
----
-
-### 6. Data Models
-
-**Module:** `CodeWiki.codewiki.src.fe.models`
-
-Frontend Core uses structured models for strong typing and API clarity.
-
-#### RepositorySubmission (Pydantic)
-- Validates incoming GitHub URLs
-
-#### JobStatus (Dataclass)
-- Tracks lifecycle state:
-  - queued
-  - processing
-  - completed
-  - failed
-- Stores timestamps and output path
-- Includes optional commit ID and model metadata
-
-#### JobStatusResponse (Pydantic)
-- API-safe representation of JobStatus
-- Used in status endpoint
-
-#### CacheEntry (Dataclass)
-- Represents a single cache record
-
-This separation ensures internal state and API contracts remain cleanly defined.
-
----
-
-### 7. Template Utilities
-
-**Module:** `CodeWiki.codewiki.src.fe.template_utils`
-
-Provides Jinja2-based rendering utilities.
-
-#### Features
-
-- String-based template loader
-- Auto-escaping for HTML safety
-- Navigation rendering from module tree
-- Job list rendering
-
-The navigation system dynamically builds links based on the generated `module_tree.json`, allowing documentation browsing without hardcoded routes.
-
----
-
-## Job Lifecycle
+## Job Lifecycle State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> queued
-    queued --> processing
-    processing --> completed
-    processing --> failed
+    [*] --> queued: "add_job()"
+    queued --> processing: "worker picks up job"
+    processing --> completed: "cache hit OR generation succeeds"
+    processing --> failed: "clone or generation error"
+    failed --> queued: "resubmission after cooldown"
     completed --> [*]
     failed --> [*]
 ```
 
-### Persistence Strategy
+## Integration with the Rest of CodeWiki
 
-- Active jobs stored in memory
-- Completed jobs persisted to `jobs.json`
-- Cache index stored in `cache_index.json`
-- Generated documentation stored in output directory
-
-On startup:
-
-- Completed jobs are reloaded
-- Missing job file triggers reconstruction from cache
-
----
-
-## Integration with Backend Modules
-
-Frontend Core delegates actual repository analysis and documentation generation to backend components such as the Documentation Generator and dependency analysis system.
-
-Its responsibilities are orchestration, lifecycle management, caching, and presentation — not analysis itself.
-
-This separation ensures:
-
-- Clear boundary between web and analysis layers
-- Easier scaling of backend generation logic
-- Reduced coupling between HTTP handling and LLM execution
-
----
-
-## Design Principles
-
-The Frontend Core follows several architectural principles:
-
-- **Asynchronous Processing**: Long-running tasks executed in background thread
-- **Idempotency via Caching**: Avoid reprocessing identical repositories
-- **Persistence and Recovery**: Job reconstruction on restart
-- **Separation of Concerns**: Routing, caching, cloning, and rendering are isolated
-- **Extensibility**: New backend generators or cache strategies can be integrated with minimal changes
-
----
+- **Documentation generation**: `BackgroundWorker._process_job()` delegates the actual analysis and Markdown/diagram generation to `DocumentationGenerator` from [Backend Core](backend-core.md). Frontend Core does not implement any dependency analysis itself — it only manages the job lifecycle, caching, and presentation around that generator.
+- **Configuration**: Every job builds a fresh runtime `Config` via `Config.from_web_job(repo_path, docs_dir)`, defined in [Config Core](config-core.md). This keeps LLM model selection, API keys, and output directories consistent with the rest of the pipeline while allowing the web app to supply job-specific paths.
+- **Independent of CLI**: Unlike [CLI Core](cli-core.md), which drives documentation generation from the command line with its own `ConfigManager` and job models, Frontend Core is a self-contained HTTP-facing alternative entry point that shares the same downstream `DocumentationGenerator` and `Config` but has its own job-tracking (`JobStatus`) and caching (`CacheManager`) implementations tailored for a multi-user web environment (queueing, retry cooldowns, cache expiry).
 
 ## Summary
 
-The Frontend Core module provides the operational web interface for CodeWiki. It:
-
-- Accepts repository submissions
-- Manages documentation generation jobs
-- Integrates with backend generation logic
-- Caches results for efficiency
-- Serves interactive HTML documentation
-
-By combining FastAPI routing, background processing, caching, and dynamic rendering, it transforms backend documentation generation capabilities into a user-friendly web application experience.
+Frontend Core provides the web-facing shell around CodeWiki's documentation engine: validating and queueing repository submissions, running generation jobs on a background thread, caching results to avoid repeat work, and rendering both the submission UI and the generated documentation itself. Its five main building blocks — `WebAppConfig`, `GitHubRepoProcessor`, `CacheManager`, `BackgroundWorker`, and `WebRoutes` — form a straightforward pipeline, with `BackgroundWorker` acting as the connective tissue to the heavier [Backend Core](backend-core.md) documentation generator and [Config Core](config-core.md) configuration model.

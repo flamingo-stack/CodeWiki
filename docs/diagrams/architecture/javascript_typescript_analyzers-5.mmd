@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant DP as "DependencyParser"
+    participant JS as "TreeSitterJSAnalyzer"
+    participant TS as "TreeSitterTSAnalyzer"
+    participant DGB as "DependencyGraphBuilder"
+
+    DP->>JS: analyze_javascript_file_treesitter(path, content, repo_path)
+    JS->>JS: Parser.parse(content)
+    JS->>JS: _extract_functions() / _extract_call_relationships()
+    JS-->>DP: (nodes, call_relationships)
+
+    DP->>TS: analyze_typescript_file_treesitter(path, content, repo_path)
+    TS->>TS: Parser.parse(content)
+    TS->>TS: _extract_all_entities() / _filter_top_level_declarations() / _extract_all_relationships()
+    TS-->>DP: (nodes, call_relationships)
+
+    DP->>DGB: aggregated nodes + relationships
+    DGB->>DGB: resolve callee ids against repository Node index
+    DGB-->>DP: Repository dependency graph

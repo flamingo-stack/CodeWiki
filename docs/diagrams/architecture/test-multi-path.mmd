@@ -1,0 +1,25 @@
+flowchart TD
+    subgraph fixtures["Sample Application Fixtures"]
+        Service["MainService"]
+        Controller["APIController"]
+        Plugin["DataPlugin / PluginInterface"]
+    end
+
+    subgraph suites["Test Suites and Runners"]
+        MultiPathSuite["test_multi_path.py suite"]
+        IntegrationRunner["IntegrationTestRunner"]
+    end
+
+    subgraph external_deps["External Dependencies"]
+        ConfigCls["Config"]
+        Builder["DependencyGraphBuilder"]
+    end
+
+    MultiPathSuite -->|"constructs"| ConfigCls
+    IntegrationRunner -->|"constructs"| ConfigCls
+    ConfigCls -->|"declares additional_source_paths"| Builder
+    Builder -->|"parses"| Service
+    Builder -->|"parses"| Controller
+    Builder -->|"parses"| Plugin
+    MultiPathSuite -->|"asserts on"| Builder
+    IntegrationRunner -->|"asserts on"| Builder

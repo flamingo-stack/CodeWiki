@@ -1,0 +1,18 @@
+classDiagram
+    class GitManager {
+        +Path repo_path
+        +Repo repo
+        +__init__(repo_path)
+        +check_clean_working_directory() Tuple
+        +create_documentation_branch(force) str
+        +commit_documentation(docs_path, message) str
+        +get_remote_url(remote_name) str
+        +get_current_branch() str
+        +get_commit_hash() str
+        +branch_exists(branch_name) bool
+        +get_github_pr_url(branch_name) str
+    }
+    class RepositoryError {
+        +__init__(message)
+    }
+    GitManager ..> RepositoryError : raises

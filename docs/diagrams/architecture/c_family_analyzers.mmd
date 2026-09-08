@@ -1,0 +1,8 @@
+flowchart TD
+    Source["Source File Content"] --> Parser["tree-sitter Parser"]
+    Parser --> Tree["Concrete Syntax Tree"]
+    Tree --> Extract["Node Extraction Pass"]
+    Extract --> TopLevel["Top-Level Node Registry"]
+    TopLevel --> Rel["Relationship Extraction Pass"]
+    Rel --> Nodes["List of Node objects"]
+    Rel --> Calls["List of CallRelationship objects"]

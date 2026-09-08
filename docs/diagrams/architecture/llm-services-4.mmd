@@ -1,4 +1,16 @@
-flowchart TD
-    Stage["Model Stage"] --> FieldResolver["get_model_max_token_field()"]
-    FieldResolver --> MaxTokens["max_tokens"]
-    FieldResolver --> MaxCompletion["max_completion_tokens"]
+sequenceDiagram
+    participant Orchestrator as "AgentOrchestrator"
+    participant LlmServices as "llm_services"
+    participant MainModel as "OpenAIModel (main)"
+    participant FallbackModelObj as "OpenAIModel (fallback)"
+    participant CFM as "CountingFallbackModel"
+
+    Orchestrator->>LlmServices: create_fallback_models(config)
+    LlmServices->>LlmServices: create_main_model(config)
+    LlmServices-->>MainModel: main
+    LlmServices->>LlmServices: create_fallback_model(config)
+    LlmServices-->>FallbackModelObj: fallback
+    LlmServices->>CFM: CountingFallbackModel(main, fallback)
+    CFM-->>Orchestrator: fallback_models
+
+    Note over Orchestrator,CFM: Passed as the model backend<br/>for pydantic-ai Agent

@@ -1,0 +1,21 @@
+flowchart TD
+    subgraph AnalysisPipeline["Analysis Pipeline"]
+        direction TB
+        RepoAnalyzer["RepoAnalyzer"] -->|"file_tree"| AnalysisService["AnalysisService"]
+        CallGraphAnalyzer["CallGraphAnalyzer"] -->|"functions + relationships"| AnalysisService
+    end
+
+    subgraph GraphConstruction["Graph Construction"]
+        direction TB
+        DependencyParser["DependencyParser"] -->|"components (Node)"| DependencyGraphBuilder["DependencyGraphBuilder"]
+    end
+
+    Config["Config"] -.->|"repo paths, patterns"| DependencyGraphBuilder
+    DependencyGraphBuilder -->|"drives"| DependencyParser
+    DependencyParser -->|"uses"| AnalysisService
+    CallGraphAnalyzer -->|"delegates per-language"| TreeSitterAnalyzers["Tree-sitter Analyzers"]
+    AnalysisService -->|"produces"| Models["Node / CallRelationship / AnalysisResult"]
+    DependencyGraphBuilder -->|"writes"| GraphFile[("dependency_graph.json")]
+
+    click TreeSitterAnalyzers "../tree-sitter-analyzers/tree-sitter-analyzers.md"
+    click Models "../dependency-analyzer-models/dependency-analyzer-models.md"
