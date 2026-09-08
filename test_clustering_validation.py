@@ -15,6 +15,46 @@ sys.path.insert(0, str(Path(__file__).parent))
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
+class TestResults:
+    """Accumulates test results and prints a summary."""
+
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.failures = []
+
+    def add_test(self, name: str, passed: bool, details: str = ""):
+        if passed:
+            self.passed += 1
+            logger.info(f"✅ TEST PASSED: {name}")
+        else:
+            self.failed += 1
+            self.failures.append((name, details))
+            logger.error(f"❌ TEST FAILED: {name} {details}")
+
+    def print_summary(self):
+        total = self.passed + self.failed
+        print("\n" + "="*70)
+        print("TEST SUMMARY")
+        print("="*70)
+        print(f"Total tests: {total}")
+        print(f"✅ Passed: {self.passed}")
+        print(f"❌ Failed: {self.failed}")
+        if total:
+            print(f"Success rate: {self.passed/total*100:.1f}%")
+
+        if self.failed == 0:
+            print("\n🎉 ALL TESTS PASSED! Validation logic is working correctly.")
+        else:
+            print(f"\n⚠️  {self.failed} test(s) failed. Please review the validation logic.")
+            for name, details in self.failures:
+                print(f"   - {name}: {details}")
+
+    @property
+    def success(self):
+        return self.failed == 0
+
+
 def simulate_validation(response_content: str, max_id: int):
     """
     Simulates the validation logic from cluster_modules.py (lines 338-369)
@@ -140,8 +180,7 @@ def run_tests():
     print("CODEWIKI CLUSTERING VALIDATION TEST SUITE")
     print("="*70)
 
-    passed = 0
-    failed = 0
+    results = TestResults()
 
     for i, test_case in enumerate(test_cases, 1):
         print(f"\n{'='*70}")
@@ -153,28 +192,15 @@ def run_tests():
             test_case['max_id']
         )
 
-        if success == test_case['should_pass']:
-            logger.info(f"✅ TEST PASSED: Got expected result (success={success})")
-            passed += 1
-        else:
-            logger.error(f"❌ TEST FAILED: Expected {test_case['should_pass']}, got {success}")
-            failed += 1
+        results.add_test(
+            test_case['name'],
+            success == test_case['should_pass'],
+            f"(expected {test_case['should_pass']}, got {success})"
+        )
 
-    # Summary
-    print("\n" + "="*70)
-    print("TEST SUMMARY")
-    print("="*70)
-    print(f"Total tests: {len(test_cases)}")
-    print(f"✅ Passed: {passed}")
-    print(f"❌ Failed: {failed}")
-    print(f"Success rate: {passed/len(test_cases)*100:.1f}%")
+    results.print_summary()
 
-    if failed == 0:
-        print("\n🎉 ALL TESTS PASSED! Validation logic is working correctly.")
-    else:
-        print(f"\n⚠️  {failed} test(s) failed. Please review the validation logic.")
-
-    return failed == 0
+    return results.success
 
 if __name__ == "__main__":
     success = run_tests()
