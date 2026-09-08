@@ -1,3 +1,11 @@
+"""Tree-sitter based analyzer for C source files.
+
+This module parses C source code using tree-sitter to extract call-graph
+nodes (functions, structs, and global variables) and the call/usage
+relationships between them. It is part of the multi-language dependency
+analysis pipeline, producing `Node` and `CallRelationship` objects that
+feed into the broader dependency graph and clustering system.
+"""
 import logging
 from typing import List, Optional, Tuple
 from pathlib import Path

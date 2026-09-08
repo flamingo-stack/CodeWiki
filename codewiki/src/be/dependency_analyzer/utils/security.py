@@ -1,3 +1,11 @@
+"""Security utilities for safe file access within a repository root.
+
+This module implements path-traversal and symlink protections used when
+reading files from a repository. It ensures that file access is confined to
+a given base directory and that symlinks are not followed, mitigating
+directory-traversal and symlink-escape attacks during dependency analysis.
+"""
+
 from pathlib import Path
 import os
 
@@ -31,3 +39,4 @@ def safe_open_text(base_dir: Path, target: Path, encoding="utf-8"):
             os.close(fd)
         except OSError:
             pass
+

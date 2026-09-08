@@ -1,3 +1,8 @@
+"""Core pydantic data models for the dependency analyzer.
+
+Defines the Node, CallRelationship, and Repository models that form the
+core data contract used throughout the dependency analysis pipeline.
+"""
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Set
 from datetime import datetime
@@ -66,3 +71,4 @@ class Repository(BaseModel):
     clone_path: str
     
     analysis_id: str
+

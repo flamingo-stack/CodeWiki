@@ -1,3 +1,13 @@
+"""Repository cloning and cleanup utilities.
+
+This module implements the repository acquisition step of the dependency
+analysis pipeline: given a GitHub URL, it sanitizes and validates the URL,
+clones the repository into a temporary directory for analysis, and safely
+cleans up that directory afterwards (including handling Windows-specific
+read-only file permission issues). Downstream analysis stages in the
+dependency_analyzer package operate on the local clone produced here.
+"""
+
 import os
 import shutil
 import tempfile

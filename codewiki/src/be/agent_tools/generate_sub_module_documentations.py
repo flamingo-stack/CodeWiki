@@ -1,3 +1,21 @@
+"""Sub-module documentation generation pipeline step.
+
+This module implements the recursive agent-dispatch tool used by CodeWiki to
+split a module into smaller sub-modules and generate documentation for each
+one. It is responsible for:
+
+- Normalizing the component identifiers returned by the LLM (which may be
+  either FQDN strings or integer IDs from the ID-based clustering system)
+  into canonical FQDNs that exist in ``deps.components``.
+- Updating the in-memory module tree with the newly created sub-modules.
+- Spawning nested ``pydantic_ai`` agents (leaf or non-leaf, depending on
+  module complexity and depth) to recursively generate documentation for
+  each sub-module.
+
+It is exposed to the top-level documentation agent as
+``generate_sub_module_documentation_tool``.
+"""
+
 from pydantic_ai import RunContext, Tool, Agent
 from pydantic_ai.usage import UsageLimits
 
@@ -147,28 +165,22 @@ generate_sub_module_documentation_tool = Tool(
     description="""Generate detailed documentation for sub-modules by grouping related components.
 
 CRITICAL FORMAT REQUIREMENTS:
-- Use the EXACT component identifiers as shown in the <CORE_COMPONENT_CODES> section
+- Use the EXACT integer component IDs as shown in the <CORE_COMPONENT_CODES> section
 - DO NOT extract just class names (e.g., "AuthService", "ApiApplicationConfig")
-- Use the COMPLETE identifiers like: "main-repo.src/services/auth.py::AuthService"
+- DO NOT invent full FQDN strings; use the integer IDs assigned to each component
 
 Example CORRECT format:
 {
-    "Authentication": [
-        "main-repo.src/services/auth.py::AuthService",
-        "main-repo.src/services/auth.py::LoginController"
-    ],
-    "Configuration": [
-        "main-repo.src/config/api.py::ApiApplicationConfig",
-        "main-repo.src/config/security.py::SecurityConfig"
-    ]
+    "Authentication": [0, 1],
+    "Configuration": [2, 3]
 }
 
 Example WRONG format (DO NOT USE):
 {
     "Authentication": ["AuthService", "LoginController"],  # ❌ Class names only
-    "Configuration": ["ApiApplicationConfig"]              # ❌ Missing full path
+    "Configuration": ["main-repo.src/config/api.py::ApiApplicationConfig"]  # ❌ Full FQDN string instead of integer ID
 }
 
-The component identifiers must match exactly what appears in <CORE_COMPONENT_CODES>.""",
+The integer IDs must match exactly what appears in <CORE_COMPONENT_CODES>.""",
     takes_ctx=True
 )
