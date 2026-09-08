@@ -1,0 +1,25 @@
+flowchart TD
+    User["Browser / API Client"] -->|"submit repo_url"| Routes["WebRoutes"]
+    Routes -->|"validate URL"| GitProc["GitHubRepoProcessor"]
+    Routes -->|"check cache"| Cache["CacheManager"]
+    Routes -->|"enqueue job"| Worker["BackgroundWorker"]
+    Routes -->|"render HTML"| Templates["StringTemplateLoader / render_template"]
+
+    Worker -->|"clone repository"| GitProc
+    Worker -->|"build Config.from_web_job"| ConfigCore["Config (config-core)"]
+    Worker -->|"generate docs"| DocGen["DocumentationGenerator (backend-core)"]
+    Worker -->|"store result path"| Cache
+    Worker -->|"persist status"| JobsFile[("jobs.json")]
+
+    Cache -->|"persist index"| CacheFile[("cache_index.json")]
+
+    subgraph models_group["Data Models"]
+        JobStatus["JobStatus"]
+        CacheEntry["CacheEntry"]
+        RepositorySubmission["RepositorySubmission"]
+        JobStatusResponse["JobStatusResponse"]
+    end
+
+    Routes --> models_group
+    Worker --> models_group
+    Cache --> models_group

@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant Builder as "DependencyGraphBuilder"
+    participant Parser as "DependencyParser"
+    participant Service as "AnalysisService"
+    participant RepoA as "RepoAnalyzer"
+    participant CallA as "CallGraphAnalyzer"
+    participant TS as "Tree-sitter Analyzers"
+
+    Builder->>Parser: parse_repository()
+    Parser->>Service: _analyze_structure(repo_path)
+    Service->>RepoA: analyze_repository_structure()
+    RepoA-->>Service: file_tree + summary
+    Parser->>Service: _analyze_call_graph(file_tree, repo_path)
+    Service->>CallA: extract_code_files() / analyze_code_files()
+    CallA->>TS: analyze_python_file / analyze_javascript_file_treesitter / ...
+    TS-->>CallA: functions, relationships
+    CallA-->>Service: functions, relationships, visualization
+    Service-->>Parser: call_graph_result
+    Parser->>Parser: build namespaced Node components
+    Parser-->>Builder: components (Dict[str, Node])
+    Builder->>Builder: build_graph_from_components / validate / filter leaves
+    Builder-->>Builder: (components, leaf_nodes)

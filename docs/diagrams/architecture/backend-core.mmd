@@ -1,0 +1,20 @@
+flowchart TD
+    Input["Source Repository"] --> Generator["DocumentationGenerator"]
+    Generator --> GraphBuilder["DependencyGraphBuilder"]
+    GraphBuilder --> Parser["DependencyParser"]
+    Parser --> Analysis["AnalysisService"]
+    Analysis --> RepoAnalyzer["RepoAnalyzer"]
+    Analysis --> CallAnalyzer["CallGraphAnalyzer"]
+    CallAnalyzer --> LanguageAnalyzers["Tree-sitter and Python Analyzers"]
+    LanguageAnalyzers --> Models["Dependency Analyzer Models"]
+
+    GraphBuilder --> Components["Component Dependency Graph"]
+    Components --> Generator
+
+    Generator --> Orchestrator["AgentOrchestrator"]
+    Orchestrator --> AgentTools["Agent Tools Core"]
+    Orchestrator --> LLM["CountingFallbackModel"]
+    LLM --> Provider["Configured LLM Provider"]
+
+    AgentTools --> Docs["Generated Markdown Documentation"]
+    Generator --> Docs

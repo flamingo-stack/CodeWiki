@@ -1,0 +1,14 @@
+flowchart TD
+    A["logging.LogRecord"] --> B["ColoredFormatter.format(record)"]
+    B --> C["Look up level color in COLORS"]
+    B --> D["Format timestamp HH:MM:SS"]
+    D --> E["Wrap timestamp in blue"]
+    C --> F["Wrap levelname in level color"]
+    C --> G["Wrap message in level color"]
+    E --> H["Concatenate: timestamp + level + message"]
+    F --> H
+    G --> H
+    H --> I{"record.exc_info present?"}
+    I -->|"Yes"| J["Append formatException() output"]
+    I -->|"No"| K["Return colored log line"]
+    J --> K

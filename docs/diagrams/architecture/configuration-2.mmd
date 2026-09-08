@@ -1,0 +1,42 @@
+classDiagram
+    class Configuration {
+        +str main_model
+        +str cluster_model
+        +str fallback_model
+        +str default_output
+        +str cluster_base_url
+        +str main_base_url
+        +str fallback_base_url
+        +int cluster_max_tokens
+        +int main_max_tokens
+        +int fallback_max_tokens
+        +float cluster_temperature
+        +float main_temperature
+        +float fallback_temperature
+        +bool cluster_temperature_supported
+        +bool main_temperature_supported
+        +bool fallback_temperature_supported
+        +int max_token_per_module
+        +int max_token_per_leaf_module
+        +int max_depth
+        +AgentInstructions agent_instructions
+        +validate()
+        +to_dict() dict
+        +from_dict(data) Configuration
+        +is_complete() bool
+        +to_backend_config(...) Config
+    }
+
+    class AgentInstructions {
+        +List~str~ include_patterns
+        +List~str~ exclude_patterns
+        +List~str~ focus_modules
+        +str doc_type
+        +str custom_instructions
+        +to_dict() dict
+        +from_dict(data) AgentInstructions
+        +is_empty() bool
+        +get_prompt_addition() str
+    }
+
+    Configuration "1" *-- "1" AgentInstructions : agent_instructions

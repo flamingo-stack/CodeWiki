@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant Main as "main()"
+    participant Runner as "IntegrationTestRunner"
+    participant Cfg as "Config"
+    participant Builder as "DependencyGraphBuilder"
+    participant Results as "IntegrationTestResults"
+
+    Main->>Runner: run()
+    Runner->>Runner: setup_test_environment()
+    Note over Runner: Creates main/, deps/, vendor/ with cross-importing fixture files
+    Runner->>Cfg: create_config()
+    Cfg-->>Runner: Config(repo_path, additional_source_paths)
+    Runner->>Runner: validate_paths()
+    Runner->>Builder: execute_dependency_parser()
+    Builder->>Builder: build_dependency_graph()
+    Builder-->>Runner: components, leaf_nodes
+    Runner->>Results: verify_namespaces()
+    Runner->>Results: verify_cross_path_dependencies()
+    Runner->>Results: verify_no_warnings()
+    Runner->>Results: verify_file_counts()
+    Runner->>Runner: print_detailed_output()
+    Runner->>Results: print_summary()
+    Results-->>Runner: all_passed()
+    Runner->>Runner: cleanup()
+    Runner-->>Main: exit code 0, 1, or 2

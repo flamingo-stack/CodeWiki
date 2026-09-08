@@ -1,0 +1,17 @@
+flowchart TD
+    Start["generate() called"] --> CheckDocsDir{{"docs_dir provided?"}}
+    CheckDocsDir -->|"yes"| AutoLoadTree["load_module_tree(docs_dir)"]
+    CheckDocsDir -->|"yes"| AutoLoadMeta["load_metadata(docs_dir)"]
+    CheckDocsDir -->|"no"| UseProvided["use provided module_tree/metadata"]
+    AutoLoadTree --> Defaults
+    AutoLoadMeta --> Defaults
+    UseProvided --> Defaults
+    Defaults["Apply defaults for module_tree/config"] --> LoadTemplate["Load viewer_template.html"]
+    LoadTemplate -->|"missing"| RaiseErr["raise FileSystemError"]
+    LoadTemplate -->|"found"| BuildInfo["_build_info_content(metadata)"]
+    BuildInfo --> BuildRepoLink["Build repository link HTML"]
+    BuildRepoLink --> ComputeBasePath["Compute docs_base_path"]
+    ComputeBasePath --> SerializeJson["Serialize config/module_tree/metadata to JSON"]
+    SerializeJson --> Replace["Replace template placeholders"]
+    Replace --> WriteOut["safe_write(output_path)"]
+    WriteOut --> Done["index.html generated"]

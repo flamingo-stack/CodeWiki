@@ -1,0 +1,6 @@
+flowchart TD
+    Start["analyze() called"] --> Parse["ast.parse(content)"]
+    Parse -->|"success"| Visit["self.visit(tree)"]
+    Parse -->|"SyntaxError"| WarnLog["log warning, skip file"]
+    Visit -->|"success"| Done["nodes + call_relationships populated"]
+    Visit -->|"unexpected Exception"| ErrLog["log error with traceback"]

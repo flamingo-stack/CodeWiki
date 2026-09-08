@@ -1,0 +1,45 @@
+classDiagram
+    class TreeSitterJSAnalyzer {
+        +file_path: Path
+        +content: str
+        +repo_path: str
+        +nodes: List~Node~
+        +call_relationships: List~CallRelationship~
+        +top_level_nodes: dict
+        +analyze() None
+        -_extract_functions(node) None
+        -_extract_call_relationships(node) None
+        -_extract_jsdoc_type_dependencies(node, caller) None
+    }
+    class TreeSitterTSAnalyzer {
+        +file_path: Path
+        +content: str
+        +repo_path: str
+        +nodes: List~Node~
+        +call_relationships: List~CallRelationship~
+        +top_level_nodes: dict
+        +analyze() None
+        -_extract_all_entities(node, all_entities, depth) None
+        -_filter_top_level_declarations(all_entities) None
+        -_extract_all_relationships(node, all_entities) None
+    }
+    class Node {
+        +id: str
+        +name: str
+        +component_type: str
+        +source_code: str
+        +start_line: int
+        +end_line: int
+        +node_type: str
+        +base_classes: List~str~
+    }
+    class CallRelationship {
+        +caller: str
+        +callee: str
+        +call_line: int
+        +is_resolved: bool
+    }
+    TreeSitterJSAnalyzer --> Node : produces
+    TreeSitterJSAnalyzer --> CallRelationship : produces
+    TreeSitterTSAnalyzer --> Node : produces
+    TreeSitterTSAnalyzer --> CallRelationship : produces

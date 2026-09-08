@@ -1,0 +1,43 @@
+sequenceDiagram
+    participant Caller as "CLI/Web Caller"
+    participant DG as "DocumentationGenerator"
+    participant GB as "DependencyGraphBuilder"
+    participant Cluster as "cluster_modules"
+    participant AO as "AgentOrchestrator"
+    participant LLM as "call_llm"
+    participant FS as "file_manager"
+
+    Caller->>DG: run()
+    DG->>GB: build_dependency_graph()
+    GB-->>DG: components, leaf_nodes
+    alt "module tree cache exists"
+        DG->>FS: load_json(first_module_tree.json)
+    else "no cache"
+        DG->>Cluster: cluster_modules(leaf_nodes, components, config)
+        Cluster-->>DG: module_tree
+        DG->>FS: save_json(first_module_tree.json)
+    end
+    alt "module_tree empty but leaf_nodes exist"
+        DG->>DG: build synthetic modules by top-level directory
+        DG->>FS: save_json(synthetic module_tree)
+    end
+    DG->>FS: save_json(module_tree.json)
+    DG->>DG: generate_module_documentation(components, leaf_nodes)
+    loop "for each module in leaf-first order"
+        alt "is_leaf_module"
+            DG->>AO: process_module(name, components, ids, path, dir)
+            AO->>LLM: agent.run(user_prompt)
+            LLM-->>AO: markdown docs
+            AO->>FS: save module_name.md
+        else "parent module"
+            DG->>DG: build_overview_structure(...)
+            DG->>LLM: call_llm(MODULE_OVERVIEW_PROMPT)
+            LLM-->>DG: "<OVERVIEW>...</OVERVIEW>"
+            DG->>FS: save parent module_name.md
+        end
+    end
+    DG->>DG: generate_parent_module_docs([], working_dir)
+    DG->>LLM: call_llm(REPO_OVERVIEW_PROMPT)
+    DG->>FS: save overview.md
+    DG->>DG: create_documentation_metadata(working_dir, components, len(leaf_nodes))
+    DG-->>Caller: "documentation complete"

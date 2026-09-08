@@ -1,0 +1,9 @@
+flowchart TD
+    Caller["Dependency Analysis Pipeline"] -->|"analyze_php_file(path, content, repo_path)"| Analyze["analyze_php_file()"]
+    Analyze --> Analyzer["TreeSitterPHPAnalyzer"]
+    Analyzer -->|"uses"| Resolver["NamespaceResolver"]
+    Analyzer -->|"parses with"| TreeSitter["tree_sitter_php / Parser"]
+    Analyzer -->|"produces"| Nodes["List of Node"]
+    Analyzer -->|"produces"| Rels["List of CallRelationship"]
+    Nodes --> Models["Dependency Analyzer Models"]
+    Rels --> Models

@@ -1,0 +1,19 @@
+flowchart TD
+    Start["parse_repository()"] --> Check{{"len(repo_paths) == 1?"}}
+    Check -->|"Yes"| Single["_parse_single_repository()"]
+    Check -->|"No"| Multi["_parse_multiple_repositories()"]
+
+    Single --> S1["analysis_service._analyze_structure()"]
+    S1 --> S2["analysis_service._analyze_call_graph()"]
+    S2 --> S3["_build_components_from_analysis()"]
+    S3 --> SResult["self.components"]
+
+    Multi --> M1["For each repo path: compute namespace"]
+    M1 --> M2["analysis_service._analyze_structure()"]
+    M2 --> M3["analysis_service._analyze_call_graph()"]
+    M3 --> M4["_build_namespaced_components()"]
+    M4 --> M5["Merge into all_components"]
+    M5 --> M6{{"More paths?"}}
+    M6 -->|"Yes"| M1
+    M6 -->|"No"| M7["_resolve_cross_namespace_dependencies()"]
+    M7 --> MResult["self.components"]

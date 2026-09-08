@@ -1,0 +1,37 @@
+flowchart TD
+    subgraph scripts["Test Clustering Scripts"]
+        Debug["test_clustering_debug.py"]
+        Forced["test_clustering_forced.py"]
+        Local["test_clustering_local.py"]
+        Integration["test_clustering_integration.py"]
+        Validation["test_clustering_validation.py"]
+        IdBased["test_id_based_clustering.py"]
+    end
+
+    subgraph backend["Backend Clustering Pipeline"]
+        ClusterFn["cluster_modules()"]
+        IdMap["create_component_id_map()"]
+        Normalize["normalize_component_ids_by_lookup()"]
+        LLMClient["LLM Client"]
+    end
+
+    ConfigMod["Config"]
+    NodeMod["Node"]
+
+    Debug -->|"invokes"| ClusterFn
+    Forced -->|"invokes"| ClusterFn
+    Local -->|"invokes"| ClusterFn
+    ClusterFn -->|"calls"| LLMClient
+
+    Integration -->|"invokes directly"| IdMap
+    Integration -->|"invokes directly"| Normalize
+
+    Validation -->|"simulates validation logic of"| ClusterFn
+    IdBased -->|"simulates parsing/validation logic of"| ClusterFn
+
+    Debug -->|"constructs"| NodeMod
+    Forced -->|"constructs"| NodeMod
+    Local -->|"constructs"| NodeMod
+    Debug -->|"constructs"| ConfigMod
+    Forced -->|"constructs"| ConfigMod
+    Local -->|"constructs"| ConfigMod

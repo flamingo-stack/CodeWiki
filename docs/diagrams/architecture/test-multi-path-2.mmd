@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Suite as "Test Script"
+    participant Cfg as "Config"
+    participant Builder as "DependencyGraphBuilder"
+
+    Suite->>Cfg: Create Config with repo_path and additional_source_paths
+    Suite->>Cfg: validate_source_paths() (optional, for invalid-path test)
+    Suite->>Builder: DependencyGraphBuilder(config)
+    Suite->>Builder: build_dependency_graph()
+    Builder-->>Suite: Returns (components, leaf_nodes)
+    Suite->>Suite: Assert namespaces, counts, and cross-path edges
+    Suite->>Suite: Print summary and exit code

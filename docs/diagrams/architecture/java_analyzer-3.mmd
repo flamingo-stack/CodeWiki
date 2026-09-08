@@ -1,0 +1,6 @@
+flowchart LR
+    A["class_declaration<br/>with superclass"] -->|"1: Inheritance"| R1["CallRelationship<br/>class extends BaseClass"]
+    B["class/enum/record<br/>with super_interfaces"] -->|"2: Interface Implementation"| R2["CallRelationship<br/>class implements Interface"]
+    C["field_declaration"] -->|"3: Field Type Use"| R3["CallRelationship<br/>class has field of Type"]
+    D["method_invocation"] -->|"4: Method Call"| R4["CallRelationship<br/>caller calls object.method()"]
+    E["object_creation_expression"] -->|"5: Object Creation"| R5["CallRelationship<br/>class creates new Type()"]

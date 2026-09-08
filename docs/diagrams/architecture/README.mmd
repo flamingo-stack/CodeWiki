@@ -1,0 +1,29 @@
+flowchart TD
+    User["Developer or Web User"] --> Entry{{"Choose entry point?"}}
+    Entry -->|CLI| CLI["CLI Core"]
+    Entry -->|Web| Frontend["Frontend Core"]
+
+    CLI --> RuntimeConfig["Config Core"]
+    Frontend --> RuntimeConfig
+
+    CLI --> GitOps["Git Integration"]
+    Frontend --> RepoProcessor["GitHub Repository Processor"]
+
+    GitOps --> Source["Source Repository"]
+    RepoProcessor --> Source
+
+    RuntimeConfig --> Generator["DocumentationGenerator"]
+    Source --> Generator
+
+    Generator --> Analysis["Dependency Analysis"]
+    Analysis --> Parsers["Language Parsers"]
+    Parsers --> Graph["Dependency Graph"]
+
+    Graph --> Clustering["Module Clustering"]
+    Clustering --> Agents["LLM Agent Orchestration"]
+    Agents --> Docs["Markdown Documentation"]
+
+    Docs --> Metadata["Module Tree and Metadata"]
+    Metadata --> HTML["Optional HTML Viewer"]
+    Docs --> Output["Generated Documentation Output"]
+    HTML --> Output

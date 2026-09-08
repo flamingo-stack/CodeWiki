@@ -1,0 +1,12 @@
+graph TD
+    Backend["Backend Core"] --> LoggingConfig["Logging Config"]
+    Backend --> DepAnalyzer["Dependency Analyzer Core"]
+    Backend --> TreeSitter["Tree-Sitter Analyzers"]
+    Backend --> DepModels["Dependency Analyzer Models"]
+    Backend --> DocGen["Documentation Generator"]
+    Backend --> LLMServices["LLM Services"]
+    Backend --> AgentTools["Agent Tools Core"]
+
+    DepAnalyzer -.->|"colored console output"| LoggingConfig
+    TreeSitter -.->|"colored console output"| LoggingConfig
+    DocGen -.->|"colored console output"| LoggingConfig

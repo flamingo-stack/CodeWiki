@@ -1,0 +1,43 @@
+classDiagram
+    class Config {
+        +str repo_path
+        +str output_dir
+        +str dependency_graph_dir
+        +str docs_dir
+        +int max_depth
+        +str main_model
+        +str cluster_model
+        +str fallback_model
+        +str cluster_api_key
+        +str main_api_key
+        +str fallback_api_key
+        +Optional~str~ cluster_base_url
+        +Optional~str~ main_base_url
+        +Optional~str~ fallback_base_url
+        +int cluster_max_tokens
+        +int main_max_tokens
+        +int fallback_max_tokens
+        +int max_token_per_module
+        +int max_token_per_leaf_module
+        +float cluster_temperature
+        +float main_temperature
+        +float fallback_temperature
+        +Optional~Dict~ agent_instructions
+        +Optional~str~ diagrams_dir
+        +Optional~List~str~~ additional_source_paths
+        +to_dict(include_secrets) Dict
+        +from_dict(data)$ Config
+        +include_patterns() Optional~List~
+        +exclude_patterns() Optional~List~
+        +focus_modules() Optional~List~
+        +doc_type() Optional~str~
+        +custom_instructions() Optional~str~
+        +all_source_paths() List~str~
+        +validate_source_paths() void
+        +is_multi_path_mode() bool
+        +get_prompt_addition() str
+        +from_args(args)$ Config
+        +from_web_job(repo_path, docs_dir)$ Config
+        +from_cli(...)$ Config
+        +from_config_manager(manager, repo_path, output_dir)$ Config
+    }

@@ -1,0 +1,46 @@
+classDiagram
+    class Colors {
+        +GREEN
+        +RED
+        +YELLOW
+        +BLUE
+        +BOLD
+        +END
+    }
+    class ScenarioTestResults {
+        -results dict
+        +add_test(name, passed)
+        +print_summary() int
+    }
+    class IntegrationTestRunner {
+        -test_dir
+        -main_path
+        -deps_path
+        -vendor_path
+        -config
+        -builder
+        -components
+        -leaf_nodes
+        -results
+        +setup_test_environment()
+        +create_config()
+        +validate_paths()
+        +execute_dependency_parser()
+        +verify_namespaces()
+        +verify_cross_path_dependencies()
+        +verify_no_warnings()
+        +verify_file_counts()
+        +print_detailed_output()
+        +cleanup()
+        +run() int
+    }
+    class IntegrationTestResults {
+        -tests list
+        +add_test(name, passed, details)
+        +print_summary()
+        +all_passed() bool
+    }
+    IntegrationTestRunner --> IntegrationTestResults : records into
+    IntegrationTestRunner --> Config : creates
+    IntegrationTestRunner --> DependencyGraphBuilder : invokes
+    ScenarioTestResults ..> Colors : uses for output

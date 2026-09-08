@@ -1,0 +1,11 @@
+flowchart TD
+    Input["repo_dir: str or list[str]"] --> Check{{"Single path?"}}
+    Check -->|"Yes"| Single["_build_file_tree(repo_dir)"]
+    Check -->|"No"| Multi["_analyze_multiple_repositories(repo_dirs)"]
+    Multi --> Loop["For each repo_dir: compute namespace, build tree"]
+    Loop --> Wrap["Wrap tree with namespace prefix"]
+    Wrap --> Merge["Merge into single root tree"]
+    Single --> Summary1["Compute total_files, total_size_kb"]
+    Merge --> Summary2["Aggregate totals across repositories"]
+    Summary1 --> Out["file_tree + summary"]
+    Summary2 --> Out

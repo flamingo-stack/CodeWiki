@@ -1,0 +1,10 @@
+flowchart TD
+    Docs["Documentation Output Directory"] --> ModuleTreeJson["module_tree.json"]
+    Docs --> MetadataJson["metadata.json"]
+    Template["viewer_template.html"] --> Generator["HTMLGenerator"]
+    ModuleTreeJson --> Generator
+    MetadataJson --> Generator
+    RepoPath["Repository Path"] --> DetectInfo["detect_repository_info()"]
+    DetectInfo --> Generator
+    Generator -->|"safe_write()"| IndexHtml["index.html"]
+    Generator -->|"on failure"| FSError["FileSystemError"]

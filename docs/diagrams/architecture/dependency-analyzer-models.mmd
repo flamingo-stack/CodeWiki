@@ -1,0 +1,14 @@
+flowchart TD
+    Analyzers["Tree-sitter Analyzers"] -->|"produce"| Node["Node"]
+    Analyzers -->|"produce"| CallRel["CallRelationship"]
+    Parser["Dependency Parser / Graph Builder"] -->|"assembles"| Node
+    Parser -->|"assembles"| CallRel
+    RepoModel["Repository"] -->|"describes source of"| Node
+    AnalysisSvc["Analysis Service / Repo Analyzer / Call Graph Analyzer"] -->|"aggregates"| Node
+    AnalysisSvc -->|"aggregates"| CallRel
+    AnalysisSvc -->|"aggregates"| RepoModel
+    AnalysisSvc -->|"produces"| Result["AnalysisResult"]
+    Selection["NodeSelection"] -->|"filters"| Result
+    Result -->|"consumed by"| DocGen["Documentation Generator"]
+    Result -->|"consumed by"| Agent["Agent Orchestrator"]
+    Result -->|"consumed by"| CLIGen["CLI Documentation Generator"]

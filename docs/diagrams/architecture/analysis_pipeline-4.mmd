@@ -1,0 +1,10 @@
+flowchart LR
+    subgraph Full["analyze_repository_full"]
+        F1["Clone"] --> F2["Structure Analysis"] --> F3["Call Graph Analysis"] --> F4["README Read"] --> F5["AnalysisResult"]
+    end
+    subgraph StructureOnly["analyze_repository_structure_only"]
+        S1["Clone"] --> S2["Structure Analysis"] --> S3["Structure Dict"]
+    end
+    subgraph Local["analyze_local_repository"]
+        L1["Local Path"] --> L2["Structure Analysis"] --> L3["Filter by language / max_files"] --> L4["Call Graph Analysis"] --> L5["Simplified Dict"]
+    end
