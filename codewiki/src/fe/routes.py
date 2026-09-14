@@ -3,6 +3,7 @@
 FastAPI route handlers for the CodeWiki web application.
 """
 
+import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,6 +22,8 @@ from .templates import WEB_INTERFACE_TEMPLATE
 from .template_utils import render_template
 from .config import WebAppConfig
 from codewiki.src.utils import file_manager
+
+logger = logging.getLogger(__name__)
 
 
 class WebRoutes:
@@ -132,6 +135,7 @@ class WebRoutes:
                         repo_url = ""  # Clear form
                         
                     except Exception as e:
+                        logger.exception("Failed to add repository %s to queue", normalized_repo_url)
                         message = f"Failed to add repository to queue: {str(e)}\n{format_exc()}"
                         message_type = "error"
         
@@ -182,6 +186,9 @@ class WebRoutes:
         if not re.match(r'^[A-Za-z0-9_.-]+$', job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
         
+        if '..' in filename:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        
         job = self.background_worker.get_job_status(job_id)
         docs_path = None
         repo_url = None
@@ -230,7 +237,7 @@ class WebRoutes:
             try:
                 module_tree = file_manager.load_json(module_tree_file)
             except Exception:
-                pass
+                logger.exception("Failed to load module tree from %s", module_tree_file)
         
         # Load metadata
         metadata = None
@@ -239,12 +246,12 @@ class WebRoutes:
             try:
                 metadata = file_manager.load_json(metadata_file)
             except Exception:
-                pass
+                logger.exception("Failed to load metadata from %s", metadata_file)
         
         # Serve the requested file
         docs_path_resolved = docs_path.resolve()
         file_path = (docs_path / filename).resolve()
-        if docs_path_resolved != file_path and docs_path_resolved not in file_path.parents:
+        if not file_path.is_relative_to(docs_path_resolved):
             raise HTTPException(status_code=400, detail="Invalid file path")
         if not file_path.exists():
             raise HTTPException(status_code=404, detail=f"File {filename} not found")
@@ -272,6 +279,7 @@ class WebRoutes:
             return HTMLResponse(content=render_template(DOCS_VIEW_TEMPLATE, context))
             
         except Exception as e:
+            logger.exception("Error reading %s", filename)
             raise HTTPException(status_code=500, detail=f"Error reading {filename}: {e}\n{format_exc()}")
     
     def _normalize_github_url(self, url: str) -> str:
@@ -281,6 +289,7 @@ class WebRoutes:
             repo_info = GitHubRepoProcessor.get_repo_info(url)
             return f"https://github.com/{repo_info['full_name']}"
         except Exception:
+            logger.exception("Failed to normalize GitHub URL %s, falling back to basic normalization", url)
             # Fallback to basic normalization
             return url.rstrip('/').lower()
     
@@ -304,3 +313,4 @@ class WebRoutes:
         for job_id in expired_jobs:
             if job_id in self.background_worker.job_status:
                 del self.background_worker.job_status[job_id]
+
