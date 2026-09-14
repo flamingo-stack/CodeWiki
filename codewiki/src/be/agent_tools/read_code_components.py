@@ -1,4 +1,12 @@
-"""Agent tool for reading the source code of specific CodeWiki components by id."""
+"""Agent tool for reading the source code of specific CodeWiki components by id.
+
+This module exposes `read_code_components_tool`, a pydantic-ai Tool that the
+documentation-generation agent calls to fetch the verbatim source code of one
+or more components by their fully-qualified component id (module.path::Name).
+It looks up components from the shared `CodeWikiDeps.components` map built
+earlier in the pipeline and is used by the agent to ground its explanations
+in actual source rather than hallucinated code.
+"""
 
 from pydantic_ai import RunContext, Tool
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
