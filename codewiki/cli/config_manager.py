@@ -1,5 +1,16 @@
 """
 Configuration manager with keyring integration for secure credential storage.
+
+Responsibilities:
+  - Load and save non-sensitive CLI configuration (models, base URLs, API
+    versions, max tokens, temperature settings) to ~/.codewiki/config.json
+  - Store and retrieve per-role (cluster/main/fallback) API keys exclusively
+    through the system keyring, never persisting them to disk
+  - Validate configuration completeness before allowing pipeline execution
+  - Provide clear/delete operations that remove both file and keyring state
+
+This module is the single integration point between the CLI's config
+commands and the underlying Configuration dataclass and system keyring.
 """
 
 import json
