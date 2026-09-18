@@ -1,5 +1,7 @@
 """
 File system utilities for CLI operations.
+
+Shared by the generate and config commands; nothing here calls the network.
 """
 
 import os
