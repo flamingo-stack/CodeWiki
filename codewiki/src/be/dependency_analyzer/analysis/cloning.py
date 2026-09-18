@@ -106,8 +106,8 @@ def clone_repository(github_url: str) -> str:
                     capture_output=True,
                     text=True,
                 )
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-fatal git config step failed: {e}")
 
         subprocess.run(
             [
@@ -158,8 +158,8 @@ def clone_repository(github_url: str) -> str:
                     capture_output=True,
                     text=True,
                 )
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Non-fatal sparse-checkout setup failed: {e}")
         return temp_dir
     except subprocess.TimeoutExpired:
         if os.path.exists(temp_dir):
@@ -178,6 +178,10 @@ def clone_repository(github_url: str) -> str:
             f"Git executable not found at '{GIT_EXECUTABLE_PATH}'. "
             "Please ensure Git is installed and the path is correct."
         )
+    except Exception:
+        if os.path.exists(temp_dir):
+            cleanup_repository_safe(temp_dir)
+        raise
 
 
 def cleanup_repository_safe(repo_dir: str) -> bool:
