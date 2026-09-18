@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Caller
+    participant CM as ConfigManager
+    participant FS as "config.json"
+    participant KR as "System Keyring"
+
+    Caller->>CM: save(fields..., api_keys...)
+    CM->>FS: ensure_directory(CONFIG_DIR)
+    alt no in-memory config
+        CM->>CM: load() existing or create default Configuration
+    end
+    CM->>CM: apply provided field updates
+    CM->>CM: Configuration.validate() (if models set)
+    CM->>KR: set_password(...) for each provided API key
+    CM->>FS: write JSON (version + Configuration.to_dict())
+    CM-->>Caller: done (or raises ConfigurationError)

@@ -1,0 +1,13 @@
+flowchart LR
+    Repo["Repository Source Files"] --> Parser["Dependency Parser"]
+    Parser -->|".c / .h"| CAnalyzer["TreeSitterCAnalyzer"]
+    Parser -->|".cpp / .hpp"| CppAnalyzer["TreeSitterCppAnalyzer"]
+    Parser -->|".cs"| CSharpAnalyzer["TreeSitterCSharpAnalyzer"]
+    CAnalyzer --> RawNodes["Raw Nodes + Relationships"]
+    CppAnalyzer --> RawNodes
+    CSharpAnalyzer --> RawNodes
+    RawNodes --> GraphBuilder["Dependency Graph Builder"]
+    RawNodes --> CallGraph["Call Graph Analyzer"]
+    CallGraph --> Resolved["Resolved Cross-File Relationships"]
+    GraphBuilder --> FinalGraph["Repository Dependency Graph"]
+    Resolved --> FinalGraph

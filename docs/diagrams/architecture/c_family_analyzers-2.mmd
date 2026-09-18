@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Caller as "analyze_cpp_file()"
+    participant Analyzer as "TreeSitterCppAnalyzer"
+    participant TS as "tree-sitter Parser"
+    participant Pass1 as "_extract_nodes()"
+    participant Pass2 as "_extract_relationships()"
+
+    Caller->>Analyzer: "__init__(file_path, content, repo_path)"
+    Analyzer->>TS: "parse(content)"
+    TS-->>Analyzer: "syntax tree"
+    Analyzer->>Pass1: "traverse(root, top_level_nodes, lines)"
+    Pass1->>Pass1: "detect class/struct/function/namespace/variable"
+    Pass1-->>Analyzer: "populated top_level_nodes + nodes list"
+    Analyzer->>Pass2: "traverse(root, top_level_nodes)"
+    Pass2->>Pass2: "detect calls, inheritance, instantiation, usage"
+    Pass2-->>Analyzer: "call_relationships list"
+    Analyzer-->>Caller: "nodes, call_relationships"

@@ -1,0 +1,11 @@
+flowchart TD
+    CLI["CLI Core: CLIDocumentationGenerator"] --> DG["Documentation Generator: DocumentationGenerator"]
+    Web["Frontend Core: BackgroundWorker"] --> DG
+    DG --> GraphBuilder["Dependency Analyzer Core: DependencyGraphBuilder"]
+    DG --> Cluster["cluster_modules"]
+    DG --> Orchestrator["Backend Core: AgentOrchestrator"]
+    DG --> LLM["LLM Services: call_llm / CountingFallbackModel"]
+    GraphBuilder --> Analyzers["Tree-sitter Analyzers"]
+    GraphBuilder --> Models["Dependency Analyzer Models"]
+    Orchestrator --> AgentTools["Agent Tools Core"]
+    DG --> ConfigCore["Config Core: Config"]

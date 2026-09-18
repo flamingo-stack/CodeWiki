@@ -1,0 +1,19 @@
+flowchart TD
+    subgraph Pipeline["Dependency Analysis Pipeline"]
+        CGA["CallGraphAnalyzer"] -->|"dispatches .java files"| JA["TreeSitterJavaAnalyzer"]
+    end
+
+    subgraph JavaAnalyzerModule["Java Analyzer"]
+        JA -->|"1: parse source"| TS["tree-sitter-java grammar"]
+        TS -->|"AST"| EN["_extract_nodes()"]
+        TS -->|"AST"| ER["_extract_relationships()"]
+        EN -->|"appends"| Nodes["self.nodes: List[Node]"]
+        ER -->|"appends"| Rels["self.call_relationships: List[CallRelationship]"]
+    end
+
+    Nodes -->|"consumed by"| DP["DependencyParser"]
+    Rels -->|"consumed by"| DP
+    DP -->|"builds"| Graph["Dependency Graph"]
+
+    Node["Node model"] -.->|"defines schema for"| Nodes
+    CallRel["CallRelationship model"] -.->|"defines schema for"| Rels

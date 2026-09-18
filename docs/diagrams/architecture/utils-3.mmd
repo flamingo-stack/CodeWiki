@@ -1,0 +1,11 @@
+flowchart TD
+    A["create_logger(verbose)"] --> B["ProgressTracker(total_stages=5)"]
+    B --> C["tracker.start_stage(1, 'Dependency Analysis')"]
+    C --> D["perform analysis; call tracker.update_stage()"]
+    D --> E["tracker.complete_stage()"]
+    E --> F["tracker.start_stage(3, 'Documentation Generation')"]
+    F --> G["ModuleProgressBar(total_modules)"]
+    G --> H["for each module: bar.update(name, cached)"]
+    H --> I["bar.finish()"]
+    I --> J["tracker.complete_stage()"]
+    J --> K["logger.success('Done')"]

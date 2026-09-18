@@ -1,0 +1,10 @@
+flowchart LR
+    DP["DependencyParser"] -->|"dispatches .js/.jsx/.mjs/.cjs files"| JSA["TreeSitterJSAnalyzer"]
+    DP -->|"dispatches .ts/.tsx files"| TSA["TreeSitterTSAnalyzer"]
+    JSA -->|"produces"| Nodes["Node objects"]
+    JSA -->|"produces"| Rels["CallRelationship objects"]
+    TSA -->|"produces"| Nodes
+    TSA -->|"produces"| Rels
+    Nodes --> DGB["DependencyGraphBuilder"]
+    Rels --> DGB
+    DGB --> Graph["Repository Dependency Graph"]

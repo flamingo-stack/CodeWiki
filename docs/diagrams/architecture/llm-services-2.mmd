@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph LlmServices["Llm Services"]
+        Factory["Model factories<br/>(main / fallback / cluster)"]
+        Counting["CountingFallbackModel"]
+        DirectCall["call_llm()"]
+    end
+
+    subgraph DocGen["Documentation Generator"]
+        DG["DocumentationGenerator"]
+        Orchestrator["AgentOrchestrator"]
+    end
+
+    ConfigCore["Config"] --> Factory
+    Factory --> Counting
+    Orchestrator -->|"create_fallback_models(config)"| Factory
+    Orchestrator -->|"used by pydantic-ai Agent"| Counting
+    DG -->|"call_llm(prompt, config)"| DirectCall
+
+    DirectCall --> OpenAISDK["openai.OpenAI client"]
+    Counting --> PydanticAI["pydantic-ai FallbackModel / OpenAIProvider"]

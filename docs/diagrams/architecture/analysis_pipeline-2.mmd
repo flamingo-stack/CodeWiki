@@ -1,0 +1,67 @@
+classDiagram
+    class AnalysisService {
+        +call_graph_analyzer: CallGraphAnalyzer
+        +analyze_local_repository(repo_path, max_files, languages) dict
+        +analyze_repository_full(github_url, include_patterns, exclude_patterns) AnalysisResult
+        +analyze_repository_structure_only(github_url, include_patterns, exclude_patterns) dict
+        +cleanup_all()
+        -_clone_repository(github_url) str
+        -_analyze_structure(repo_dir, include, exclude) dict
+        -_analyze_call_graph(file_tree, repo_dir) dict
+        -_read_readme_file(repo_dir) str
+        -_cleanup_repository(temp_dir)
+    }
+    class RepoAnalyzer {
+        +include_patterns: list
+        +exclude_patterns: list
+        +analyze_repository_structure(repo_dir) dict
+        -_build_file_tree(repo_dir) dict
+        -_should_exclude_path(path, filename) bool
+        -_should_include_file(path, filename) bool
+        -_count_files(tree) int
+        -_calculate_size(tree) float
+    }
+    class CallGraphAnalyzer {
+        +functions: dict~str, Node~
+        +call_relationships: list~CallRelationship~
+        +analyze_code_files(code_files, base_dir) dict
+        +extract_code_files(file_tree) list
+        -_analyze_code_file(repo_dir, file_info)
+        -_resolve_call_relationships()
+        -_deduplicate_relationships()
+        -_generate_visualization_data() dict
+        +generate_llm_format() dict
+        -_select_most_connected_nodes(target_count)
+    }
+    class AnalysisResult {
+        +repository: Repository
+        +functions: list
+        +relationships: list
+        +file_tree: dict
+        +summary: dict
+        +visualization: dict
+        +readme_content: str
+    }
+    class Node {
+        +id: str
+        +name: str
+        +node_type: str
+        +file_path: str
+        +component_id: str
+        +docstring: str
+        +parameters: list
+    }
+    class CallRelationship {
+        +caller: str
+        +callee: str
+        +call_line: int
+        +is_resolved: bool
+    }
+
+    AnalysisService --> RepoAnalyzer : uses
+    AnalysisService --> CallGraphAnalyzer : uses
+    AnalysisService --> AnalysisResult : produces
+    CallGraphAnalyzer --> Node : produces
+    CallGraphAnalyzer --> CallRelationship : produces
+    AnalysisResult --> Node : contains
+    AnalysisResult --> CallRelationship : contains

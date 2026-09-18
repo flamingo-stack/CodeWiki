@@ -1,0 +1,51 @@
+classDiagram
+    class WebAppConfig {
+        +CACHE_DIR
+        +TEMP_DIR
+        +QUEUE_SIZE
+        +CACHE_EXPIRY_DAYS
+        +CLONE_TIMEOUT
+        +ensure_directories()
+    }
+    class GitHubRepoProcessor {
+        +is_valid_github_url(url)
+        +get_repo_info(url)
+        +clone_repository(clone_url, target_dir, commit_id)
+    }
+    class CacheManager {
+        +cache_index
+        +get_cached_docs(repo_url)
+        +add_to_cache(repo_url, docs_path)
+        +remove_from_cache(repo_url)
+    }
+    class BackgroundWorker {
+        +job_status
+        +processing_queue
+        +start()
+        +add_job(job_id, job)
+        +get_job_status(job_id)
+    }
+    class WebRoutes {
+        +index_get(request)
+        +index_post(request, repo_url, commit_id)
+        +get_job_status(job_id)
+        +serve_generated_docs(job_id, filename)
+    }
+    class JobStatus
+    class CacheEntry
+    class RepositorySubmission
+    class JobStatusResponse
+    class StringTemplateLoader
+
+    WebRoutes --> BackgroundWorker
+    WebRoutes --> CacheManager
+    WebRoutes --> GitHubRepoProcessor
+    WebRoutes --> StringTemplateLoader
+    BackgroundWorker --> CacheManager
+    BackgroundWorker --> GitHubRepoProcessor
+    BackgroundWorker --> JobStatus
+    CacheManager --> CacheEntry
+    WebRoutes --> JobStatusResponse
+    GitHubRepoProcessor --> WebAppConfig
+    CacheManager --> WebAppConfig
+    BackgroundWorker --> WebAppConfig

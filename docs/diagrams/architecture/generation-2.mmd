@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Caller as "CLI Command"
+    participant CDG as "CLIDocumentationGenerator"
+    participant BC as "BackendConfig"
+    participant DG as "DocumentationGenerator"
+    participant CM as "cluster_modules"
+    participant HG as "HTMLGenerator"
+    participant Job as "DocumentationJob"
+
+    Caller->>CDG: generate()
+    CDG->>Job: start()
+    CDG->>BC: Config.from_cli(...)
+    CDG->>DG: _run_backend_generation(backend_config)
+    DG->>DG: graph_builder.build_dependency_graph()
+    DG->>CM: cluster_modules(leaf_nodes, components, config)
+    Note over DG,CM: Synthetic module fallback if tree is empty
+    DG->>DG: generate_module_documentation(components, leaf_nodes)
+    opt diagrams_dir configured
+        DG->>DG: extract_and_save_mermaid_diagrams()
+    end
+    opt generate_html is true
+        CDG->>HG: generate(output_path, ...)
+    end
+    CDG->>CDG: _finalize_job()
+    CDG->>Job: complete()
+    CDG-->>Caller: DocumentationJob

@@ -1,0 +1,50 @@
+classDiagram
+    class TreeSitterCAnalyzer {
+        +file_path
+        +content
+        +repo_path
+        +nodes
+        +call_relationships
+        -_analyze()
+        -_extract_nodes()
+        -_extract_relationships()
+    }
+    class TreeSitterCppAnalyzer {
+        +file_path
+        +content
+        +repo_path
+        +nodes
+        +call_relationships
+        -_analyze()
+        -_extract_nodes()
+        -_extract_relationships()
+    }
+    class TreeSitterCSharpAnalyzer {
+        +file_path
+        +content
+        +repo_path
+        +nodes
+        +call_relationships
+        -_analyze()
+        -_extract_nodes()
+        -_extract_relationships()
+    }
+    class Node {
+        +id
+        +name
+        +component_type
+        +file_path
+        +source_code
+    }
+    class CallRelationship {
+        +caller
+        +callee
+        +call_line
+        +is_resolved
+    }
+    TreeSitterCAnalyzer --> Node : produces
+    TreeSitterCAnalyzer --> CallRelationship : produces
+    TreeSitterCppAnalyzer --> Node : produces
+    TreeSitterCppAnalyzer --> CallRelationship : produces
+    TreeSitterCSharpAnalyzer --> Node : produces
+    TreeSitterCSharpAnalyzer --> CallRelationship : produces

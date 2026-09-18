@@ -1,0 +1,17 @@
+flowchart TD
+    A["analyze()"] --> B["Pass 1: _extract_all_entities()<br/>builds all_entities dict"]
+    B --> C["Pass 2: _filter_top_level_declarations()<br/>_is_actually_top_level() check"]
+    C --> D["Node objects appended to self.nodes<br/>and self.top_level_nodes"]
+    D --> E["_extract_constructor_dependencies()<br/>(classes only)"]
+    B --> F["Pass 3: _extract_all_relationships()"]
+    F --> G["_traverse_for_relationships()<br/>tracks current_top_level"]
+    G -->|"call_expression"| H["_extract_call_relationship()"]
+    G -->|"new_expression"| I["_extract_new_relationship()"]
+    G -->|"member_expression"| J["_extract_member_relationship()"]
+    G -->|"type_annotation / type_arguments"| K["_extract_type_relationship()"]
+    G -->|"extends_clause / implements_clause"| L["_extract_inheritance_relationship()"]
+    H --> M["_add_relationship()"]
+    I --> M
+    J --> M
+    K --> M
+    L --> M

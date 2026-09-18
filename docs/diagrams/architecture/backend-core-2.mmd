@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant Caller
+    participant Generator as "DocumentationGenerator"
+    participant Builder as "DependencyGraphBuilder"
+    participant Agent as "AgentOrchestrator"
+    participant Tools as "Agent Tools"
+    participant Output as "Documentation Files"
+
+    Caller->>Generator: run()
+    Generator->>Builder: build_dependency_graph()
+    Builder-->>Generator: components and leaf nodes
+    Generator->>Generator: cluster modules and order leaves first
+    Generator->>Agent: process leaf module
+    Agent->>Tools: inspect repository and write docs
+    Tools-->>Agent: tool results
+    Agent-->>Generator: module documentation complete
+    Generator->>Output: write parent overviews and metadata
+    Generator-->>Caller: documentation complete

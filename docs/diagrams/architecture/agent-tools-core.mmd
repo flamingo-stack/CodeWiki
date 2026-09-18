@@ -1,0 +1,12 @@
+flowchart TD
+    Orchestrator["AgentOrchestrator"] -->|"builds"| Deps["CodeWikiDeps"]
+    Orchestrator -->|"invokes tool with"| ToolCall["str_replace_editor Tool Call"]
+    ToolCall -->|"uses ctx.deps"| Deps
+    ToolCall -->|"instantiates"| EditTool["EditTool"]
+    EditTool -->|"large .py view"| Filemap["Filemap"]
+    EditTool -->|"view/edit windows"| WindowExpander["WindowExpander"]
+    EditTool -->|"reads"| RepoFS[("Repository Files")]
+    EditTool -->|"reads/writes"| DocsFS[("Generated Docs Files")]
+    ToolCall -->|"post-edit .md check"| MermaidValidator["validate_mermaid_diagrams"]
+    Deps -->|"references"| Config["Config"]
+    Deps -->|"references"| Node["Node (component registry)"]

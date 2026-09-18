@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> queued: "add_job()"
+    queued --> processing: "worker picks up job"
+    processing --> completed: "cache hit OR generation succeeds"
+    processing --> failed: "clone or generation error"
+    failed --> queued: "resubmission after cooldown"
+    completed --> [*]
+    failed --> [*]

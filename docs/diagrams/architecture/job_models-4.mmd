@@ -1,0 +1,15 @@
+flowchart TD
+    JobModels["Job Models"]
+    CliCore["Cli Core (parent)"]
+    Generation["Generation"]
+    Configuration["Configuration"]
+    GitIntegration["Git Integration"]
+    HtmlGeneration["Html Generation"]
+    Utils["Utils"]
+
+    CliCore --> JobModels
+    Generation -->|"creates & drives"| JobModels
+    Configuration -->|"populates LLMConfig"| JobModels
+    GitIntegration -->|"populates commit_hash / branch_name"| JobModels
+    HtmlGeneration -->|"reads files_generated"| JobModels
+    Utils -->|"reports on status/statistics"| JobModels

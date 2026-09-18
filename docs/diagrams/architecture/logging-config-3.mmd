@@ -1,0 +1,13 @@
+classDiagram
+    class Formatter {
+        <<logging.Formatter>>
+        +format(record)
+        +formatTime(record, datefmt)
+        +formatException(exc_info)
+    }
+    class ColoredFormatter {
+        +COLORS : dict
+        +COMPONENT_COLORS : dict
+        +format(record) str
+    }
+    Formatter <|-- ColoredFormatter

@@ -1,0 +1,12 @@
+flowchart TD
+    Client["Caller (e.g. Documentation Generator)"] --> AS["AnalysisService"]
+    AS -->|"clone_repository()"| Clone["Repository Cloning (analysis.cloning)"]
+    AS -->|"analyze_repository_structure()"| RA["RepoAnalyzer"]
+    AS -->|"analyze_code_files()"| CGA["CallGraphAnalyzer"]
+    RA -->|"file_tree"| CGA
+    CGA -->|"extract_code_files()"| Extract["Code File Extraction"]
+    CGA -->|"dispatch by language"| Analyzers["Language Analyzers"]
+    Analyzers --> TS["Tree-Sitter Analyzers module"]
+    CGA -->|"Node / CallRelationship"| Models["Dependency Analyzer Models module"]
+    AS -->|"AnalysisResult"| Models
+    AS -->|"Repository"| Models

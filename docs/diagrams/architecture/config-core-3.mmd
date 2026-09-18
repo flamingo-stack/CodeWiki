@@ -1,0 +1,10 @@
+flowchart TD
+    AI["agent_instructions dict"] --> IP["include_patterns"]
+    AI --> EP["exclude_patterns"]
+    AI --> FM["focus_modules"]
+    AI --> DT["doc_type"]
+    AI --> CI["custom_instructions"]
+    DT --> GPA["get_prompt_addition()"]
+    FM --> GPA
+    CI -->|"escape_format_braces"| GPA
+    GPA --> Prompt["Combined prompt-addition string"]

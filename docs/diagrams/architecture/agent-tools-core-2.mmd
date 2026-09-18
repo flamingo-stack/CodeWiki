@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Agent
+    participant Tool as "str_replace_editor"
+    participant Edit as "EditTool"
+    participant FS as "Filesystem"
+    participant Validator as "Mermaid Validator"
+
+    Agent->>Tool: command="create", working_dir="docs", path="module.md"
+    Tool->>Tool: resolve absolute_path under docs root
+    Tool->>Edit: EditTool(registry, docs_path)
+    Edit->>Edit: validate_path(command, path)
+    Edit->>FS: create parent dirs + write_file
+    FS-->>Edit: written
+    Edit-->>Tool: success log
+    Tool->>Validator: validate_mermaid_diagrams(path)
+    Validator-->>Tool: validation result
+    Tool-->>Agent: combined result string

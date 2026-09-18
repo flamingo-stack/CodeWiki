@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant CLIGen as "CLIDocumentationGenerator"
+    participant HTMLGen as "HTMLGenerator"
+    participant FS as "safe_read / safe_write"
+    participant Git as "GitPython"
+
+    CLIGen->>HTMLGen: HTMLGenerator()
+    CLIGen->>HTMLGen: detect_repository_info(repo_path)
+    HTMLGen->>Git: Repo(repo_path)
+    Git-->>HTMLGen: remote URL, name
+    HTMLGen-->>CLIGen: name, url, github_pages_url
+    CLIGen->>HTMLGen: generate(output_path, title, repository_url, docs_dir)
+    HTMLGen->>FS: safe_read(module_tree.json)
+    HTMLGen->>FS: safe_read(metadata.json)
+    HTMLGen->>FS: safe_read(viewer_template.html)
+    HTMLGen->>HTMLGen: _build_info_content(metadata)
+    HTMLGen->>HTMLGen: substitute placeholders
+    HTMLGen->>FS: safe_write(index.html)
+    HTMLGen-->>CLIGen: index.html written

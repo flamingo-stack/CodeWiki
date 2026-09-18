@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Visitor as PythonASTAnalyzer
+    participant AST as ast.NodeVisitor
+    participant Nodes as top_level_nodes
+    participant Rels as call_relationships
+
+    AST->>Visitor: visit_ClassDef(node)
+    Visitor->>Visitor: extract base_classes
+    Visitor->>Nodes: register class Node
+    Visitor->>Rels: append inheritance CallRelationship (if resolved)
+    Visitor->>Visitor: set current_class_name
+    Visitor->>AST: generic_visit(node)
+    AST->>Visitor: visit_Call(node) [inside class/function body]
+    Visitor->>Visitor: _get_call_name(node.func)
+    Visitor->>Nodes: lookup call_name
+    Visitor->>Rels: append CallRelationship (resolved or unresolved)
+    Visitor->>Visitor: clear current_class_name

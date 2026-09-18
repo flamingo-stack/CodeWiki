@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant Caller as "Backend Component"
+    participant Setup as "setup_module_logging()"
+    participant Logger as "logging.Logger"
+    participant Handler as "StreamHandler(stdout)"
+    participant Fmt as "ColoredFormatter"
+
+    Caller->>Setup: setup_module_logging("my_module", level)
+    Setup->>Logger: logging.getLogger("my_module")
+    Setup->>Handler: create StreamHandler(sys.stdout)
+    Setup->>Fmt: create ColoredFormatter()
+    Setup->>Handler: setFormatter(Fmt)
+    Setup->>Logger: handlers.clear()
+    Setup->>Logger: addHandler(Handler)
+    Setup->>Logger: propagate = False
+    Setup-->>Caller: return configured logger
+    Caller->>Logger: logger.info("message")
+    Logger->>Handler: emit(record)
+    Handler->>Fmt: format(record)
+    Fmt-->>Handler: colored log line
+    Handler-->>Caller: printed to stdout

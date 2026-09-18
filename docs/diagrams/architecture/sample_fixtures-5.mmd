@@ -1,0 +1,4 @@
+graph LR
+    Controller["main.controller.APIController"] -->|"imports"| Service["main.service.MainService"]
+    Service -->|"imports"| Deps["deps.helper (external)"]
+    Plugin["external.plugin.DataPlugin"] -->|"implements"| Iface["external.plugin.PluginInterface"]

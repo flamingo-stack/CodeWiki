@@ -1,0 +1,8 @@
+flowchart LR
+    A["CLI Command"] --> B["ConfigManager.load()"]
+    B --> C["Configuration"]
+    C --> D["Configuration.to_backend_config()"]
+    D --> E["ConfigManager (keyring lookup for missing keys)"]
+    D --> F["Merge AgentInstructions (runtime over persisted)"]
+    D --> G["Config.from_cli(...)"]
+    G --> H["Backend Config"]

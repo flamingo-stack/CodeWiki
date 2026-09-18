@@ -1,0 +1,60 @@
+classDiagram
+    class Node {
+        +str id
+        +str name
+        +str component_type
+        +str file_path
+        +str relative_path
+        +Set~str~ depends_on
+        +Optional~str~ source_code
+        +int start_line
+        +int end_line
+        +bool has_docstring
+        +str docstring
+        +Optional~List~str~~ parameters
+        +Optional~str~ node_type
+        +Optional~List~str~~ base_classes
+        +Optional~str~ class_name
+        +Optional~str~ display_name
+        +Optional~str~ component_id
+        +str short_id
+        +str namespace
+        +bool is_from_deps
+        +get_display_name() str
+    }
+
+    class CallRelationship {
+        +str caller
+        +str callee
+        +Optional~int~ call_line
+        +bool is_resolved
+    }
+
+    class Repository {
+        +str url
+        +str name
+        +str clone_path
+        +str analysis_id
+    }
+
+    class AnalysisResult {
+        +Repository repository
+        +List~Node~ functions
+        +List~CallRelationship~ relationships
+        +Dict file_tree
+        +Dict summary
+        +Dict visualization
+        +Optional~str~ readme_content
+    }
+
+    class NodeSelection {
+        +List~str~ selected_nodes
+        +bool include_relationships
+        +Dict~str,str~ custom_names
+    }
+
+    AnalysisResult "1" --> "1" Repository : describes
+    AnalysisResult "1" --> "*" Node : contains
+    AnalysisResult "1" --> "*" CallRelationship : contains
+    CallRelationship "*" --> "1" Node : caller/callee reference (by id)
+    NodeSelection "1" --> "*" Node : references (by id)

@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Caller
+    participant Config as "Config Core"
+    participant Generator as "DocumentationGenerator"
+    participant Analyzer as "Dependency Analyzer"
+    participant Agents as "AgentOrchestrator"
+    participant Output as "Documentation Output"
+
+    Caller->>Config: Build validated runtime configuration
+    Caller->>Generator: Start documentation run
+    Generator->>Analyzer: Analyze repository files and calls
+    Analyzer-->>Generator: Dependency graph and leaf components
+    Generator->>Generator: Cluster components into modules
+    Generator->>Agents: Generate leaf module documentation
+    Agents-->>Generator: Generated module content
+    Generator->>Output: Write Markdown, module tree, and metadata
+    Generator-->>Caller: Generation complete

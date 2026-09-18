@@ -1,0 +1,24 @@
+flowchart TD
+    FT["file_tree"] --> Extract["extract_code_files()"]
+    Extract --> CodeFiles["code_files list"]
+    CodeFiles --> Dispatch{{"Dispatch by language"}}
+    Dispatch -->|"python"| PyA["Python AST Analyzer"]
+    Dispatch -->|"javascript"| JsA["JS Tree-Sitter Analyzer"]
+    Dispatch -->|"typescript"| TsA["TS Tree-Sitter Analyzer"]
+    Dispatch -->|"java"| JavaA["Java Tree-Sitter Analyzer"]
+    Dispatch -->|"csharp"| CsA["C# Tree-Sitter Analyzer"]
+    Dispatch -->|"c"| CA["C Tree-Sitter Analyzer"]
+    Dispatch -->|"cpp"| CppA["C++ Tree-Sitter Analyzer"]
+    Dispatch -->|"php"| PhpA["PHP Tree-Sitter Analyzer"]
+    PyA --> Agg["functions dict, call_relationships list"]
+    JsA --> Agg
+    TsA --> Agg
+    JavaA --> Agg
+    CsA --> Agg
+    CA --> Agg
+    CppA --> Agg
+    PhpA --> Agg
+    Agg --> Resolve["_resolve_call_relationships()"]
+    Resolve --> Dedup["_deduplicate_relationships()"]
+    Dedup --> Viz["_generate_visualization_data()"]
+    Viz --> Result["functions, relationships, call_graph, visualization"]

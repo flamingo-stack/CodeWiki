@@ -1,0 +1,12 @@
+flowchart TD
+    Start["Config.validate_source_paths()"] --> CheckPrimary{{"repo_path exists and is dir?"}}
+    CheckPrimary -->|"no"| Err1["raise ValueError"]
+    CheckPrimary -->|"yes"| HasAdditional{{"additional_source_paths set?"}}
+    HasAdditional -->|"no"| Done["Validation OK single-path mode"]
+    HasAdditional -->|"yes"| Loop["For each additional path"]
+    Loop --> CheckExists{{"path exists and is dir?"}}
+    CheckExists -->|"no"| Err2["raise ValueError"]
+    CheckExists -->|"yes"| CheckRead{{"path readable?"}}
+    CheckRead -->|"no"| Err3["raise OSError"]
+    CheckRead -->|"yes"| Loop
+    Loop --> Done2["Validation OK multi-path mode"]

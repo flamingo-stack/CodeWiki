@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Caller
+    participant CM as ConfigManager
+    participant FS as "config.json"
+    participant KR as "System Keyring"
+
+    Caller->>CM: load()
+    CM->>FS: check exists / read
+    alt file missing
+        FS-->>CM: not found
+        CM-->>Caller: False
+    else file present
+        FS-->>CM: JSON content
+        CM->>CM: Configuration.from_dict(data)
+        CM->>KR: get_password(cluster_api_key)
+        CM->>KR: get_password(main_api_key)
+        CM->>KR: get_password(fallback_api_key)
+        KR-->>CM: key values (or None)
+        CM-->>Caller: True
+    end

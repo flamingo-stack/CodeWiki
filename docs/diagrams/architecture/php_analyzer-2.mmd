@@ -1,0 +1,41 @@
+classDiagram
+    class NamespaceResolver {
+        +string current_namespace
+        +dict use_map
+        +register_namespace(ns)
+        +register_use(fqn, alias)
+        +resolve(name) string
+    }
+    class TreeSitterPHPAnalyzer {
+        +Path file_path
+        +string content
+        +string repo_path
+        +List nodes
+        +List call_relationships
+        +NamespaceResolver namespace_resolver
+        +_analyze()
+        +_extract_namespace_info(node, depth)
+        +_extract_nodes(node, lines, depth, parent_class)
+        +_extract_relationships(node, depth)
+        +_is_template_file() bool
+        +_get_component_id(name, parent_class) string
+    }
+    class Node {
+        +string id
+        +string name
+        +string component_type
+        +string file_path
+        +Set depends_on
+        +string source_code
+        +int start_line
+        +int end_line
+    }
+    class CallRelationship {
+        +string caller
+        +string callee
+        +int call_line
+        +bool is_resolved
+    }
+    TreeSitterPHPAnalyzer --> NamespaceResolver : "delegates name resolution"
+    TreeSitterPHPAnalyzer --> Node : "creates"
+    TreeSitterPHPAnalyzer --> CallRelationship : "creates"

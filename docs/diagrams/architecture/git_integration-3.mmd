@@ -1,0 +1,13 @@
+flowchart TD
+    Start["create_documentation_branch(force)"] --> CheckForce{{force?}}
+    CheckForce -->|"false"| CheckClean["check_clean_working_directory()"]
+    CheckForce -->|"true"| GenName["Generate timestamped branch name"]
+    CheckClean --> IsClean{{"is_clean?"}}
+    IsClean -->|"false"| RaiseErr["raise RepositoryError with remediation steps"]
+    IsClean -->|"true"| GenName
+    GenName --> CheckExists{{"branch name exists?"}}
+    CheckExists -->|"true"| AppendCounter["Append incrementing counter suffix"]
+    AppendCounter --> CheckExists
+    CheckExists -->|"false"| CreateBranch["repo.create_head(branch_name)"]
+    CreateBranch --> Checkout["new_branch.checkout()"]
+    Checkout --> ReturnName["return branch_name"]

@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant Caller as "Pipeline Caller"
+    participant Builder as "DependencyGraphBuilder"
+    participant Parser as "DependencyParser"
+    participant Svc as "AnalysisService"
+    participant FS as "File System"
+
+    Caller->>Builder: build_dependency_graph()
+    Builder->>Parser: new DependencyParser(repo_paths, patterns)
+    Builder->>Parser: parse_repository()
+    Parser->>Svc: _analyze_structure(repo_path)
+    Svc-->>Parser: structure_result
+    Parser->>Svc: _analyze_call_graph(file_tree, repo_path)
+    Svc-->>Parser: call_graph_result
+    Parser->>Parser: _build_components_from_analysis() / _build_namespaced_components()
+    Parser-->>Builder: components (Dict[str, Node])
+    Builder->>Parser: save_dependency_graph(path)
+    Parser->>FS: write JSON
+    Builder->>Builder: build_graph_from_components(components)
+    Builder->>Builder: validate_graph_completeness(components, graph)
+    Builder->>Builder: get_leaf_nodes(graph, components)
+    Builder-->>Caller: (components, leaf_nodes)

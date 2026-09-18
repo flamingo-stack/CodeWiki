@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant Dev as Developer
+    participant Debug as "test_clustering_debug.py"
+    participant Patch as "Monkey-patched LLM Client"
+    participant Cluster as "cluster_modules()"
+
+    Dev->>Debug: python3 test_clustering_debug.py
+    Debug->>Patch: patch create_llm_client()
+    Debug->>Cluster: cluster_modules(leaf_nodes, components, config)
+    Cluster->>Patch: client.call(prompt)
+    Patch-->>Cluster: raw LLM response text
+    Patch-->>Debug: capture response (global variable)
+    Cluster-->>Debug: module_tree dict
+    Debug->>Dev: print captured response + module_tree summary
+    Debug->>Dev: TestResults.print_summary()

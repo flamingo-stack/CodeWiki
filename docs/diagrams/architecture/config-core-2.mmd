@@ -1,0 +1,9 @@
+flowchart TD
+    A["Config instance"] --> B["to_dict(include_secrets=False)"]
+    B --> C["Plain dict, no API keys"]
+    A --> D["to_dict(include_secrets=True)"]
+    D --> E["Plain dict, includes API keys"]
+    C --> F["from_dict(data)"]
+    E --> F
+    F -->|"missing secrets"| G["TypeError: missing required field"]
+    F -->|"secrets present"| H["Reconstructed Config"]

@@ -1,0 +1,11 @@
+flowchart TD
+    RepoAnalyzer["RepoAnalyzer"] -->|"reads .py file"| PyFile["Python Source File"]
+    RepoAnalyzer -->|"instantiate"| PythonASTAnalyzer["PythonASTAnalyzer"]
+    PyFile -->|"content"| PythonASTAnalyzer
+    PythonASTAnalyzer -->|"ast.parse()"| AST["Python AST"]
+    AST -->|"NodeVisitor traversal"| PythonASTAnalyzer
+    PythonASTAnalyzer -->|"produces"| Nodes["List of Node"]
+    PythonASTAnalyzer -->|"produces"| Relationships["List of CallRelationship"]
+    Nodes --> DependencyGraphBuilder["DependencyGraphBuilder"]
+    Relationships --> DependencyGraphBuilder
+    DependencyGraphBuilder --> Graph["Dependency Graph"]

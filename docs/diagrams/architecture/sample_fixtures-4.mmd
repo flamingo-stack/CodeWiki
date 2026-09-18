@@ -1,0 +1,5 @@
+stateDiagram-v2
+    [*] --> Uninitialized: "DataPlugin(name)"
+    Uninitialized --> Initialized: "initialize()"
+    Initialized --> Initialized: "execute(context)"
+    Uninitialized --> Error: "execute() before initialize()"

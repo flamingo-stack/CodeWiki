@@ -1,0 +1,20 @@
+classDiagram
+    class ConfigManager {
+        -Optional~str~ _cluster_api_key
+        -Optional~str~ _main_api_key
+        -Optional~str~ _fallback_api_key
+        -Optional~Configuration~ _config
+        -bool _keyring_available
+        +load() bool
+        +save(...) void
+        +get_cluster_api_key() Optional~str~
+        +get_main_api_key() Optional~str~
+        +get_fallback_api_key() Optional~str~
+        +get_config() Optional~Configuration~
+        +is_configured() bool
+        +delete_api_keys() void
+        +clear() void
+        +keyring_available bool
+        +config_file_path Path
+    }
+    ConfigManager --> Configuration : loads/saves

@@ -1,0 +1,7 @@
+flowchart LR
+    File["PHP source file"] --> Analyzer["TreeSitterPHPAnalyzer"]
+    Analyzer -->|"nodes"| NodeList["List of Node objects<br/>(classes, methods, functions, etc.)"]
+    Analyzer -->|"relationships"| RelList["List of CallRelationship objects<br/>(extends, implements, new, static call)"]
+    NodeList --> Parser["DependencyParser<br/>(Graph Construction)"]
+    RelList --> Parser
+    Parser --> Graph["Dependency Graph<br/>(components + depends_on edges)"]

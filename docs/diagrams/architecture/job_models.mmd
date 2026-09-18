@@ -1,0 +1,52 @@
+classDiagram
+    class JobStatus {
+        <<enumeration>>
+        PENDING
+        RUNNING
+        COMPLETED
+        FAILED
+    }
+    class GenerationOptions {
+        +bool create_branch
+        +bool github_pages
+        +bool no_cache
+        +str custom_output
+    }
+    class LLMConfig {
+        +str main_model
+        +str cluster_model
+        +str base_url
+    }
+    class JobStatistics {
+        +int total_files_analyzed
+        +int leaf_nodes
+        +int max_depth
+        +int total_tokens_used
+    }
+    class DocumentationJob {
+        +str job_id
+        +str repository_path
+        +str repository_name
+        +str output_directory
+        +str commit_hash
+        +str branch_name
+        +str timestamp_start
+        +str timestamp_end
+        +JobStatus status
+        +str error_message
+        +List files_generated
+        +int module_count
+        +GenerationOptions generation_options
+        +LLMConfig llm_config
+        +JobStatistics statistics
+        +start()
+        +complete()
+        +fail(error_message)
+        +to_dict() dict
+        +to_json() str
+        +from_dict(data) DocumentationJob
+    }
+    DocumentationJob --> JobStatus : "status"
+    DocumentationJob --> GenerationOptions : "generation_options"
+    DocumentationJob --> LLMConfig : "llm_config (optional)"
+    DocumentationJob --> JobStatistics : "statistics"
