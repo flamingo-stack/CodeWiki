@@ -1,4 +1,0 @@
-flowchart LR
-    FilePath["file_path"] -->|"os.path.relpath"| RelPath["relative_path"]
-    RelPath -->|"strip .py/.pyx, replace separators with dots"| ModulePath["module.path"]
-    ModulePath -->|"+ '::' + ComponentName"| ComponentID["component_id"]
