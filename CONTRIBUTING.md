@@ -1,153 +1,111 @@
 # Contributing to CodeWiki
 
-Thank you for your interest in contributing to CodeWiki — the AI-powered documentation generator for source code repositories! This guide covers everything you need to develop, test, and contribute to CodeWiki itself (not a repository you're documenting *with* CodeWiki).
+Thanks for your interest in contributing to CodeWiki — the AI-assisted documentation generator behind [Flamingo](https://flamingo.run) and [OpenFrame](https://openframe.ai). This guide covers how to set up your environment, our development workflow, and how to submit changes.
 
-CodeWiki is a Python package (`pyproject.toml`, Python `>=3.12`) organized around a CLI (`codewiki/cli`), a backend documentation pipeline (`codewiki/src/be`), a FastAPI web application (`codewiki/src/fe`), and a shared runtime configuration model (`codewiki/src/config.py`).
+## Community
 
-## Getting Started
+We don't use GitHub Issues or GitHub Discussions for this project. All discussion, support, and coordination happens in the OpenMSP Slack community:
 
-1. Read the [Architecture Overview](./docs/development/architecture/README.md) to understand how the CLI, backend, and frontend modules fit together.
-2. Follow [Environment Setup](./docs/development/setup/environment.md) and [Local Development](./docs/development/setup/local-development.md) to get a working local copy of CodeWiki.
-3. Review the [Documentation index](./docs/README.md) for links to further guides as they become available.
+- [OpenMSP](https://www.openmsp.ai/)
+- [Join the Slack workspace](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
 
-## Development Environment Setup
+If you're planning a non-trivial change, it's a good idea to discuss it there first.
 
-### Required Tools
+## Getting Set Up
 
-| Tool | Version | Notes |
-|---|---|---|
-| Python | `>=3.12` | Matches `requires-python` in `pyproject.toml`. |
-| pip | Latest | Used to install both runtime and `dev` optional dependencies. |
-| Git | Any recent version | CodeWiki's own CLI and web app both shell out to `git` / use GitPython. |
-| Node.js | `>=14.0.0` | Required by `mermaid-py`, which validates Mermaid diagrams embedded in generated docs during tests and generation. |
-| Docker & Docker Compose | Recent version | Optional, for testing the containerized web app (`docker/docker-compose.yml`, `docker/Dockerfile`). |
-
-### Installing Development Dependencies
-
-```bash
-pip install -e ".[dev]"
-```
-
-This installs, in addition to the runtime dependencies:
-
-- `pytest`, `pytest-cov`, `pytest-asyncio` — testing
-- `black` — code formatting (line length 100, target `py312`)
-- `mypy` — static type checking (`python_version = "3.12"`)
-- `ruff` — linting
-
-### IDE Recommendations
-
-If using **VS Code**, the following extensions align with the project's tooling:
-
-- **Python** (Microsoft) — core language support, linting, debugging
-- **Pylance** — type-checking assistance (complements `mypy`)
-- **Black Formatter** — matches the project's `[tool.black]` configuration (line-length 100, `py312` target)
-- **Ruff** — matches the project's linter configuration
-- **Mermaid Preview** — useful when reviewing generated architecture diagrams in Markdown output
-
-If using **PyCharm**, enable Black as the external formatter and configure the line length to 100 to match `[tool.black]` in `pyproject.toml`.
-
-## Clone and Install
+CodeWiki is a Python project (Python 3.12, matching the runtime in `docker/Dockerfile`).
 
 ```bash
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
 
-# Editable install with development dependencies
-pip install -e ".[dev]"
+# Create an isolated virtual environment
+python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-Editable installs (`-e`) mean changes to `codewiki/` source files take effect immediately without reinstalling — ideal for iterating on the CLI, backend pipeline, or web app.
-
-Verify the CLI is on your `$PATH` and pointing at your local checkout:
+CodeWiki loads environment variables via `python-dotenv`, so you can place a `.env` file at the repository root instead of exporting variables manually:
 
 ```bash
-codewiki --version
+# .env (repository root)
+MAIN_MODEL=claude-sonnet-4
+CLUSTER_MODEL=claude-sonnet-4
+FALLBACK_MODEL=claude-sonnet-4
+MAIN_API_KEY=your-key-here
+CLUSTER_API_KEY=your-key-here
+FALLBACK_API_KEY=your-key-here
+LLM_BASE_URL=https://api.anthropic.com/v1
+MAX_OUTPUT_TOKENS=16384
 ```
 
-## Running the CLI Locally
+> When developing against the CLI instead of the web app, prefer `codewiki config set` (which stores API keys in your OS keyring) over plaintext `.env` files, to match how the CLI is used in practice.
+
+Verify your setup:
 
 ```bash
-codewiki config set \
-  --cluster-api-key "sk-..." --main-api-key "sk-..." \
-  --cluster-model "your-model" --main-model "your-model" \
-  --cluster-base-url "https://api.your-provider.com/v1" \
-  --main-base-url "https://api.your-provider.com/v1"
-
-cd /path/to/some/repo
-codewiki generate --verbose
-```
-
-You can also invoke the CLI as a module without relying on the installed console script:
-
-```bash
+# Confirm the CLI module loads
 python -m codewiki --help
-python -m codewiki generate
+
+# Confirm the web app module imports cleanly
+python -c "from codewiki.src.fe import web_app"
 ```
 
-## Running the Web Application Locally
+For the full local-development workflow — running the CLI, running the FastAPI web app with hot reload, and running via Docker Compose — see the [Local Development guide](./docs/development/setup/local-development.md).
 
-```bash
-python codewiki/run_web_app.py
-```
+## Project Architecture
 
-This inserts `codewiki/src` onto `sys.path` and delegates to `fe.web_app.main()`. By default it listens on `127.0.0.1:8000`.
+Before making changes, it's worth understanding how the modules fit together:
 
-Alternatively, run it in a container using Docker Compose:
+- **CLI Core** (`codewiki/cli`) — terminal workflow, persistent configuration, generation pipeline adapter, HTML output, Git operations.
+- **Backend Core** (`codewiki/src/be`) — dependency analysis, module clustering, agent orchestration, and Markdown generation/validation.
+- **Frontend Core** (`codewiki/src/fe`) — FastAPI web application: route handlers, background job processing, caching, GitHub repository handling.
+- **Config Core** (`codewiki/src/config.py`) — the shared `Config` dataclass consumed by every entry point.
 
-```bash
-cd docker
-docker compose up --build
-```
+See the [Architecture Overview](./docs/development/architecture/README.md) for diagrams and data-flow details, and the [Reference Documentation](./docs/README.md) for module-level deep dives.
 
-The container maps port `8000` (overridable with the `APP_PORT` environment variable) and mounts `../output` for persistent cache/output storage, plus your `~/.ssh` directory (read-only) for cloning private repositories over SSH.
+## Security Guidelines
 
-## Testing Your Changes Against Sample Fixtures
+CodeWiki handles LLM API keys and clones third-party repositories, so security-conscious contributions matter:
 
-The repository includes a self-contained multi-path test fixture at `test-multi-path/` (with `main/`, `deps/`, `external/` subdirectories) specifically designed to exercise multi-root dependency analysis. Use it to sanity-check changes to the dependency analyzer without needing a large external repository:
+- **Never persist API keys in plain configuration files.** Follow the existing pattern of storing secrets via the `keyring` library, not in `~/.codewiki/config.json` or `.env` files that get committed.
+- **Keep `Config.to_dict()` secret-free by default.** If you add new sensitive fields to the `Config` dataclass, add them to `_RUNTIME_ONLY_SECRET_FIELDS` so they are excluded from serialization unless explicitly requested.
+- **Validate untrusted input.** Follow the existing patterns in `validate_repository()` and `GitHubRepoProcessor.is_valid_github_url()` — validate paths and URLs before passing them to `git` or filesystem operations.
+- **Keep agent file access sandboxed.** Documentation-generation agents may read arbitrary source files for context but must only write within the documentation output tree — do not widen this scope without careful review.
+- **Never commit `.env` files containing real API keys.**
 
-```bash
-python test-multi-path/test_multi_path.py
-python test-multi-path/integration_test.py
-```
+See the full [Security Best Practices](./docs/development/security/README.md) page for more detail and a review checklist.
 
-## Development Environment Variables
+## Development Workflow
 
-CodeWiki's core CLI configuration lives in `~/.codewiki/config.json` and the OS keyring — it does not require environment variables for normal development use. However, a few areas of the codebase do read environment variables directly:
+1. **Discuss first** for larger changes — reach out on the OpenMSP Slack community.
+2. **Fork and branch** from `main`. Use a descriptive branch name (e.g., `fix/config-validation`, `feat/php-analyzer`).
+3. **Make focused changes** — keep pull requests scoped to a single concern (a bug fix, a feature, a docs update) to make review easier.
+4. **Follow existing patterns**:
+   - Use the project's typed errors (`ConfigurationError`, `RepositoryError`, `APIError`) instead of silent failures.
+   - When touching `codewiki/src/config.py`, keep the per-provider (cluster/main/fallback) structure consistent for any new LLM-related settings.
+   - When touching agent tools (`agent_tools/`), confirm write access remains scoped to the documentation output directory.
+5. **Run and verify locally** using the commands in the [Local Development guide](./docs/development/setup/local-development.md) before opening a pull request — including running the CLI (`python -m codewiki generate`) and, where relevant, the web app (`python codewiki/run_web_app.py`).
+6. **Open a pull request** against `main` on [flamingo-stack/CodeWiki](https://github.com/flamingo-stack/CodeWiki/pulls) with a clear description of what changed and why.
 
-| Variable | Used By | Purpose |
-|---|---|---|
-| `OPENAI_API_KEY` | Ad-hoc clustering test scripts (`test_clustering_*.py`) | API key for OpenAI-compatible providers during manual testing. |
-| `ANTHROPIC_API_KEY` | Ad-hoc clustering test scripts | API key for Anthropic providers during manual testing. |
-| `MAIN_API_KEY` / `CLUSTER_API_KEY` / `FALLBACK_API_KEY` | Ad-hoc clustering test scripts | Per-role overrides used when running the standalone clustering diagnostics. |
-| `PYTHONPATH` | Docker image / `run_web_app.py` path setup | Set to `/app` inside the container; locally, `run_web_app.py` inserts `codewiki/src` onto `sys.path` itself. |
-| `APP_PORT` | `docker/docker-compose.yml` | Host port mapping for the containerized web app (defaults to `8000`). |
+## Commit Messages
 
-> **Tip:** For scripts that read API keys from the environment, consider using a local `.env.local` file with `python-dotenv` (already a project dependency) rather than exporting secrets into your shell history.
+Write clear, descriptive commit messages that explain *why* a change was made, not just *what* changed. Reference the relevant module (e.g., `backend-core`, `cli-core`, `frontend-core`, `config-core`) when it helps reviewers orient quickly.
 
-## Code Style
+## Code Review
 
-- Format code with `black` (line length 100, `py312` target) before committing.
-- Run `ruff` for linting and `mypy` for static type checking.
-- Match the existing patterns in `codewiki/cli/`, `codewiki/src/be/`, and `codewiki/src/fe/` for module organization.
+All changes are reviewed via pull request before merging. Reviewers will pay particular attention to:
 
-## Architecture Overview
+- Whether new configuration fields correctly separate secrets from persisted/cached data.
+- Whether new input-handling code (paths, URLs, CLI flags) is validated before use.
+- Whether documentation-generation agent changes preserve the sandboxed read/write boundaries.
 
-CodeWiki is organized into six core layers: CLI Core, Frontend Core, the Documentation Generator, Agent Orchestration, LLM Services, and Dependency Analysis. See the [Architecture Overview](./docs/development/architecture/README.md) for the full data-flow diagrams and design rationale.
+## Questions?
 
-## Submitting Changes
-
-1. Fork the repository and create a feature branch.
-2. Make your changes, following the code style guidance above.
-3. Test your changes locally, including against the `test-multi-path/` fixture where relevant.
-4. Open a pull request against `https://github.com/flamingo-stack/CodeWiki`.
-
-## Getting Help
-
-This project does not use GitHub Issues or GitHub Discussions. For questions, feedback, or community discussion, join the OpenMSP Slack community:
-
-- [https://www.openmsp.ai/](https://www.openmsp.ai/)
-- [Slack invite link](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)
+If you get stuck or want feedback on an approach before investing significant time, ask in the OpenMSP Slack community:
+[Join here](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA).
 
 ---
 <div align="center">
