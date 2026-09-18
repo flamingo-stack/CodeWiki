@@ -1,58 +1,70 @@
 # Development Environment Setup
 
-This guide covers the tools and settings recommended for developing CodeWiki itself.
+## IDE Recommendations
+
+CodeWiki is a Python project (`codewiki/` package, Python 3.12 per the project's Dockerfile base image). Any editor with good Python support works well:
+
+- **VS Code** with the Python extension (linting, debugging, IntelliSense) and the Pylance language server.
+- **PyCharm** (Community or Professional) for full-featured Python development, including built-in debugging and refactoring tools.
 
 ## Required Development Tools
 
-| Tool | Version | Notes |
-|---|---|---|
-| Python | `>=3.12` | Matches `requires-python` in `pyproject.toml`. |
-| pip | Latest | Used to install both runtime and `dev` optional dependencies. |
-| Git | Any recent version | CodeWiki's own CLI and web app both shell out to `git` / use GitPython. |
-| Node.js | `>=14.0.0` | Required by `mermaid-py`, which validates Mermaid diagrams embedded in generated docs during tests and generation. |
-| Docker & Docker Compose | Recent version | Optional, for testing the containerized web app (`docker/docker-compose.yml`, `docker/Dockerfile`). |
+| Tool | Purpose |
+|---|---|
+| Python 3.12+ | Matches the runtime used in `docker/Dockerfile` |
+| pip | Installing dependencies from `requirements.txt` |
+| Git | Version control; also required at runtime for `GitManager` and repository cloning features |
+| Docker & Docker Compose | Optional, for running the web application in a container matching production (`docker/docker-compose.yml`, `docker/Dockerfile`) |
 
-## Installing Development Dependencies
-
-CodeWiki defines an optional `dev` dependency group in `pyproject.toml`:
+## Setting Up Your Local Python Environment
 
 ```bash
-pip install -e ".[dev]"
+git clone https://github.com/flamingo-stack/CodeWiki.git
+cd CodeWiki
+
+# Create an isolated virtual environment
+python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-This installs, in addition to the runtime dependencies:
+## Environment Variables for Development
 
-- `pytest`, `pytest-cov`, `pytest-asyncio` — testing
-- `black` — code formatting (line length 100, target `py312`)
-- `mypy` — static type checking (`python_version = "3.12"`)
-- `ruff` — linting
+CodeWiki loads environment variables via `python-dotenv` (`load_dotenv()` in `codewiki/src/config.py`), so you can place a `.env` file at the repository root instead of exporting variables manually:
 
-## IDE Recommendations
+```bash
+# .env (repository root)
+MAIN_MODEL=claude-sonnet-4
+CLUSTER_MODEL=claude-sonnet-4
+FALLBACK_MODEL=claude-sonnet-4
+MAIN_API_KEY=your-key-here
+CLUSTER_API_KEY=your-key-here
+FALLBACK_API_KEY=your-key-here
+LLM_BASE_URL=https://api.anthropic.com/v1
+MAX_OUTPUT_TOKENS=16384
+```
 
-Any editor with solid Python tooling works well. If using **VS Code**, the following extensions align with the project's tooling:
+> When developing against the CLI instead of the web app, prefer `codewiki config set` (which stores API keys in your OS keyring) over plaintext `.env` files, to match how the CLI is used in practice.
 
-- **Python** (Microsoft) — core language support, linting, debugging
-- **Pylance** — type-checking assistance (complements `mypy`)
-- **Black Formatter** — matches the project's `[tool.black]` configuration (line-length 100, `py312` target)
-- **Ruff** — matches the project's linter configuration
-- **Mermaid Preview** — useful when reviewing generated architecture diagrams in Markdown output
+## Editor Extensions / Plugins
 
-If using **PyCharm**, enable Black as the external formatter and configure the line length to 100 to match `[tool.black]` in `pyproject.toml`.
+For VS Code, useful extensions include:
 
-## Development Environment Variables
+- **Python** (ms-python.python) — linting, debugging, testing integration
+- **Pylance** — fast type-checking and IntelliSense
+- **Docker** — for editing/inspecting `docker/Dockerfile` and `docker/docker-compose.yml`
+- **Markdown All in One** or similar — since CodeWiki's core output is Markdown, a good Markdown preview/lint extension helps validate generated docs during development
 
-CodeWiki's core CLI configuration lives in `~/.codewiki/config.json` and the OS keyring — it does not require environment variables for normal development use. However, a few areas of the codebase do read environment variables directly:
+## Verifying Your Setup
 
-| Variable | Used By | Purpose |
-|---|---|---|
-| `OPENAI_API_KEY` | Ad-hoc clustering test scripts (`test_clustering_*.py`) | API key for OpenAI-compatible providers during manual testing. |
-| `ANTHROPIC_API_KEY` | Ad-hoc clustering test scripts | API key for Anthropic providers during manual testing. |
-| `MAIN_API_KEY` / `CLUSTER_API_KEY` / `FALLBACK_API_KEY` | Ad-hoc clustering test scripts | Per-role overrides used when running the standalone clustering diagnostics. |
-| `PYTHONPATH` | Docker image / `run_web_app.py` path setup | Set to `/app` inside the container; locally, `run_web_app.py` inserts `codewiki/src` onto `sys.path` itself. |
-| `APP_PORT` | `docker/docker-compose.yml` | Host port mapping for the containerized web app (defaults to `8000`). |
+```bash
+# Confirm the CLI module loads
+python -m codewiki --help
 
-> **Tip:** For scripts that read API keys from the environment, consider using a local `.env.local` file with `python-dotenv` (already a project dependency) rather than exporting secrets into your shell history.
+# Confirm the web app module imports cleanly
+python -c "from codewiki.src.fe import web_app"
+```
 
-## Next Steps
-
-Continue to [Local Development](local-development.md) to clone the repository, install it in editable mode, and run the CLI or web app locally.
+Continue to [Local Development](local-development.md) to run CodeWiki end-to-end from source.
