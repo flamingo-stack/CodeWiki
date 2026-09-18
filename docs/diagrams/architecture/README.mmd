@@ -1,0 +1,26 @@
+flowchart TD
+    User["Developer or Documentation User"] --> Entry["CLI or Web Application"]
+
+    Entry --> CliCore["CLI Core"]
+    Entry --> FrontendCore["Frontend Core"]
+
+    CliCore --> ConfigCore["Config Core"]
+    FrontendCore --> ConfigCore
+
+    CliCore --> BackendCore["Backend Core"]
+    FrontendCore --> BackendCore
+
+    ConfigCore --> BackendCore
+
+    BackendCore --> Analysis["Dependency Analysis"]
+    Analysis --> Graph["Repository Components and Dependency Graph"]
+    Graph --> Clustering["Module Clustering"]
+    Clustering --> Agents["Agent Orchestration and Editing Tools"]
+    Agents --> Markdown["Hierarchical Markdown Documentation"]
+
+    CliCore --> Html["Static HTML Viewer"]
+    CliCore --> GitOps["Git Branch and Commit Operations"]
+
+    Markdown --> Html
+    FrontendCore --> Cache["Job Status and Documentation Cache"]
+    Markdown --> Cache

@@ -1,0 +1,7 @@
+flowchart LR
+    Repo["Repository Source Files"] --> RepoAnalyzer["RepoAnalyzer"]
+    RepoAnalyzer --> CallGraph["CallGraphAnalyzer"]
+    CallGraph -->|"dispatches .py files"| PyAnalyzer["PythonASTAnalyzer"]
+    PyAnalyzer -->|"nodes, relationships"| DepParser["DependencyParser"]
+    DepParser -->|"FQDN components"| GraphBuilder["DependencyGraphBuilder"]
+    GraphBuilder --> DocGen["DocumentationGenerator"]

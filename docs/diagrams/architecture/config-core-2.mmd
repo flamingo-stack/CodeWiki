@@ -1,0 +1,7 @@
+flowchart TD
+    CLIArgs["CLI argparse.Namespace"] -->|"from_args()"| ConfigObj["Config instance"]
+    WebJob["Web job repo_path + docs_dir"] -->|"from_web_job()"| FromArgsInternal["from_args() + docs_dir override"]
+    FromArgsInternal --> ConfigObj
+    ExplicitParams["Explicit CLI parameters"] -->|"from_cli()"| ConfigObj
+    Manager["ConfigManager profile"] -->|"from_config_manager()"| FromCliInternal["from_cli() with resolved settings"]
+    FromCliInternal --> ConfigObj

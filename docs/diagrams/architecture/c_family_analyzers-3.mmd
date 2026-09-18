@@ -1,0 +1,17 @@
+flowchart LR
+    Repo["Repository Files"] --> Dispatch["File-type Dispatch"]
+    Dispatch -->|".c/.h"| CAn["TreeSitterCAnalyzer"]
+    Dispatch -->|".cpp/.cc/.cxx/.hpp"| CppAn["TreeSitterCppAnalyzer"]
+    Dispatch -->|".cs"| CsAn["TreeSitterCSharpAnalyzer"]
+
+    CAn --> Nodes["Node objects"]
+    CppAn --> Nodes
+    CsAn --> Nodes
+
+    CAn --> Rels["CallRelationship objects (some unresolved)"]
+    CppAn --> Rels
+    CsAn --> Rels
+
+    Nodes --> Builder["Dependency Graph Construction"]
+    Rels --> CGA["Call Graph Analyzer (resolves cross-file calls)"]
+    CGA --> Builder

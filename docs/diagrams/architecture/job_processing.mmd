@@ -1,0 +1,10 @@
+graph TD
+    Routes["Request Handling: WebRoutes"] -->|"add_job()"| Worker["BackgroundWorker"]
+    Routes -->|"get_job_status()"| Worker
+    Worker -->|"reads/writes"| Cache["CacheManager"]
+    Worker -->|"get_repo_info() / clone_repository()"| GH["GitHub Integration: GitHubRepoProcessor"]
+    Worker -->|"DocumentationGenerator.run()"| DocGen["Backend: DocumentationGenerator"]
+    Worker -->|"Config.from_web_job()"| CoreConfig["Config Core: Config"]
+    Cache -->|"uses"| CacheEntry["CacheEntry model"]
+    Worker -->|"uses"| JobStatus["JobStatus model"]
+    Worker -->|"reads settings"| WebAppConfig["WebAppConfig"]

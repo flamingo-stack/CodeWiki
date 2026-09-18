@@ -1,0 +1,16 @@
+flowchart TD
+    Visit["Visit AST node"] --> Inherit{"class_declaration with superclass?"}
+    Inherit -->|"yes"| RelInherit["Relationship: Class extends BaseClass"]
+    Visit --> Impl{"class/enum/record with super_interfaces?"}
+    Impl -->|"yes"| RelImpl["Relationship: Type implements Interface (per interface)"]
+    Visit --> Field{"field_declaration with non-primitive type?"}
+    Field -->|"yes"| RelField["Relationship: ContainingClass uses FieldType"]
+    Visit --> Invoke{"method_invocation on known object?"}
+    Invoke -->|"resolved via top_level_nodes or local/field variable type"| RelInvoke["Relationship: Caller (method or class) calls TargetType"]
+    Visit --> Create{"object_creation_expression?"}
+    Create -->|"yes"| RelCreate["Relationship: ContainingClass creates CreatedType"]
+    RelInherit --> Recurse["Recurse into children"]
+    RelImpl --> Recurse
+    RelField --> Recurse
+    RelInvoke --> Recurse
+    RelCreate --> Recurse

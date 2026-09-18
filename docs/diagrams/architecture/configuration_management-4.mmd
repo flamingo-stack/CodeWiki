@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant User as "CLI User"
+    participant CM as "ConfigManager"
+    participant File as "config.json"
+    participant Keyring as "System Keyring"
+
+    User->>CM: "codewiki configure" (sets models, keys, etc.)
+    CM->>CM: save(cluster_api_key=..., main_model=..., ...)
+    CM->>File: "write non-sensitive settings"
+    CM->>Keyring: "store API keys"
+    Note over CM: is_configured() == true
+
+    User->>CM: "codewiki generate <repo>"
+    CM->>File: load()
+    CM->>Keyring: "fetch API keys"
+    CM-->>User: Configuration
+    User->>User: "config.to_backend_config(repo_path, output_dir)"

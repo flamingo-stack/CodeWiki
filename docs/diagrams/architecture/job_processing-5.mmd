@@ -1,0 +1,9 @@
+flowchart TD
+    Start["get_cached_docs(repo_url)"] --> Hash["get_repo_hash(repo_url)"]
+    Hash --> Exists{{"Entry in cache_index?"}}
+    Exists -->|"No"| Miss["Return None"]
+    Exists -->|"Yes"| Fresh{{"Within cache_expiry_days?"}}
+    Fresh -->|"Yes"| Touch["Update last_accessed<br/>save_cache_index()"]
+    Touch --> Hit["Return docs_path"]
+    Fresh -->|"No"| Evict["remove_from_cache(repo_url)"]
+    Evict --> Miss

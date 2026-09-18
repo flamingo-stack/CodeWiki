@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant Main as main()
+    participant ITR as IntegrationTestRunner
+    participant FS as Temp Filesystem
+    participant CFG as Config
+    participant DGB as DependencyGraphBuilder
+    participant TR as TestResults
+
+    Main->>ITR: run()
+    ITR->>FS: setup_test_environment()
+    FS-->>ITR: main/, deps/, vendor/ created
+    ITR->>TR: add_test("Test directories created", True)
+
+    ITR->>CFG: create_config()
+    CFG-->>ITR: Config(repo_path, additional_source_paths)
+    ITR->>TR: add_test("Config created with 3 source paths", True)
+
+    ITR->>FS: validate_paths()
+    ITR->>TR: add_test("All paths validated successfully", ...)
+
+    ITR->>DGB: DependencyGraphBuilder(config)
+    ITR->>DGB: build_dependency_graph()
+    DGB-->>ITR: (components, leaf_nodes)
+    ITR->>TR: add_test("Multi-path mode detected", ...)
+
+    ITR->>ITR: verify_namespaces()
+    ITR->>TR: add_test("All expected namespaces present", ...)
+    ITR->>TR: add_test("Component counts match expectations", ...)
+
+    ITR->>ITR: verify_cross_path_dependencies()
+    ITR->>TR: add_test("Cross-path dependencies detected", ...)
+
+    ITR->>ITR: verify_no_warnings()
+    ITR->>TR: add_test("No warnings generated", ...)
+
+    ITR->>ITR: verify_file_counts()
+    ITR->>TR: add_test("Component counts match expectations", ...)
+
+    ITR->>ITR: print_detailed_output()
+    ITR->>TR: print_summary()
+    ITR->>FS: cleanup() [finally]
+    ITR-->>Main: exit code (0, 1, or 2)

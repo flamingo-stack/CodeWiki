@@ -1,0 +1,32 @@
+flowchart TD
+    User["Browser / User"] -->|"submits repo URL"| Routes["WebRoutes"]
+    Routes -->|"validates URL"| GHProcessor["GitHubRepoProcessor"]
+    Routes -->|"checks/queues"| Worker["BackgroundWorker"]
+    Routes -->|"reads cached docs"| Cache["CacheManager"]
+    Routes -->|"renders HTML"| Templates["StringTemplateLoader"]
+
+    Worker -->|"clones repo"| GHProcessor
+    Worker -->|"stores results"| Cache
+    Worker -->|"generates docs"| DocGen["DocumentationGenerator"]
+    Worker -->|"loads run config"| CoreConfig["Config"]
+    Worker -->|"reads defaults"| AppConfig["WebAppConfig"]
+
+    Cache -->|"reads defaults"| AppConfig
+    GHProcessor -->|"reads defaults"| AppConfig
+
+    DocGen -.->|"external module"| BackendCore["Backend Core"]
+    CoreConfig -.->|"external module"| ConfigCore["Config Core"]
+
+    subgraph fe_module["Frontend Core"]
+        Routes
+        Worker
+        Cache
+        GHProcessor
+        Templates
+        AppConfig
+        Models["Data Models<br/>JobStatus / CacheEntry /<br/>JobStatusResponse / RepositorySubmission"]
+    end
+
+    Worker --> Models
+    Routes --> Models
+    Cache --> Models

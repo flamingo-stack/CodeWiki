@@ -1,0 +1,20 @@
+flowchart TD
+    subgraph ValidationTests["Validation And Logic Tests"]
+        TCI["test_clustering_integration.py"]
+        TCV["test_clustering_validation.py"]
+        TIBC["test_id_based_clustering.py"]
+    end
+
+    subgraph BackendLogic["Backend Clustering Logic"]
+        CCM["create_component_id_map()"]
+        NCI["normalize_component_ids_by_lookup()"]
+    end
+
+    TCI -->|"imports and calls"| CCM
+    TCI -->|"imports and calls"| NCI
+    TCV -->|"simulates logic of"| NCI
+    TIBC -->|"simulates logic of"| CCM
+    TIBC -->|"simulates logic of"| NCI
+
+    MockNode["MockNode"] -->|"used as test fixture"| TCI
+    SampleComponents["SAMPLE_COMPONENTS dict"] -->|"input to"| CCM

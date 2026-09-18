@@ -1,0 +1,10 @@
+flowchart LR
+    Init["__init__()"] -->|"checks"| KeyringCheck["_check_keyring_available()"]
+    Load["load()"] -->|"reads"| ConfigFile["config.json"]
+    Load -->|"reads"| KeyringRead["keyring.get_password(...)"]
+    Save["save(...)"] -->|"writes"| ConfigFile
+    Save -->|"writes"| KeyringWrite["keyring.set_password(...)"]
+    IsConfigured["is_configured()"] -->|"validates"| ConfigFile
+    IsConfigured -->|"validates"| KeyringRead
+    Clear["clear()"] -->|"deletes"| ConfigFile
+    Clear -->|"deletes"| KeyringDelete["keyring.delete_password(...)"]

@@ -1,0 +1,11 @@
+stateDiagram-v2
+    [*] --> ModuleLevel
+    ModuleLevel --> InClass: visit_ClassDef
+    InClass --> ModuleLevel: class body visited
+    ModuleLevel --> InFunction: visit_FunctionDef / visit_AsyncFunctionDef
+    InFunction --> ModuleLevel: function body visited
+    InClass --> InMethod: visit_FunctionDef (inside class)
+    InMethod --> InClass: method body visited
+    InClass --> InClass: visit_Call (recorded, caller=class)
+    InFunction --> InFunction: visit_Call (recorded, caller=function)
+    InMethod --> InClass: visit_Call (recorded, caller=class)

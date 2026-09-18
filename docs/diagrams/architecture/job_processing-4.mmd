@@ -1,0 +1,7 @@
+stateDiagram-v2
+    [*] --> pending : add_job()
+    pending --> processing : _process_job() starts
+    processing --> completed : cache hit or generation success
+    processing --> failed : clone or generation error
+    completed --> [*]
+    failed --> [*]

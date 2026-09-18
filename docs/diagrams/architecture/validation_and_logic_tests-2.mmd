@@ -1,0 +1,24 @@
+classDiagram
+    class TestResultsIntegration {
+        +int passed
+        +int failed
+        +list tests
+        +add_test(name, passed, details) void
+        +print_summary() bool
+    }
+    class TestResultsValidation {
+        +int passed
+        +int failed
+        +list failures
+        +add_test(name, passed, details) void
+        +print_summary() void
+        +success bool
+    }
+    class TestResultsIdBased {
+        +list tests
+        +add_test(name, passed) void
+        +print_summary() bool
+    }
+    note for TestResultsIntegration "Defined in test_clustering_integration.py"
+    note for TestResultsValidation "Defined in test_clustering_validation.py, logs via logging module"
+    note for TestResultsIdBased "Defined in test_id_based_clustering.py, simplest variant, boolean-only"

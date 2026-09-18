@@ -1,0 +1,14 @@
+flowchart LR
+    Cli["CLI Core"] --> Config["Config Core"]
+    Web["Frontend Core"] --> Config
+    Config --> Backend["Backend Core"]
+
+    Backend --> Analysis["Dependency Analysis"]
+    Backend --> Agents["Agent Orchestration"]
+    Backend --> Docs["Documentation Generation"]
+
+    MultiPathTests["Test Multi Path Core"] --> Config
+    MultiPathTests --> Analysis
+
+    ClusteringTests["Test Clustering Core"] --> Config
+    ClusteringTests --> Backend

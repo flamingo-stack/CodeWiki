@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant Client
+    participant Routes as WebRoutes
+    participant Worker as BackgroundWorker
+    participant Store as JobStatus Store
+    participant CacheMgr as CacheManager
+
+    Client->>Routes: "Submit repo_url"
+    Routes->>Routes: "Validate via RepositorySubmission"
+    Routes->>Worker: "Enqueue job"
+    Worker->>Store: "Create JobStatus(status='queued')"
+    Worker->>Worker: "Process job (clone, analyze, generate)"
+    Worker->>Store: "Update status='processing', started_at"
+    Worker->>CacheMgr: "Store result as CacheEntry"
+    Worker->>Store: "Update status='completed', docs_path"
+    Client->>Routes: "GET job status"
+    Routes->>Store: "Read JobStatus"
+    Routes->>Client: "Return JobStatusResponse"

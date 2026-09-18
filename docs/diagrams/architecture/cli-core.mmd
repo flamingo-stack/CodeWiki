@@ -1,0 +1,19 @@
+flowchart TD
+    User["CLI User / codewiki command"] --> ConfigMgmt["Configuration Management"]
+    User --> GenPipeline["Generation Pipeline"]
+
+    ConfigMgmt -->|"loads/saves Configuration"| ConfigFile[("~/.codewiki/config.json + keyring")]
+    ConfigMgmt -->|"builds backend Config"| GenPipeline
+
+    GenPipeline -->|"tracks progress via"| CLIUtils["CLI Utilities"]
+    GenPipeline -->|"produces"| JobModels["Job and Generation Models"]
+    GenPipeline -->|"delegates analysis/generation"| BackendCore["Backend Core"]
+    GenPipeline -->|"branch/commit operations"| GitOps["Git Manager"]
+    GenPipeline -->|"renders viewer"| HTMLOut["index.html (GitHub Pages)"]
+
+    subgraph submodules["Cli Core Sub-Modules"]
+        ConfigMgmt
+        JobModels
+        GenPipeline
+        CLIUtils
+    end

@@ -1,0 +1,5 @@
+flowchart LR
+    Repo["repo_path"] --> AllPaths["all_source_paths"]
+    Additional["additional_source_paths"] --> AllPaths
+    AllPaths --> Validate["validate_source_paths()"]
+    Validate --> Analysis["Downstream dependency analysis"]

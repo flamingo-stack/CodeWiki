@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Caller as "Pipeline stage"
+    participant Config as "Config"
+    participant Escaper as "escape_format_braces"
+
+    Caller->>Config: get_prompt_addition()
+    Config->>Config: read doc_type
+    Config->>Config: read focus_modules
+    Config->>Config: read custom_instructions
+    Config->>Escaper: escape_format_braces(custom_instructions)
+    Escaper-->>Config: escaped text
+    Config-->>Caller: combined prompt addition string

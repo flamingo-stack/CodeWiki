@@ -1,0 +1,9 @@
+flowchart LR
+    Analyzers["Language Analyzers"] -->|"emit Node, CallRelationship"| GraphBuilder["Dependency Graph Construction"]
+    GraphBuilder -->|"linked Node graph"| RepoAnalysis["Repository And Call Graph Analysis"]
+    RepoAnalysis -->|"assembles"| Result["AnalysisResult"]
+    Result -->|"repository"| Repo["Repository"]
+    Result -->|"functions"| Nodes["Node list"]
+    Result -->|"relationships"| Rels["CallRelationship list"]
+    Result -->|"optional filter"| Selection["NodeSelection"]
+    Result -->|"consumed by"| DocGen["Documentation And Services"]

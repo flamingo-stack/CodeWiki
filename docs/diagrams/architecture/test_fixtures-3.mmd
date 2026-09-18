@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Client
+    participant Controller as "APIController"
+    participant Service as "MainService"
+    participant Helper as "deps.helper"
+
+    Client->>Controller: handle_request("/process", data)
+    Controller->>Controller: request_count += 1
+    Controller->>Service: process_request(data)
+    alt service not active
+        Service-->>Controller: raise RuntimeError
+    else service active
+        Service->>Helper: process_data(data)
+        Helper-->>Service: processed
+        Service-->>Controller: status success response
+    end
+    Controller-->>Client: response dict

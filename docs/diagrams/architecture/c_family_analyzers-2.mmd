@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant Caller as "Calling Code (e.g. DependencyParser)"
+    participant Analyzer as "TreeSitter*Analyzer"
+    participant TS as "Tree-sitter Parser"
+
+    Caller->>Analyzer: "__init__(file_path, content, repo_path)"
+    Analyzer->>TS: "parse(content)"
+    TS-->>Analyzer: "Concrete Syntax Tree"
+    Analyzer->>Analyzer: "_extract_nodes(root, top_level_nodes, lines)"
+    Analyzer->>Analyzer: "_extract_relationships(root, top_level_nodes)"
+    Caller->>Analyzer: "read .nodes / .call_relationships"

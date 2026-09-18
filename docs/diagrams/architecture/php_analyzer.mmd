@@ -1,0 +1,17 @@
+flowchart TD
+    Content["PHP File Content"] --> Analyzer["TreeSitterPHPAnalyzer"]
+    Analyzer --> Parser["tree-sitter PHP Parser"]
+    Parser --> AST["Parsed AST"]
+
+    AST --> NSPass["Pass 1: Namespace/Use Extraction"]
+    NSPass --> Resolver["NamespaceResolver"]
+
+    AST --> NodePass["Pass 2: Node Extraction"]
+    NodePass --> Nodes["Node objects<br/>(class/interface/trait/enum/function/method)"]
+
+    AST --> RelPass["Pass 3: Relationship Extraction"]
+    Resolver --> RelPass
+    RelPass --> Rels["CallRelationship objects"]
+
+    Nodes --> Output["analyze_php_file() output"]
+    Rels --> Output

@@ -1,0 +1,41 @@
+flowchart TD
+    subgraph CLICore["cli-core"]
+        subgraph JobModels["Job And Generation Models (this module)"]
+            DJ["DocumentationJob"]
+            GO["GenerationOptions"]
+            LC["LLMConfig"]
+            JS["JobStatistics"]
+            JStat["JobStatus"]
+        end
+
+        subgraph ConfigMgmt["Configuration Management"]
+            Cfg["Configuration"]
+            AI["AgentInstructions"]
+            CM["ConfigManager"]
+        end
+
+        subgraph Pipeline["Generation Pipeline"]
+            CDG["CLIDocumentationGenerator"]
+            HG["HTMLGenerator"]
+            GM["GitManager"]
+        end
+
+        subgraph Utils["CLI Utilities"]
+            Log["CLILogger"]
+            PT["ProgressTracker"]
+            MPB["ModuleProgressBar"]
+        end
+    end
+
+    CM -->|"provides settings for"| CDG
+    CDG -->|"creates and drives"| DJ
+    DJ --> GO
+    DJ --> LC
+    DJ --> JS
+    DJ --> JStat
+    CDG -->|"calls start()/complete()/fail()"| DJ
+    GM -->|"informs create_branch handling"| GO
+    HG -->|"reads files_generated, status"| DJ
+    Log -->|"logs status transitions"| DJ
+    PT -->|"reports progress against"| DJ
+    MPB -->|"reports progress against"| DJ

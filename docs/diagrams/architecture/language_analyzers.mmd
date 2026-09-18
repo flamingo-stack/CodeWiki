@@ -1,0 +1,23 @@
+flowchart TD
+    Source["Source File (.c/.cpp/.cs/.java/.js/.php/.py/.ts)"] --> Dispatch["Dependency Parser<br/>(extension-based dispatch)"]
+
+    Dispatch --> CFam["C-Family Analyzers<br/>(C, C++, C#)"]
+    Dispatch --> JavaA["Java Analyzer"]
+    Dispatch --> WebA["Web Scripting Analyzers<br/>(JavaScript, TypeScript)"]
+    Dispatch --> PhpA["PHP Analyzer"]
+    Dispatch --> PyA["Python Analyzer"]
+
+    CFam --> Nodes["Node objects"]
+    JavaA --> Nodes
+    WebA --> Nodes
+    PhpA --> Nodes
+    PyA --> Nodes
+
+    CFam --> Rels["CallRelationship objects"]
+    JavaA --> Rels
+    WebA --> Rels
+    PhpA --> Rels
+    PyA --> Rels
+
+    Nodes --> Graph["Dependency Graph Construction"]
+    Rels --> Graph

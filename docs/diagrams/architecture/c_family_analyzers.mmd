@@ -1,0 +1,37 @@
+flowchart TD
+    Source["Source File (.c/.cpp/.cs)"] --> Parser["Tree-sitter Parser"]
+    Parser --> CST["Concrete Syntax Tree"]
+
+    subgraph CAnalyzer["TreeSitterCAnalyzer"]
+        CExtractNodes["_extract_nodes()"]
+        CExtractRels["_extract_relationships()"]
+    end
+
+    subgraph CppAnalyzer["TreeSitterCppAnalyzer"]
+        CppExtractNodes["_extract_nodes()"]
+        CppExtractRels["_extract_relationships()"]
+    end
+
+    subgraph CSharpAnalyzer["TreeSitterCSharpAnalyzer"]
+        CSExtractNodes["_extract_nodes()"]
+        CSExtractRels["_extract_relationships()"]
+    end
+
+    CST --> CExtractNodes
+    CST --> CppExtractNodes
+    CST --> CSExtractNodes
+
+    CExtractNodes --> CExtractRels
+    CppExtractNodes --> CppExtractRels
+    CSExtractNodes --> CSExtractRels
+
+    CExtractRels --> NodesOut["List of Node objects"]
+    CppExtractRels --> NodesOut
+    CSExtractRels --> NodesOut
+
+    CExtractRels --> RelsOut["List of CallRelationship objects"]
+    CppExtractRels --> RelsOut
+    CSExtractRels --> RelsOut
+
+    NodesOut --> DownstreamGraph["Dependency Graph Construction"]
+    RelsOut --> DownstreamGraph

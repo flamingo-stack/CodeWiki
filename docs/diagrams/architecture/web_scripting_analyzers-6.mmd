@@ -1,0 +1,12 @@
+flowchart TD
+    A["_traverse_for_relationships(node, all_entities, current_top_level)"] --> B{"Node type?"}
+    B -->|"call_expression"| C["_extract_call_relationship()"]
+    C --> D{"this./super. call?"}
+    D -->|"resolves to known method"| E["Skip (internal, already modeled)"]
+    D -->|"otherwise"| F["Emit CallRelationship"]
+    B -->|"new_expression"| G["_extract_new_relationship()"]
+    B -->|"member_expression"| H["_extract_member_relationship()"]
+    B -->|"type_annotation / type_arguments"| I["Extract type_identifier nodes"]
+    I --> J["Filter builtins (_is_builtin_type)"]
+    J --> K["Emit type CallRelationship"]
+    B -->|"extends_clause / implements_clause"| L["_extract_inheritance_relationship()"]

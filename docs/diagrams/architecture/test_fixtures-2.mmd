@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph MainPkg["main package"]
+        Controller["APIController"]
+        Service["MainService"]
+    end
+    subgraph DepsPkg["deps package (external helper)"]
+        Validate["validate_input()"]
+        Process["process_data()"]
+    end
+    subgraph PluginPkg["external package"]
+        Base["PluginInterface"]
+        Plugin["DataPlugin"]
+    end
+
+    Controller -->|"creates & delegates"| Service
+    Service -->|"calls"| Validate
+    Service -->|"calls"| Process
+    Plugin -->|"extends"| Base

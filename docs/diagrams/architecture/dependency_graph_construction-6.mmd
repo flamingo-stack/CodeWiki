@@ -1,0 +1,8 @@
+flowchart TD
+    LeafList["leaf_nodes"] --> Check1{{"Is valid non-empty string without error keywords?"}}
+    Check1 -->|"No"| SkipInvalid["Skip: invalid identifier"]
+    Check1 -->|"Yes"| Check2{{"leaf_node in components?"}}
+    Check2 -->|"No"| SkipNotFound["Skip: not found in components"]
+    Check2 -->|"Yes"| Check3{{"component_type in valid_types?"}}
+    Check3 -->|"No"| SkipType["Skip: wrong type"]
+    Check3 -->|"Yes"| Keep["Keep leaf node"]

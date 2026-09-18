@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant Caller as CLI Command
+    participant Factory as create_logger()
+    participant Quiet as quiet_third_party_loggers()
+    participant Logger as CLILogger
+    participant StdLog as logging module
+
+    Caller->>Factory: create_logger(verbose=True)
+    Factory->>Quiet: quiet_third_party_loggers()
+    Quiet->>StdLog: setLevel(WARNING) for httpx, openai, anthropic
+    Factory->>Logger: CLILogger(verbose=True)
+    Factory-->>Caller: logger instance
+    Caller->>Logger: step("Analyzing repository", 1, 5)
+    Caller->>Logger: success("Analysis complete")
+    Caller->>Logger: error("Failed to write file")

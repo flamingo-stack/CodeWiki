@@ -1,0 +1,14 @@
+flowchart TD
+    A["clone_repository(clone_url, target_dir, commit_id)"] --> B["Ensure parent directory exists"]
+    B --> C{{"commit_id provided?"}}
+    C -->|"Yes"| D["git clone (full history)"]
+    D --> E{{"Clone succeeded?"}}
+    E -->|"No"| F["Log error, return False"]
+    E -->|"Yes"| G["git checkout commit_id"]
+    G --> H{{"Checkout succeeded?"}}
+    H -->|"No"| I["Remove partial directory, return False"]
+    H -->|"Yes"| J["Return True"]
+    C -->|"No"| K["git clone with shallow depth"]
+    K --> L{{"Clone succeeded?"}}
+    L -->|"No"| F
+    L -->|"Yes"| J

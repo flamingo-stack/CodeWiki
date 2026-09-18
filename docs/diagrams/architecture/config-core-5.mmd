@@ -1,0 +1,12 @@
+flowchart TD
+    subgraph CLIFlow["CLI entry point"]
+        CLIManager["ConfigManager"] -->|"from_config_manager()"| CfgCLI["Config"]
+    end
+    subgraph WebFlow["Web application entry point"]
+        Worker["Background job"] -->|"from_web_job()"| CfgWeb["Config"]
+    end
+    CfgCLI --> Pipeline["Backend documentation pipeline"]
+    CfgWeb --> Pipeline
+    Pipeline --> Analysis["Dependency analysis"]
+    Pipeline --> Orchestration["Agent orchestration"]
+    Pipeline --> Generation["Documentation generation"]

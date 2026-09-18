@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant Caller as "Caller (Request Handling)"
+    participant Worker as "BackgroundWorker"
+    participant Cache as "CacheManager"
+    participant GH as "GitHubRepoProcessor"
+    participant DocGen as "DocumentationGenerator"
+
+    Caller->>Worker: add_job(job_id, JobStatus)
+    Worker->>Worker: processing_queue.put(job_id)
+    Worker->>Worker: _worker_loop() dequeues job_id
+    Worker->>Worker: _process_job(job_id)
+    Worker->>Cache: get_cached_docs(repo_url)
+    alt Cache hit and path exists
+        Cache-->>Worker: docs_path
+        Worker->>Worker: status = "completed"
+        Worker->>Worker: save_job_statuses()
+    else Cache miss
+        Worker->>GH: get_repo_info(repo_url)
+        GH-->>Worker: repo_info
+        Worker->>GH: clone_repository(clone_url, temp_dir, commit_id)
+        GH-->>Worker: success/failure
+        Worker->>Worker: Config.from_web_job(repo_path, docs_dir)
+        Worker->>DocGen: run() (async, new event loop)
+        DocGen-->>Worker: documentation generated
+        Worker->>Cache: add_to_cache(repo_url, docs_path)
+        Worker->>Worker: status = "completed"
+        Worker->>Worker: save_job_statuses()
+        Worker->>Worker: cleanup temp_repo_dir
+    end
+    Caller->>Worker: get_job_status(job_id)
+    Worker-->>Caller: JobStatus

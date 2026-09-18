@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant CLI as "CLI Command"
+    participant CM as "ConfigManager"
+    participant DG as "CLIDocumentationGenerator"
+    participant BE as "Backend Core"
+    participant HG as "HTMLGenerator"
+    participant GM as "GitManager"
+
+    CLI->>CM: load()
+    CM-->>CLI: Configuration + API keys
+    CLI->>DG: generate()
+    DG->>DG: DocumentationJob.start()
+    DG->>BE: DocumentationGenerator(backend_config)
+    BE-->>DG: components, leaf_nodes
+    DG->>BE: cluster_modules(...)
+    BE-->>DG: module_tree
+    DG->>BE: generate_module_documentation(...)
+    BE-->>DG: markdown + metadata files
+    opt generate_html enabled
+        DG->>HG: generate(output_path, ...)
+        HG-->>DG: index.html
+    end
+    DG->>DG: DocumentationJob.complete()
+    DG-->>CLI: DocumentationJob
+    opt create-branch requested
+        CLI->>GM: create_documentation_branch()
+        CLI->>GM: commit_documentation(docs_path)
+    end

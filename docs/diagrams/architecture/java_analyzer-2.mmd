@@ -1,0 +1,23 @@
+flowchart TD
+    Start["TreeSitterJavaAnalyzer.__init__"] --> Parse["_analyze(): parse source with tree_sitter_java grammar"]
+    Parse --> Root["Obtain AST root node"]
+    Root --> Pass1["_extract_nodes(root, top_level_nodes, lines)"]
+    Pass1 --> Pass2["_extract_relationships(root, top_level_nodes)"]
+    Pass2 --> Done["nodes and call_relationships populated"]
+
+    subgraph NodeExtraction["Node Extraction (recursive)"]
+        Pass1 --> CheckType{"node.type?"}
+        CheckType -->|"class_declaration"| ClassNode["Create Node: class or abstract class"]
+        CheckType -->|"interface_declaration"| IfaceNode["Create Node: interface"]
+        CheckType -->|"enum_declaration"| EnumNode["Create Node: enum"]
+        CheckType -->|"record_declaration"| RecordNode["Create Node: record"]
+        CheckType -->|"annotation_type_declaration"| AnnoNode["Create Node: annotation"]
+        CheckType -->|"method_declaration"| MethodNode["Create Node: method (qualified by containing class)"]
+        ClassNode --> Recurse1["Recurse into children"]
+        IfaceNode --> Recurse1
+        EnumNode --> Recurse1
+        RecordNode --> Recurse1
+        AnnoNode --> Recurse1
+        MethodNode --> Recurse1
+        CheckType -->|"other"| Recurse1
+    end

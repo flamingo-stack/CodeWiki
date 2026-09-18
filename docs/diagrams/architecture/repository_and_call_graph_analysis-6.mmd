@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph DA["Dependency Analysis"]
+        subgraph RCGA["Repository And Call Graph Analysis (this module)"]
+            AS2["AnalysisService"]
+            RA2["RepoAnalyzer"]
+            CGA2["CallGraphAnalyzer"]
+        end
+        LANG["Language Analyzers"]
+        DGC["Dependency Graph Construction"]
+        DMU["Data Models And Utilities"]
+    end
+
+    DOC["Documentation And Services"] -->|"consumes AnalysisResult"| AS2
+    CGA2 -->|"delegates parsing"| LANG
+    AS2 -->|"uses Node, Repository, AnalysisResult, CallRelationship"| DMU
+    AS2 -.->|"related: builds dependency graphs from parsed structures"| DGC

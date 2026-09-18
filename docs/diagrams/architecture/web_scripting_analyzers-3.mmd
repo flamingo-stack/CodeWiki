@@ -1,0 +1,10 @@
+flowchart TD
+    A["analyze()"] --> B["Parse content with tree-sitter-javascript"]
+    B --> C["_extract_functions(root_node)"]
+    C --> D["_traverse_for_functions(node)"]
+    D --> E["Class / Interface -> _extract_class_declaration() + _extract_methods_from_class()"]
+    D --> F["Function declaration -> _extract_function_declaration()"]
+    D --> G["Export statement -> _extract_exported_function()"]
+    D --> H["const/let arrow fn -> _extract_arrow_function_from_declaration()"]
+    C --> I["Sort nodes by start_line"]
+    A --> J["_extract_call_relationships(root_node)"]

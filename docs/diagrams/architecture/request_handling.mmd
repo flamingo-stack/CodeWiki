@@ -1,0 +1,9 @@
+flowchart TD
+    Browser["Browser / HTTP Client"] --> WebRoutes["WebRoutes"]
+    WebRoutes -->|"validate URL"| GitHubProcessor["GitHubRepoProcessor"]
+    WebRoutes -->|"check cache"| CacheManager["CacheManager"]
+    WebRoutes -->|"enqueue job"| BackgroundWorker["BackgroundWorker"]
+    WebRoutes -->|"read job state"| BackgroundWorker
+    WebRoutes -->|"render HTML"| TemplateUtils["StringTemplateLoader / render_template"]
+    WebRoutes -->|"read config"| WebAppConfig["WebAppConfig"]
+    TemplateUtils --> Browser

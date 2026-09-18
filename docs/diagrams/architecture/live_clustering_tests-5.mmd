@@ -1,0 +1,11 @@
+flowchart TD
+    Start["Read CODEWIKI_TEST_REPO env var"] --> Check{"Repo path exists?"}
+    Check -->|"No"| FailEarly["add_test(false): repo not found<br/>return False"]
+    Check -->|"Yes"| BuildConfig["Construct Config with live API keys"]
+    BuildConfig --> BuildNodes["Build 4 Node objects<br/>from real relative file paths"]
+    BuildNodes --> RunCluster["cluster_modules(...)"]
+    RunCluster --> TryCatch{"Exception raised?"}
+    TryCatch -->|"Yes"| FailErr["add_test(false): error message<br/>print traceback"]
+    TryCatch -->|"No"| Evaluate{"module_tree non-empty?"}
+    Evaluate -->|"No"| FailEmpty["add_test(false): empty module tree"]
+    Evaluate -->|"Yes"| PassCase["add_test(true): N modules created"]

@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant Caller as "CLI Command"
+    participant CDG as "CLIDocumentationGenerator"
+    participant BConfig as "Backend Config"
+    participant DocGen as "DocumentationGenerator"
+    participant Progress as "ProgressTracker"
+    participant HTMLGen as "HTMLGenerator"
+    participant Job as "DocumentationJob"
+
+    Caller->>CDG: generate()
+    CDG->>Job: start()
+    CDG->>BConfig: Config.from_cli(...)
+    CDG->>Progress: start_stage(1, "Dependency Analysis")
+    CDG->>DocGen: build_dependency_graph()
+    DocGen-->>CDG: components, leaf_nodes
+    CDG->>Progress: complete_stage()
+    CDG->>Progress: start_stage(2, "Module Clustering")
+    CDG->>DocGen: cluster_modules(leaf_nodes, components, config)
+    DocGen-->>CDG: module_tree
+    CDG->>Progress: complete_stage()
+    CDG->>Progress: start_stage(3, "Documentation Generation")
+    CDG->>DocGen: generate_module_documentation(components, leaf_nodes)
+    DocGen-->>CDG: markdown + metadata files
+    CDG->>Progress: complete_stage()
+    alt "generate_html is true"
+        CDG->>HTMLGen: generate(output_path, ...)
+        HTMLGen-->>CDG: index.html written
+    end
+    CDG->>Job: complete()
+    CDG-->>Caller: "DocumentationJob"

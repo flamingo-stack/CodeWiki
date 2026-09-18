@@ -1,0 +1,24 @@
+flowchart TD
+    Start["run_all_tests()"] --> T1["test_single_path()"]
+    Start --> T2["test_multiple_paths()"]
+    Start --> T3["test_component_namespacing()"]
+    Start --> T4["test_cross_path_dependencies()"]
+    Start --> T5["test_invalid_path_handling()"]
+    Start --> T6["test_empty_additional_paths()"]
+    Start --> T7["test_relative_vs_absolute_paths()"]
+
+    T1 -->|"uses"| Cfg["create_test_config()"]
+    T2 -->|"uses"| Cfg
+    T3 -->|"uses"| Cfg
+    T4 -->|"uses"| Cfg
+    T5 -->|"uses"| Cfg
+    T6 -->|"uses"| Cfg
+    T7 -->|"uses"| Cfg
+
+    Cfg -->|"builds"| ConfigObj["Config"]
+    ConfigObj -->|"passed to"| DGB["DependencyGraphBuilder"]
+    DGB -->|"build_dependency_graph()"| Components["components, leaf_nodes"]
+
+    T1 & T2 & T3 & T4 & T5 & T6 & T7 -->|"boolean result"| Results["TestResults.add_test(name, passed)"]
+    Results --> Summary["TestResults.print_summary()"]
+    Summary --> Exit["process exit code"]

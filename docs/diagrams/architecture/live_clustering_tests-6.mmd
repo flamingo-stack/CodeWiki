@@ -1,0 +1,10 @@
+flowchart TD
+    A["Load environment (.env.local via dotenv, or shell env vars)"] --> B["Construct Config<br/>(model names, API keys, base URLs, thresholds)"]
+    B --> C["Build synthetic/local Node components dict"]
+    C --> D["Invoke cluster_modules(leaf_nodes, components, config, ...)"]
+    D --> E["Receive module_tree dict"]
+    E --> F["Record outcome in local TestResults"]
+    F --> G["print_summary()"]
+    G --> H{"All passed?"}
+    H -->|"Yes"| I["sys.exit(0)"]
+    H -->|"No"| J["sys.exit(1)"]

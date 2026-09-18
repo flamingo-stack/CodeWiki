@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant Caller as "Dependency Parser"
+    participant Fn as "analyze_php_file()"
+    participant Analyzer as "TreeSitterPHPAnalyzer"
+    participant Resolver as "NamespaceResolver"
+
+    Caller->>Fn: "analyze_php_file(path, content, repo_path)"
+    Fn->>Analyzer: "instantiate"
+    Analyzer->>Analyzer: "_is_template_file()"
+    alt Is template file
+        Analyzer-->>Fn: "empty nodes/relationships"
+    else Not a template file
+        Analyzer->>Analyzer: "_analyze()"
+        Analyzer->>Analyzer: "_extract_namespace_info(root)"
+        Analyzer->>Resolver: "register_namespace() / register_use()"
+        Analyzer->>Analyzer: "_extract_nodes(root, lines)"
+        Analyzer->>Analyzer: "_extract_relationships(root)"
+        Analyzer->>Resolver: "resolve(typeName)"
+        Resolver-->>Analyzer: "fully qualified name"
+        Analyzer-->>Fn: "nodes, call_relationships"
+    end
+    Fn-->>Caller: "(nodes, call_relationships)"

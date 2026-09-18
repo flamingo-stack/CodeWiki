@@ -1,0 +1,10 @@
+flowchart TD
+    Start["Receive URL string"] --> Parse["urlparse(url)"]
+    Parse --> HostCheck{{"Host is github.com?"}}
+    HostCheck -->|"No"| Invalid["Return False"]
+    HostCheck -->|"Yes"| PathSplit["Split path into segments"]
+    PathSplit --> LengthCheck{{"At least 2 segments?"}}
+    LengthCheck -->|"No"| Invalid
+    LengthCheck -->|"Yes"| NonEmptyCheck{{"Owner and repo segments non-empty?"}}
+    NonEmptyCheck -->|"No"| Invalid
+    NonEmptyCheck -->|"Yes"| Valid["Return True"]

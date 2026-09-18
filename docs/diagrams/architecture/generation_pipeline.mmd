@@ -1,0 +1,34 @@
+flowchart TD
+    User["CLI Command"] --> CDG["CLIDocumentationGenerator"]
+
+    subgraph Inputs["Inputs from sibling modules"]
+        Config["Configuration"]
+        Job["DocumentationJob / LLMConfig"]
+        Progress["ProgressTracker"]
+    end
+
+    Config --> CDG
+    Job --> CDG
+    CDG --> Progress
+
+    subgraph Backend["backend-core"]
+        BackendConfig["Config (backend)"]
+        DocGen["DocumentationGenerator"]
+        GraphBuilder["DependencyGraphBuilder"]
+        Cluster["cluster_modules()"]
+    end
+
+    CDG -->|"Config.from_cli()"| BackendConfig
+    CDG -->|"instantiates"| DocGen
+    DocGen --> GraphBuilder
+    CDG -->|"invokes"| Cluster
+
+    CDG -->|"stage 4 (optional)"| HTML["HTMLGenerator"]
+    HTML -->|"writes"| IndexHTML["index.html"]
+
+    CDG -->|"writes"| MDFiles["Markdown documentation files"]
+    CDG -->|"writes"| Metadata["metadata.json"]
+
+    GitMgr["GitManager"] -->|"branch + commit"| Repo["Git Repository"]
+    MDFiles -.->|"committed via"| GitMgr
+    Metadata -.->|"committed via"| GitMgr

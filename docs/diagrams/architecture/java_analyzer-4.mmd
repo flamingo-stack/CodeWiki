@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant Caller as "Calling Component (e.g. DependencyParser)"
+    participant Analyzer as "TreeSitterJavaAnalyzer"
+    participant TS as "tree_sitter_java grammar"
+    participant Models as "Node / CallRelationship"
+
+    Caller->>Analyzer: analyze_java_file(file_path, content, repo_path)
+    Analyzer->>TS: Parser(java_language).parse(content)
+    TS-->>Analyzer: AST root node
+    Analyzer->>Analyzer: _extract_nodes(root, top_level_nodes, lines)
+    Analyzer->>Models: build Node(...) for each declaration
+    Analyzer->>Analyzer: _extract_relationships(root, top_level_nodes)
+    Analyzer->>Models: build CallRelationship(...) for each edge
+    Analyzer-->>Caller: (nodes, call_relationships)

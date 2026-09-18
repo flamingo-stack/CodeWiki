@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant DP as DependencyParser
+    participant JS as TreeSitterJSAnalyzer
+    participant TS as TreeSitterTSAnalyzer
+    participant DGB as DependencyGraphBuilder
+    DP->>JS: analyze_javascript_file_treesitter(path, content, repo_path)
+    JS->>JS: analyze()
+    JS-->>DP: (nodes, call_relationships)
+    DP->>TS: analyze_typescript_file_treesitter(path, content, repo_path)
+    TS->>TS: analyze()
+    TS-->>DP: (nodes, call_relationships)
+    DP->>DGB: aggregate nodes and relationships across all analyzers
+    DGB-->>DP: repository-wide dependency graph

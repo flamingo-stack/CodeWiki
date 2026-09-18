@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant Browser
+    participant Routes as "WebRoutes"
+    participant Cache as "CacheManager"
+    participant Worker as "BackgroundWorker"
+    participant GH as "GitHubRepoProcessor"
+    participant DocGen as "DocumentationGenerator"
+
+    Browser->>Routes: POST / (repo_url, commit_id)
+    Routes->>GH: is_valid_github_url(url)
+    GH-->>Routes: true/false
+    Routes->>Cache: get_cached_docs(repo_url)
+    alt Cache hit
+        Cache-->>Routes: docs_path
+        Routes-->>Browser: "Redirecting to cached docs"
+    else Cache miss
+        Routes->>Worker: add_job(job_id, JobStatus)
+        Worker-->>Routes: queued
+        Routes-->>Browser: "Job queued, Job ID returned"
+        Worker->>GH: clone_repository(clone_url, temp_dir, commit_id)
+        Worker->>DocGen: run()
+        DocGen-->>Worker: documentation generated
+        Worker->>Cache: add_to_cache(repo_url, docs_path)
+        Worker->>Worker: save_job_statuses()
+    end
+    Browser->>Routes: GET /api/jobs/{job_id}
+    Routes-->>Browser: JobStatusResponse

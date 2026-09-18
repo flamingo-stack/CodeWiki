@@ -1,0 +1,7 @@
+stateDiagram-v2
+    [*] --> PENDING : "DocumentationJob() created"
+    PENDING --> RUNNING : "start()"
+    RUNNING --> COMPLETED : "complete()"
+    RUNNING --> FAILED : "fail(error_message)"
+    COMPLETED --> [*]
+    FAILED --> [*]

@@ -1,0 +1,13 @@
+flowchart TD
+    Start["resolve(name)"] --> Empty{{"name empty?"}}
+    Empty -->|Yes| ReturnAsIs["Return name unchanged"]
+    Empty -->|No| Normalize["Normalize escaped backslashes"]
+    Normalize --> Absolute{{"Starts with backslash?"}}
+    Absolute -->|Yes| StripSlash["Strip leading backslash, return"]
+    Absolute -->|No| InMap{{"name in use_map?"}}
+    InMap -->|Yes| ReturnMapped["Return use_map[name]"]
+    InMap -->|No| FirstPart{{"First segment in use_map?"}}
+    FirstPart -->|Yes| Combine["Combine mapped base with remaining segments"]
+    FirstPart -->|No| HasNamespace{{"current_namespace set?"}}
+    HasNamespace -->|Yes| Prepend["Prepend current_namespace"]
+    HasNamespace -->|No| ReturnAsIs2["Return name unchanged"]

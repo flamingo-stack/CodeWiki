@@ -1,0 +1,58 @@
+classDiagram
+    class WebAppConfig {
+        +CACHE_DIR
+        +TEMP_DIR
+        +OUTPUT_DIR
+        +QUEUE_SIZE
+        +CACHE_EXPIRY_DAYS
+        +JOB_CLEANUP_HOURS
+        +RETRY_COOLDOWN_MINUTES
+        +DEFAULT_HOST
+        +DEFAULT_PORT
+        +CLONE_TIMEOUT
+        +CLONE_DEPTH
+        +ensure_directories() void
+        +get_absolute_path(path) str
+    }
+
+    class RepositorySubmission {
+        +repo_url: HttpUrl
+    }
+
+    class JobStatusResponse {
+        +job_id: str
+        +repo_url: str
+        +status: str
+        +created_at: datetime
+        +started_at: datetime
+        +completed_at: datetime
+        +error_message: str
+        +progress: str
+        +docs_path: str
+        +main_model: str
+        +commit_id: str
+    }
+
+    class JobStatus {
+        +job_id: str
+        +repo_url: str
+        +status: str
+        +created_at: datetime
+        +started_at: datetime
+        +completed_at: datetime
+        +error_message: str
+        +progress: str
+        +docs_path: str
+        +main_model: str
+        +commit_id: str
+    }
+
+    class CacheEntry {
+        +repo_url: str
+        +repo_url_hash: str
+        +docs_path: str
+        +created_at: datetime
+        +last_accessed: datetime
+    }
+
+    JobStatus ..> JobStatusResponse : "mapped to (API layer)"

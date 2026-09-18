@@ -1,0 +1,4 @@
+flowchart LR
+    Backend["Backend Core<br/>cluster_modules()"] -->|"validated by"| TCC["Test Clustering Core"]
+    ConfigCore["Config Core"] -->|"provides Config"| TCC
+    DepAnalysis["Dependency Analysis<br/>Node model"] -->|"provides Node schema"| TCC

@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Pipeline as Generation Pipeline
+    participant Bar as ModuleProgressBar
+
+    Pipeline->>Bar: ModuleProgressBar(total_modules=10, verbose=False)
+    Note over Bar: Opens click.progressbar context
+    loop For each module
+        Pipeline->>Bar: update(module_name, cached)
+        Bar-->>Pipeline: bar advances by 1
+    end
+    Pipeline->>Bar: finish()
+    Note over Bar: Closes progress bar context

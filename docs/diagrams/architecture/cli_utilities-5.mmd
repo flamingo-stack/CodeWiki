@@ -1,0 +1,17 @@
+flowchart TD
+    CLI["CLI Command Entry Point"] --> CreateLog["create_logger(verbose)"]
+    CLI --> CreateTracker["ProgressTracker(total_stages=5, verbose)"]
+
+    CreateTracker --> Stage1["start_stage(1): Dependency Analysis"]
+    Stage1 --> Stage2["start_stage(2): Module Clustering"]
+    Stage2 --> Stage3["start_stage(3): Documentation Generation"]
+    Stage3 --> ModBar["ModuleProgressBar(total_modules)"]
+    ModBar --> Stage4["start_stage(4): HTML Generation"]
+    Stage4 --> Stage5["start_stage(5): Finalization"]
+    Stage5 --> Done["Run Complete"]
+
+    CreateLog -.->|"info/success/warning/error"| Stage1
+    CreateLog -.->|"info/success/warning/error"| Stage2
+    CreateLog -.->|"info/success/warning/error"| Stage3
+    CreateLog -.->|"info/success/warning/error"| Stage4
+    CreateLog -.->|"info/success/warning/error"| Stage5

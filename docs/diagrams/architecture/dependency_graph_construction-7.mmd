@@ -1,0 +1,45 @@
+classDiagram
+    class Config {
+        +repo_path
+        +all_source_paths
+        +include_patterns
+        +exclude_patterns
+        +dependency_graph_dir
+        +is_multi_path_mode()
+    }
+    class DependencyGraphBuilder {
+        -config: Config
+        +build_dependency_graph() tuple
+    }
+    class DependencyParser {
+        -repo_paths: List
+        -components: Dict
+        -modules: Set
+        -analysis_service: AnalysisService
+        +parse_repository(filtered_folders) Dict
+        +save_dependency_graph(output_path)
+        -_parse_single_repository()
+        -_parse_multiple_repositories()
+        -_build_components_from_analysis()
+        -_build_namespaced_components()
+        -_resolve_cross_namespace_dependencies()
+        -_get_namespace_from_path()
+    }
+    class AnalysisService {
+        +_analyze_structure()
+        +_analyze_call_graph()
+    }
+    class Node {
+        +id
+        +name
+        +component_type
+        +depends_on
+        +namespace
+        +short_id
+        +is_from_deps
+    }
+
+    DependencyGraphBuilder --> Config : uses
+    DependencyGraphBuilder --> DependencyParser : creates and drives
+    DependencyParser --> AnalysisService : delegates analysis
+    DependencyParser --> Node : produces

@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant Main as main()
+    participant Test as Test Function
+    participant Backend as cluster_modules
+    participant Log as Logger Capture
+    participant Results as TestResults
+
+    Main->>Test: invoke test_*(results)
+    Test->>Backend: create_component_id_map(SAMPLE_COMPONENTS)
+    Backend-->>Test: id_to_fqdn, id_descriptions
+    Test->>Log: attach StreamHandler to logger
+    Test->>Backend: normalize_component_ids_by_lookup(module_tree, id_to_fqdn)
+    Backend-->>Test: normalized module_tree
+    Test->>Log: detach handler, read captured output
+    Test->>Test: assert warnings present or absent
+    Test->>Results: add_test(name, passed, details)
+    Main->>Results: print_summary()
+    Results-->>Main: overall pass or fail

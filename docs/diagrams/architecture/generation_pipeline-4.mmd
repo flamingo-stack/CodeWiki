@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Caller as "CLI Command"
+    participant GM as "GitManager"
+    participant Repo as "Git Repository"
+
+    Caller->>GM: check_clean_working_directory()
+    GM->>Repo: is_dirty(untracked_files=True)
+    Repo-->>GM: "dirty status"
+    GM-->>Caller: "(is_clean, status_message)"
+    Caller->>GM: create_documentation_branch()
+    GM->>Repo: create_head("docs/codewiki-<timestamp>")
+    GM->>Repo: checkout()
+    GM-->>Caller: "branch_name"
+    Caller->>GM: commit_documentation(docs_path)
+    GM->>Repo: index.add([docs_path])
+    GM->>Repo: index.commit(message)
+    Repo-->>GM: "commit"
+    GM-->>Caller: "commit_hexsha"
+    Caller->>GM: get_github_pr_url(branch_name)
+    GM-->>Caller: "PR compare URL"

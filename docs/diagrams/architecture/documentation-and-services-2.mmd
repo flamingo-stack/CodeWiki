@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Run as "DocumentationGenerator.run()"
+    participant Graph as "DependencyGraphBuilder"
+    participant Cluster as "cluster_modules()"
+    participant GenDocs as "generate_module_documentation()"
+    participant Agent as "AgentOrchestrator"
+    participant LLM as "call_llm()"
+
+    Run->>Graph: build_dependency_graph()
+    Graph-->>Run: components, leaf_nodes
+    Run->>Cluster: cluster_modules(leaf_nodes, components, config)
+    Cluster-->>Run: module_tree (or empty -> synthetic modules)
+    Run->>GenDocs: generate_module_documentation(components, leaf_nodes)
+    loop "For each module in topological order"
+        alt "Leaf module"
+            GenDocs->>Agent: process_module(module_name, components, module_components, path, dir)
+            Agent-->>GenDocs: module_name.md written
+        else "Parent module"
+            GenDocs->>LLM: format_module_overview_prompt + call_llm()
+            LLM-->>GenDocs: overview Markdown
+        end
+    end
+    GenDocs->>LLM: format_repo_overview_prompt + call_llm() ("repository overview")
+    LLM-->>GenDocs: overview.md
+    GenDocs-->>Run: working_dir
+    Run->>Run: create_documentation_metadata(working_dir, components, len(leaf_nodes))
