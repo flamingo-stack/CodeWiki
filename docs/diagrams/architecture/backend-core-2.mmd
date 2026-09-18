@@ -1,18 +1,16 @@
 sequenceDiagram
-    participant Caller
     participant Generator as "DocumentationGenerator"
-    participant Builder as "DependencyGraphBuilder"
-    participant Agent as "AgentOrchestrator"
-    participant Tools as "Agent Tools"
-    participant Output as "Documentation Files"
+    participant Analyzer as "DependencyGraphBuilder"
+    participant Orchestrator as "AgentOrchestrator"
+    participant Agent as "Documentation Agent"
+    participant Files as "Documentation Files"
 
-    Caller->>Generator: run()
-    Generator->>Builder: build_dependency_graph()
-    Builder-->>Generator: components and leaf nodes
-    Generator->>Generator: cluster modules and order leaves first
-    Generator->>Agent: process leaf module
-    Agent->>Tools: inspect repository and write docs
-    Tools-->>Agent: tool results
-    Agent-->>Generator: module documentation complete
-    Generator->>Output: write parent overviews and metadata
-    Generator-->>Caller: documentation complete
+    Generator->>Analyzer: build_dependency_graph()
+    Analyzer-->>Generator: components and leaf nodes
+    Generator->>Generator: cluster modules and order processing
+    Generator->>Orchestrator: process leaf module
+    Orchestrator->>Agent: run with CodeWikiDeps and tools
+    Agent->>Files: read source context and write module docs
+    Agent-->>Orchestrator: generation result
+    Orchestrator-->>Generator: updated module tree
+    Generator->>Files: write parent overviews and metadata

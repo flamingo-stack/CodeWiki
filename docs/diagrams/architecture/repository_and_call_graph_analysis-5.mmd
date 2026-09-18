@@ -1,0 +1,13 @@
+flowchart TD
+    Start["All call_relationships collected"] --> BuildLookup["Build func_lookup table<br/>id, name, component_id, method name"]
+    BuildLookup --> ForEach["For each relationship"]
+    ForEach --> ExactMatch{{"callee in func_lookup?"}}
+    ExactMatch -->|"Yes"| Resolve["Set is_resolved = True<br/>rewrite callee to canonical ID"]
+    ExactMatch -->|"No"| HasDot{{"Contains a dot?"}}
+    HasDot -->|"Yes"| MethodMatch{{"Trailing method name in func_lookup?"}}
+    MethodMatch -->|"Yes"| Resolve
+    MethodMatch -->|"No"| Unresolved["Leave unresolved"]
+    HasDot -->|"No"| Unresolved
+    Resolve --> Dedup["_deduplicate_relationships()"]
+    Unresolved --> Dedup
+    Dedup --> Viz["_generate_visualization_data()"]

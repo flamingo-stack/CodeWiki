@@ -1,0 +1,11 @@
+classDiagram
+    class GitHubRepoProcessor {
+        +is_valid_github_url(url) bool
+        +get_repo_info(url) Dict
+        +clone_repository(clone_url, target_dir, commit_id) bool
+    }
+    class WebAppConfig {
+        +CLONE_TIMEOUT
+        +CLONE_DEPTH
+    }
+    GitHubRepoProcessor ..> WebAppConfig : "reads clone settings"

@@ -1,0 +1,26 @@
+classDiagram
+    class PluginInterface {
+        +initialize() bool
+        +execute(context: dict) dict
+    }
+    class DataPlugin {
+        +name: str
+        +initialized: bool
+        +initialize() bool
+        +execute(context: dict) dict
+    }
+    class MainService {
+        +name: str
+        +active: bool
+        +start(config: dict) bool
+        +process_request(data: dict) dict
+        +stop()
+    }
+    class APIController {
+        +service: MainService
+        +request_count: int
+        +handle_request(endpoint: str, data: dict) dict
+    }
+
+    PluginInterface <|-- DataPlugin
+    APIController --> MainService : owns

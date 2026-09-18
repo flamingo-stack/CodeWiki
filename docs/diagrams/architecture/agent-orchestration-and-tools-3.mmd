@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant Caller as "Documentation Generator"
+    participant Orchestrator as "AgentOrchestrator"
+    participant Agent as "pydantic_ai Agent"
+    participant Deps as "CodeWikiDeps"
+    participant FS as "File System"
+
+    Caller->>Orchestrator: process_module(module_name, components, ids, path, working_dir)
+    Orchestrator->>FS: load module_tree.json
+    Orchestrator->>Orchestrator: is_complex_module(...)
+    Orchestrator->>Orchestrator: create_agent(...)
+    Orchestrator->>Deps: build CodeWikiDeps(...)
+    Orchestrator->>FS: check overview/module docs exist
+    alt Docs already exist
+        Orchestrator-->>Caller: return existing module_tree
+    else Docs missing
+        Orchestrator->>Agent: run(user_prompt, deps, usage_limits)
+        Agent->>Deps: read registry, components, paths
+        Agent->>FS: read code / write docs via tools
+        Agent-->>Orchestrator: run result
+        Orchestrator->>FS: save updated module_tree.json
+        Orchestrator->>FS: verify output file exists
+        Orchestrator-->>Caller: return updated module_tree
+    end

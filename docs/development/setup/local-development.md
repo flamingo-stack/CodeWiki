@@ -1,90 +1,78 @@
 # Local Development
 
-This guide walks through cloning CodeWiki, installing it in editable mode, and running it locally against a test repository.
+This guide covers running CodeWiki's CLI and web application directly from source for development.
 
-## Clone and Install
+## Clone and Setup
 
 ```bash
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
 
-# Editable install with development dependencies
-pip install -e ".[dev]"
-```
+python3 -m venv .venv
+source .venv/bin/activate
 
-Editable installs (`-e`) mean changes to `codewiki/` source files take effect immediately without reinstalling — ideal for iterating on the CLI, backend pipeline, or web app.
-
-Verify the CLI is on your `$PATH` and pointing at your local checkout:
-
-```bash
-codewiki --version
+pip install -r requirements.txt
 ```
 
 ## Running the CLI Locally
 
-Once installed, you can run `codewiki` against any repository (including CodeWiki's own repository, or one of the bundled test fixtures under `test-multi-path/`):
+The CLI can be invoked as a Python module without installing a package, via the `codewiki/__main__.py` entry point:
 
 ```bash
-codewiki config set \
-  --cluster-api-key "sk-..." --main-api-key "sk-..." \
-  --cluster-model "your-model" --main-model "your-model" \
-  --cluster-base-url "https://api.your-provider.com/v1" \
-  --main-base-url "https://api.your-provider.com/v1"
-
-cd /path/to/some/repo
-codewiki generate --verbose
-```
-
-You can also invoke the CLI as a module without relying on the installed console script:
-
-```bash
+# Show CLI help
 python -m codewiki --help
-python -m codewiki generate
+
+# Show version
+python -m codewiki version
+
+# Configure LLM providers
+python -m codewiki config set --main-api-key "..." --main-model "claude-sonnet-4" \
+  --cluster-api-key "..." --cluster-model "claude-sonnet-4" \
+  --fallback-api-key "..." --fallback-model "claude-sonnet-4"
+
+# Run generation against a target repository
+cd /path/to/target/repo
+python -m /path/to/CodeWiki generate --verbose
 ```
+
+> `codewiki/cli/main.py` is built with [Click](https://click.palletsprojects.com/). The root command group registers the `generate` and `config` subcommands and handles `KeyboardInterrupt` (exit code `130`) and unexpected exceptions (exit code `1`) with clean, colorized error output.
 
 ## Running the Web Application Locally
 
-The FastAPI web app can be started directly with Python:
+The FastAPI web app can be started directly with `run_web_app.py`, which forwards to `codewiki/src/fe/web_app.py`:
 
 ```bash
-python codewiki/run_web_app.py
+python codewiki/run_web_app.py --host 0.0.0.0 --port 8080
 ```
 
-This inserts `codewiki/src` onto `sys.path` and delegates to `fe.web_app.main()`. By default it listens on `127.0.0.1:8000` (see `WebAppConfig.DEFAULT_HOST` / `DEFAULT_PORT` in `codewiki/src/fe/config.py`).
+### Hot Reload / Watch Mode
 
-Alternatively, run it in a container using Docker Compose:
+The web app supports `uvicorn`'s auto-reload for development:
 
 ```bash
-cd docker
-docker compose up --build
+python -m fe.web_app --host 0.0.0.0 --port 8080 --reload --debug
 ```
 
-The container maps port `8000` (overridable with the `APP_PORT` environment variable) and mounts `../output` for persistent cache/output storage, plus your `~/.ssh` directory (read-only) for cloning private repositories over SSH.
+With `--reload` enabled, the server restarts automatically whenever source files change, and `--debug` increases log verbosity — both useful while iterating on route handlers, background job processing, or caching logic.
 
-## Hot Reload / Iterating on Code
+## Running via Docker Compose (Optional)
 
-- **CLI changes**: Because the package is installed with `pip install -e .`, edits to any file under `codewiki/cli/` or `codewiki/src/` are picked up the next time you invoke `codewiki` — no reinstall needed.
-- **Web app changes**: `run_web_app.py` does not enable an auto-reloading development server by default. If you need hot reload while iterating on FastAPI routes, restart `python codewiki/run_web_app.py` after each change, or run the underlying ASGI app through `uvicorn` with `--reload` if you invoke it that way directly.
+To exercise the same environment used in production:
+
+```bash
+docker network create codewiki-network
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+This builds the image from `docker/Dockerfile` (Python 3.12 slim, with `git`, `curl`, `nodejs`, and `npm` installed), mounts `../output` for persistent cache/output storage, and exposes the app on `${APP_PORT:-8000}`.
 
 ## Debug Configuration
 
-For debugging the CLI in an IDE (e.g., VS Code's Python debugger), set the program to run as a module with arguments, for example:
+- **CLI debugging**: Pass `--verbose` to `codewiki generate` where supported to surface debug-level log output from `CLILogger`. Third-party HTTP client loggers (`httpx`, `openai`, `anthropic`) are quieted to `WARNING` by default via `quiet_third_party_loggers()` to keep output readable; this only changes when the CLI logger is created in verbose mode.
+- **Web app debugging**: Use `--debug` with `python -m fe.web_app` to increase log verbosity, and `--reload` to avoid restarting the server manually after each code change.
+- **IDE debugging**: Both entry points (`codewiki/cli/main.py` and `codewiki/src/fe/web_app.py`) are plain Python callables and can be attached to directly from VS Code or PyCharm's debugger by setting the module/script path and passing the same CLI arguments shown above.
 
-```bash
-python -m codewiki generate --verbose
-```
+## Working Directory Notes
 
-Configure your IDE's launch configuration to run `codewiki/cli/main.py` (or `python -m codewiki`) with the working directory set to the repository you want to analyze, and pass CLI arguments like `generate --verbose` for step-by-step output.
-
-For debugging the web app, set breakpoints inside `codewiki/src/fe/routes.py` or `codewiki/src/fe/background_worker.py` and launch `codewiki/run_web_app.py` directly through your IDE's debugger rather than the CLI.
-
-## Testing Your Changes Against Sample Fixtures
-
-The repository includes a self-contained multi-path test fixture at `test-multi-path/` (with `main/`, `deps/`, `external/` subdirectories) specifically designed to exercise multi-root dependency analysis. Use it to sanity-check changes to the dependency analyzer without needing a large external repository:
-
-```bash
-python test-multi-path/test_multi_path.py
-python test-multi-path/integration_test.py
-```
-
-See the [Testing](../testing/README.md) guide for more on how these and the clustering diagnostic scripts are organized.
+- CLI generation runs (`codewiki generate`) operate against the **current working directory** as the target repository — `cd` into the repository you want to document before running the command.
+- Web app generation runs clone the submitted GitHub URL into a temporary directory managed by `BackgroundWorker` and `GitHubRepoProcessor` — you do not need to manually clone target repositories when using the web flow.

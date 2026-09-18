@@ -1,0 +1,9 @@
+flowchart TD
+    DependencyAnalysis["Dependency Analysis<br/>DependencyGraphBuilder"] -->|"components, leaf_nodes"| DocGen["DocumentationGenerator"]
+    ConfigCore["Config Core<br/>Config"] -->|"LLM settings"| DocGen
+    ConfigCore -->|"LLM settings"| LLMServices["LLM Services<br/>call_llm / CountingFallbackModel"]
+    DocGen -->|"leaf module components"| AgentOrch["Agent Orchestration And Tools<br/>AgentOrchestrator.process_module"]
+    DocGen -->|"parent/overview prompts"| LLMServices
+    AgentOrch -->|"per-module Markdown"| DocsOut[("Generated Docs<br/>module_name/module_name.md")]
+    DocGen -->|"overview Markdown"| DocsOut
+    DocGen -->|"metadata.json, module_tree.json"| DocsOut

@@ -1,0 +1,6 @@
+flowchart TD
+    Start["create_agent(module_name, components, core_component_ids)"] --> Check{{"is_complex_module?"}}
+    Check -->|"Yes"| BuildComplex["Agent with read/edit/sub-module tools<br/>system_prompt = format_system_prompt(...)"]
+    Check -->|"No"| BuildLeaf["Agent with read/edit tools only<br/>system_prompt = format_leaf_system_prompt(...)"]
+    BuildComplex --> Return["Return configured Agent"]
+    BuildLeaf --> Return

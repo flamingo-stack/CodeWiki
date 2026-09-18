@@ -1,0 +1,11 @@
+flowchart TD
+    ToolCall["str_replace_editor(ctx, working_dir, command, path, ...)"] --> ResolvePath["Resolve path vs repo/docs base"]
+    ResolvePath --> GuardRepo{{"working_dir == repo and command != view?"}}
+    GuardRepo -->|"Yes"| Reject["Return error: view-only for repo"]
+    GuardRepo -->|"No"| RunEdit["EditTool(...)(command, path, ...)"]
+    RunEdit --> IsMarkdown{{"non-view command and path ends with .md?"}}
+    IsMarkdown -->|"Yes"| MermaidCheck["validate_mermaid_diagrams(...)"]
+    MermaidCheck --> AttemptTrack["Track attempts in registry<br/>cap at MAX_MERMAID_ATTEMPTS"]
+    AttemptTrack --> Result["Return combined log + validation result"]
+    IsMarkdown -->|"No"| Result
+    Reject --> Result

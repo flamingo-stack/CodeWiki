@@ -1,4 +1,16 @@
-flowchart LR
-    FilePath["file_path"] -->|"os.path.relpath"| RelPath["relative_path"]
-    RelPath -->|"strip .py/.pyx, replace separators with dots"| ModulePath["module.path"]
-    ModulePath -->|"+ '::' + ComponentName"| ComponentID["component_id"]
+sequenceDiagram
+    participant CGA as CallGraphAnalyzer
+    participant PA as PythonASTAnalyzer
+    participant AST as "ast module"
+    participant DP as DependencyParser
+
+    CGA->>PA: instantiate(file_path, content, repo_path)
+    CGA->>PA: analyze()
+    PA->>AST: ast.parse(content)
+    AST-->>PA: syntax tree
+    PA->>PA: visit(tree)
+    Note over PA: visit_ClassDef, visit_FunctionDef,<br/>visit_AsyncFunctionDef, visit_Call
+    PA-->>CGA: nodes, call_relationships
+    CGA->>DP: aggregate results across files
+    DP->>DP: assign FQDN namespace prefixes
+    DP-->>DP: resolve cross-file/cross-namespace dependencies

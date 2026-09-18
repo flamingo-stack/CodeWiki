@@ -1,17 +1,20 @@
 sequenceDiagram
-    participant Caller
+    participant User as "User"
+    participant Entry as "CLI or Web Entry Point"
     participant Config as "Config Core"
-    participant Generator as "DocumentationGenerator"
-    participant Analyzer as "Dependency Analyzer"
-    participant Agents as "AgentOrchestrator"
+    participant Backend as "DocumentationGenerator"
+    participant Analysis as "Dependency Analysis"
+    participant Agent as "Documentation Agent"
     participant Output as "Documentation Output"
 
-    Caller->>Config: Build validated runtime configuration
-    Caller->>Generator: Start documentation run
-    Generator->>Analyzer: Analyze repository files and calls
-    Analyzer-->>Generator: Dependency graph and leaf components
-    Generator->>Generator: Cluster components into modules
-    Generator->>Agents: Generate leaf module documentation
-    Agents-->>Generator: Generated module content
-    Generator->>Output: Write Markdown, module tree, and metadata
-    Generator-->>Caller: Generation complete
+    User->>Entry: Submit repository and generation settings
+    Entry->>Config: Build runtime configuration
+    Entry->>Backend: Start documentation generation
+    Backend->>Analysis: Build dependency graph
+    Analysis-->>Backend: Components and relationships
+    Backend->>Backend: Cluster components into modules
+    Backend->>Agent: Generate leaf module documentation
+    Agent->>Output: Write validated Markdown
+    Backend->>Output: Create parent overviews and metadata
+    Output-->>Entry: Generated documentation tree
+    Entry-->>User: Serve, render, or publish documentation

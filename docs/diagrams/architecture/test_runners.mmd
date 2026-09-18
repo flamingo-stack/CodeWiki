@@ -1,0 +1,30 @@
+flowchart TD
+    subgraph TestRunners["Test Runners"]
+        ITR["IntegrationTestRunner"]
+        TR1["TestResults (integration_test.py)"]
+        COL["Colors"]
+        TR2["TestResults (test_multi_path.py)"]
+        FUNCS["Function-based tests<br/>(test_single_path, test_multiple_paths, ...)"]
+    end
+
+    subgraph Fixtures["Test Fixtures (sibling module)"]
+        PLUGIN["DataPlugin / PluginInterface"]
+        CTRL["APIController"]
+        SVC["MainService"]
+    end
+
+    subgraph Pipeline["Dependency Analysis Pipeline (external)"]
+        CFG["Config"]
+        DGB["DependencyGraphBuilder"]
+    end
+
+    ITR -->|"creates temp files & drives"| CFG
+    ITR --> TR1
+    ITR -->|"instantiates"| DGB
+    DGB -->|"produces Node graph"| ITR
+
+    FUNCS -->|"reads fixture files from"| Fixtures
+    FUNCS -->|"builds"| CFG
+    FUNCS -->|"instantiates"| DGB
+    FUNCS -->|"records outcomes in"| TR2
+    FUNCS -->|"prints via"| COL

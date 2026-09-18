@@ -1,0 +1,13 @@
+flowchart LR
+    Config["Config"] --> Builder["DependencyGraphBuilder"]
+    Builder --> Parser["DependencyParser"]
+    Parser --> AnalysisSvc["AnalysisService"]
+    AnalysisSvc --> Structure["Structure Analysis"]
+    AnalysisSvc --> CallGraph["Call Graph Analysis"]
+    Parser --> Nodes["Node Components (FQDN-keyed)"]
+    Nodes --> JSONFile["Dependency Graph JSON"]
+    Builder --> TopoSort["Graph Build and Leaf Node Extraction"]
+    Builder --> Validation["Graph Completeness Validation"]
+    TopoSort --> LeafNodes["Filtered Leaf Nodes"]
+    JSONFile --> Downstream["Downstream: Clustering and Documentation Generation"]
+    LeafNodes --> Downstream

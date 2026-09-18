@@ -1,25 +1,32 @@
 flowchart TD
-    User["Browser / API Client"] -->|"submit repo_url"| Routes["WebRoutes"]
-    Routes -->|"validate URL"| GitProc["GitHubRepoProcessor"]
-    Routes -->|"check cache"| Cache["CacheManager"]
-    Routes -->|"enqueue job"| Worker["BackgroundWorker"]
-    Routes -->|"render HTML"| Templates["StringTemplateLoader / render_template"]
+    User["Browser / User"] -->|"submits repo URL"| Routes["WebRoutes"]
+    Routes -->|"validates URL"| GHProcessor["GitHubRepoProcessor"]
+    Routes -->|"checks/queues"| Worker["BackgroundWorker"]
+    Routes -->|"reads cached docs"| Cache["CacheManager"]
+    Routes -->|"renders HTML"| Templates["StringTemplateLoader"]
 
-    Worker -->|"clone repository"| GitProc
-    Worker -->|"build Config.from_web_job"| ConfigCore["Config (config-core)"]
-    Worker -->|"generate docs"| DocGen["DocumentationGenerator (backend-core)"]
-    Worker -->|"store result path"| Cache
-    Worker -->|"persist status"| JobsFile[("jobs.json")]
+    Worker -->|"clones repo"| GHProcessor
+    Worker -->|"stores results"| Cache
+    Worker -->|"generates docs"| DocGen["DocumentationGenerator"]
+    Worker -->|"loads run config"| CoreConfig["Config"]
+    Worker -->|"reads defaults"| AppConfig["WebAppConfig"]
 
-    Cache -->|"persist index"| CacheFile[("cache_index.json")]
+    Cache -->|"reads defaults"| AppConfig
+    GHProcessor -->|"reads defaults"| AppConfig
 
-    subgraph models_group["Data Models"]
-        JobStatus["JobStatus"]
-        CacheEntry["CacheEntry"]
-        RepositorySubmission["RepositorySubmission"]
-        JobStatusResponse["JobStatusResponse"]
+    DocGen -.->|"external module"| BackendCore["Backend Core"]
+    CoreConfig -.->|"external module"| ConfigCore["Config Core"]
+
+    subgraph fe_module["Frontend Core"]
+        Routes
+        Worker
+        Cache
+        GHProcessor
+        Templates
+        AppConfig
+        Models["Data Models<br/>JobStatus / CacheEntry /<br/>JobStatusResponse / RepositorySubmission"]
     end
 
-    Routes --> models_group
-    Worker --> models_group
-    Cache --> models_group
+    Worker --> Models
+    Routes --> Models
+    Cache --> Models

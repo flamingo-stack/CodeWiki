@@ -1,0 +1,18 @@
+flowchart TD
+    Request["GET request for job_id and filename"] --> ValidId{{"job_id matches allowed pattern?"}}
+    ValidId -->|"No"| Err400["HTTP 400 Invalid job ID"]
+    ValidId -->|"Yes"| LookupJob["Look up job in BackgroundWorker"]
+    LookupJob --> HasJob{{"Job found?"}}
+    HasJob -->|"Yes, completed"| UseJobPath["Use job.docs_path"]
+    HasJob -->|"No"| ReconstructCache["Derive repo URL from job_id, query CacheManager"]
+    ReconstructCache --> CacheHit{{"Cache hit?"}}
+    CacheHit -->|"No"| Err404a["HTTP 404 Documentation not found"]
+    CacheHit -->|"Yes"| RecreateJob["Recreate JobStatus, persist via save_job_statuses"]
+    UseJobPath --> ResolvePath["Resolve docs_path and filename safely"]
+    RecreateJob --> ResolvePath
+    ResolvePath --> PathSafe{{"Path within docs_path bounds?"}}
+    PathSafe -->|"No"| Err400b["HTTP 400 Invalid file path"]
+    PathSafe -->|"Yes"| FileExists{{"File exists?"}}
+    FileExists -->|"No"| Err404b["HTTP 404 File not found"]
+    FileExists -->|"Yes"| Render["Load file, convert markdown to HTML, render DOCS_VIEW_TEMPLATE"]
+    Render --> Response["HTMLResponse"]

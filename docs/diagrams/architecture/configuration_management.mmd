@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph CM["Configuration Management"]
+        ConfigManager["ConfigManager"]
+        Configuration["Configuration"]
+        AgentInstructions["AgentInstructions"]
+    end
+
+    Keyring["System Keyring<br/>(macOS Keychain / Windows Credential Manager / Linux Secret Service)"]
+    ConfigFile["Config File<br/>(~/.codewiki/config.json)"]
+    BackendConfig["Backend Config<br/>(codewiki.src.config.Config)"]
+
+    ConfigManager -->|"reads/writes API keys"| Keyring
+    ConfigManager -->|"reads/writes settings"| ConfigFile
+    ConfigManager -->|"holds"| Configuration
+    Configuration -->|"contains"| AgentInstructions
+    Configuration -->|"to_backend_config()"| BackendConfig

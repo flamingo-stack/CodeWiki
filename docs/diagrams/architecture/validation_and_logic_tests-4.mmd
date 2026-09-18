@@ -1,0 +1,18 @@
+flowchart TD
+    Start["Response JSON string plus max_id"] --> Parse{"json.loads succeeds?"}
+    Parse -->|"No"| FailJSON["Return False, None<br/>Log: Invalid JSON"]
+    Parse -->|"Yes"| TypeCheck{"Result is dict?"}
+    TypeCheck -->|"No"| FailType["Return False, None<br/>Log: Invalid module tree format"]
+    TypeCheck -->|"Yes"| Loop["For each module in tree"]
+    Loop --> HasComponents{"components key present?"}
+    HasComponents -->|"No"| Loop
+    HasComponents -->|"Yes"| IDCheck["For each component ID"]
+    IDCheck --> IsInt{"isinstance id int?"}
+    IsInt -->|"No"| Invalid["Add to invalid_ids list"]
+    IsInt -->|"Yes"| RangeCheck{"0 to max_id range ok?"}
+    RangeCheck -->|"No"| Invalid
+    RangeCheck -->|"Yes"| Continue["Continue"]
+    Invalid --> AnyInvalid{"invalid_ids non-empty?"}
+    Continue --> AnyInvalid
+    AnyInvalid -->|"Yes"| FailIDs["Return False, None<br/>Log invalid IDs and expected range"]
+    AnyInvalid -->|"No"| Success["Return True, module_tree"]

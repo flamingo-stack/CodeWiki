@@ -1,0 +1,33 @@
+flowchart TD
+    Builder["DependencyGraphBuilder"] --> Parser["DependencyParser"]
+    Parser --> Service["AnalysisService"]
+    Service --> Repo["RepoAnalyzer"]
+    Service --> CallGraph["CallGraphAnalyzer"]
+
+    CallGraph --> Python["PythonASTAnalyzer"]
+    CallGraph --> JS["TreeSitterJSAnalyzer"]
+    CallGraph --> TS["TreeSitterTSAnalyzer"]
+    CallGraph --> Java["TreeSitterJavaAnalyzer"]
+    CallGraph --> CSharp["TreeSitterCSharpAnalyzer"]
+    CallGraph --> C["TreeSitterCAnalyzer"]
+    CallGraph --> Cpp["TreeSitterCppAnalyzer"]
+    CallGraph --> PHP["TreeSitterPHPAnalyzer"]
+
+    Python --> Models["Node and CallRelationship Models"]
+    JS --> Models
+    TS --> Models
+    Java --> Models
+    CSharp --> Models
+    C --> Models
+    Cpp --> Models
+    PHP --> Models
+
+    Models --> CallGraph
+    CallGraph --> Service
+    Repo --> Service
+    Service --> Parser
+    Parser --> Builder
+    Builder --> Output["Dependency Graph JSON + Leaf Nodes"]
+
+    Output --> AgentOrch["Agent Orchestration And Tools"]
+    Output --> DocGen["Documentation And Services"]

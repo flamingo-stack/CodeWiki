@@ -1,0 +1,14 @@
+flowchart TD
+    subgraph DepAnalysis["Dependency Analysis"]
+        DataModels["Data Models And Utilities"]
+        LangAnalyzers["Language Analyzers"]
+        GraphBuild["Dependency Graph Construction"]
+        RepoCallGraph["Repository And Call Graph Analysis"]
+    end
+
+    LangAnalyzers -->|"produces Node / CallRelationship"| DataModels
+    GraphBuild -->|"consumes Node / CallRelationship"| DataModels
+    RepoCallGraph -->|"produces AnalysisResult"| DataModels
+    LangAnalyzers -->|"uses ColoredFormatter"| DataModels
+    GraphBuild -->|"uses ColoredFormatter"| DataModels
+    RepoCallGraph -->|"uses ColoredFormatter"| DataModels

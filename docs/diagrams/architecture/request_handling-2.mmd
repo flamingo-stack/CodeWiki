@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant User as Browser
+    participant Routes as WebRoutes
+    participant GH as GitHubRepoProcessor
+    participant Worker as BackgroundWorker
+    participant Cache as CacheManager
+    User->>Routes: POST / (repo_url, commit_id)
+    Routes->>Routes: cleanup_old_jobs()
+    Routes->>GH: is_valid_github_url(repo_url)
+    Note over Routes: If URL invalid, render form with error and stop
+    Routes->>GH: get_repo_info(normalized_url)
+    Routes->>Routes: _repo_full_name_to_job_id(full_name)
+    Routes->>Worker: get_job_status(job_id)
+    Note over Routes: If job queued/processing/recently failed, render conflict message and stop
+    Routes->>Cache: get_cached_docs(normalized_url)
+    Note over Routes: If cached, mark job completed via Worker.job_status
+    Routes->>Worker: add_job(job_id, queued JobStatus)
+    Routes->>User: render form with result message

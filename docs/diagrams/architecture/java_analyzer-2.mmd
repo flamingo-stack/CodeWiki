@@ -1,16 +1,23 @@
-sequenceDiagram
-    participant Caller as "analyze_java_file()"
-    participant Analyzer as "TreeSitterJavaAnalyzer"
-    participant Parser as "tree_sitter.Parser"
-    participant NodesPass as "_extract_nodes()"
-    participant RelsPass as "_extract_relationships()"
+flowchart TD
+    Start["TreeSitterJavaAnalyzer.__init__"] --> Parse["_analyze(): parse source with tree_sitter_java grammar"]
+    Parse --> Root["Obtain AST root node"]
+    Root --> Pass1["_extract_nodes(root, top_level_nodes, lines)"]
+    Pass1 --> Pass2["_extract_relationships(root, top_level_nodes)"]
+    Pass2 --> Done["nodes and call_relationships populated"]
 
-    Caller->>Analyzer: "__init__(file_path, content, repo_path)"
-    Analyzer->>Analyzer: "_analyze()"
-    Analyzer->>Parser: "parse(content)"
-    Parser-->>Analyzer: "AST root node"
-    Analyzer->>NodesPass: "_extract_nodes(root, top_level_nodes, lines)"
-    NodesPass-->>Analyzer: "self.nodes populated"
-    Analyzer->>RelsPass: "_extract_relationships(root, top_level_nodes)"
-    RelsPass-->>Analyzer: "self.call_relationships populated"
-    Analyzer-->>Caller: "nodes, call_relationships"
+    subgraph NodeExtraction["Node Extraction (recursive)"]
+        Pass1 --> CheckType{"node.type?"}
+        CheckType -->|"class_declaration"| ClassNode["Create Node: class or abstract class"]
+        CheckType -->|"interface_declaration"| IfaceNode["Create Node: interface"]
+        CheckType -->|"enum_declaration"| EnumNode["Create Node: enum"]
+        CheckType -->|"record_declaration"| RecordNode["Create Node: record"]
+        CheckType -->|"annotation_type_declaration"| AnnoNode["Create Node: annotation"]
+        CheckType -->|"method_declaration"| MethodNode["Create Node: method (qualified by containing class)"]
+        ClassNode --> Recurse1["Recurse into children"]
+        IfaceNode --> Recurse1
+        EnumNode --> Recurse1
+        RecordNode --> Recurse1
+        AnnoNode --> Recurse1
+        MethodNode --> Recurse1
+        CheckType -->|"other"| Recurse1
+    end

@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Builder as DependencyGraphBuilder
+    participant Parser as DependencyParser
+    participant Svc as AnalysisService
+    participant Repo1 as "Repository 1 (main)"
+    participant Repo2 as "Repository 2 (dependency)"
+
+    Builder->>Parser: parse_repository()
+    Parser->>Parser: _parse_multiple_repositories()
+    loop For each repo path
+        Parser->>Svc: _analyze_structure(repo_path)
+        Svc-->>Parser: file_tree
+        Parser->>Svc: _analyze_call_graph(file_tree, repo_path)
+        Svc-->>Parser: functions, relationships
+        Parser->>Parser: _build_namespaced_components(namespace, mapping)
+        Parser->>Parser: merge into all_components
+    end
+    Parser->>Parser: _resolve_cross_namespace_dependencies(all_components, mapping)
+    Parser-->>Builder: self.components

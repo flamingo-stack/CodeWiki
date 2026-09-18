@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph fixtures_area["Test Fixtures"]
+        MainSvc["MainService<br/>main/service.py"]
+        APICtrl["APIController<br/>main/controller.py"]
+        PluginIface["PluginInterface<br/>external/plugin.py"]
+        DataPlug["DataPlugin<br/>external/plugin.py"]
+    end
+
+    subgraph runners_area["Test Runners"]
+        IntTest["IntegrationTestRunner<br/>integration_test.py"]
+        IntResults["TestResults<br/>(integration_test)"]
+        MultiPathColors["Colors<br/>test_multi_path.py"]
+        MultiPathResults["TestResults<br/>(test_multi_path)"]
+    end
+
+    IntTest -->|"builds"| DGB["DependencyGraphBuilder"]
+    MultiPathResults -.->|"used by"| MultiPathFuncs["test_* functions"]
+    MultiPathFuncs -->|"builds"| DGB
+
+    DGB -->|"analyzes"| MainSvc
+    DGB -->|"analyzes"| APICtrl
+    DGB -->|"analyzes"| PluginIface
+    DGB -->|"analyzes"| DataPlug
+
+    IntTest -->|"records"| IntResults
+    APICtrl -->|"depends on"| MainSvc
+    DataPlug -->|"implements"| PluginIface
+
+    DGB -->|"reads"| Cfg["Config"]

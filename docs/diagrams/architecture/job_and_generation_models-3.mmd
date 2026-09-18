@@ -1,0 +1,15 @@
+flowchart LR
+    Job["DocumentationJob instance"] -->|"to_dict()"| Dict["dict"]
+    Dict -->|"json.dumps()"| JSONStr["JSON string"]
+    Job -->|"to_json()"| JSONStr
+
+    RawDict["dict (from file/API)"] -->|"from_dict()"| CoerceFns["Coercion helpers"]
+    CoerceFns --> NewJob["DocumentationJob instance"]
+
+    subgraph CoerceFns["Coercion helpers"]
+        C1["_coerce_job_status"]
+        C2["_coerce_int"]
+        C3["_coerce_generation_options"]
+        C4["_coerce_llm_config"]
+        C5["_coerce_statistics"]
+    end

@@ -1,0 +1,13 @@
+flowchart TD
+    Client["Client Browser"] -->|"POST repo_url"| Routes["WebRoutes<br/>(Request Handling)"]
+    Routes -->|"validates against"| Submission["RepositorySubmission"]
+    Submission -->|"valid URL"| Worker["BackgroundWorker<br/>(Job Processing)"]
+    Worker -->|"creates & updates"| Status["JobStatus"]
+    Worker -->|"reads clone settings from"| Config["WebAppConfig"]
+    Worker -->|"delegates cloning to"| GitProc["GitHubRepoProcessor<br/>(GitHub Integration)"]
+    GitProc -->|"uses CLONE_TIMEOUT / CLONE_DEPTH"| Config
+    CacheMgr["CacheManager<br/>(Job Processing)"] -->|"reads/writes"| Cache["CacheEntry"]
+    CacheMgr -->|"reads CACHE_DIR / CACHE_EXPIRY_DAYS"| Config
+    Status -->|"serialized as"| Response["JobStatusResponse"]
+    Response -->|"returned via"| Routes
+    Routes -->|"JSON"| Client

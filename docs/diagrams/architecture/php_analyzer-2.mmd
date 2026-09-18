@@ -1,41 +1,22 @@
-classDiagram
-    class NamespaceResolver {
-        +string current_namespace
-        +dict use_map
-        +register_namespace(ns)
-        +register_use(fqn, alias)
-        +resolve(name) string
-    }
-    class TreeSitterPHPAnalyzer {
-        +Path file_path
-        +string content
-        +string repo_path
-        +List nodes
-        +List call_relationships
-        +NamespaceResolver namespace_resolver
-        +_analyze()
-        +_extract_namespace_info(node, depth)
-        +_extract_nodes(node, lines, depth, parent_class)
-        +_extract_relationships(node, depth)
-        +_is_template_file() bool
-        +_get_component_id(name, parent_class) string
-    }
-    class Node {
-        +string id
-        +string name
-        +string component_type
-        +string file_path
-        +Set depends_on
-        +string source_code
-        +int start_line
-        +int end_line
-    }
-    class CallRelationship {
-        +string caller
-        +string callee
-        +int call_line
-        +bool is_resolved
-    }
-    TreeSitterPHPAnalyzer --> NamespaceResolver : "delegates name resolution"
-    TreeSitterPHPAnalyzer --> Node : "creates"
-    TreeSitterPHPAnalyzer --> CallRelationship : "creates"
+sequenceDiagram
+    participant Caller as "Dependency Parser"
+    participant Fn as "analyze_php_file()"
+    participant Analyzer as "TreeSitterPHPAnalyzer"
+    participant Resolver as "NamespaceResolver"
+
+    Caller->>Fn: "analyze_php_file(path, content, repo_path)"
+    Fn->>Analyzer: "instantiate"
+    Analyzer->>Analyzer: "_is_template_file()"
+    alt Is template file
+        Analyzer-->>Fn: "empty nodes/relationships"
+    else Not a template file
+        Analyzer->>Analyzer: "_analyze()"
+        Analyzer->>Analyzer: "_extract_namespace_info(root)"
+        Analyzer->>Resolver: "register_namespace() / register_use()"
+        Analyzer->>Analyzer: "_extract_nodes(root, lines)"
+        Analyzer->>Analyzer: "_extract_relationships(root)"
+        Analyzer->>Resolver: "resolve(typeName)"
+        Resolver-->>Analyzer: "fully qualified name"
+        Analyzer-->>Fn: "nodes, call_relationships"
+    end
+    Fn-->>Caller: "(nodes, call_relationships)"

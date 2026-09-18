@@ -1,0 +1,5 @@
+flowchart LR
+    RepoAnalysis["Repository and Call Graph Analysis"] -->|"dispatches file content"| LangAnalyzers["Language Analyzers<br/>(this module)"]
+    LangAnalyzers -->|"produces Node / CallRelationship"| DataModels["Data Models and Utilities"]
+    LangAnalyzers -->|"feeds parsed entities"| GraphBuild["Dependency Graph Construction"]
+    DataModels -.->|"defines shared types used by"| LangAnalyzers

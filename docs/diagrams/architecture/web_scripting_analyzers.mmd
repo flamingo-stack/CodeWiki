@@ -1,0 +1,11 @@
+flowchart LR
+    Repo["Repository Source Files"] --> Parser["DependencyParser"]
+    Parser -->|".js / .jsx / .mjs / .cjs"| JS["TreeSitterJSAnalyzer"]
+    Parser -->|".ts / .tsx"| TS["TreeSitterTSAnalyzer"]
+    JS --> Nodes["Node objects"]
+    JS --> Rels["CallRelationship objects"]
+    TS --> Nodes
+    TS --> Rels
+    Nodes --> Builder["DependencyGraphBuilder"]
+    Rels --> Builder
+    Builder --> Graph["Repository Dependency Graph"]

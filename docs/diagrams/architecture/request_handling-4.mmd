@@ -1,0 +1,19 @@
+classDiagram
+    class WebRoutes {
+        +background_worker
+        +cache_manager
+        +index_get(request)
+        +index_post(request, repo_url, commit_id)
+        +get_job_status(job_id)
+        +view_docs(job_id)
+        +serve_generated_docs(job_id, filename)
+        -normalize_github_url(url)
+        -repo_full_name_to_job_id(full_name)
+        -job_id_to_repo_full_name(job_id)
+        +cleanup_old_jobs()
+    }
+    class StringTemplateLoader {
+        +template_string
+        +get_source(environment, template)
+    }
+    WebRoutes ..> StringTemplateLoader : uses via render_template

@@ -1,0 +1,9 @@
+flowchart LR
+    Start["start_stage(n)"] --> Update["update_stage(progress)"]
+    Update --> Complete["complete_stage()"]
+    Complete --> Next{"More stages?"}
+    Next -->|Yes| Start
+    Next -->|No| Done["Overall progress = 1.0"]
+
+    Update --> Overall["get_overall_progress()"]
+    Overall --> ETA["get_eta()"]

@@ -2,102 +2,101 @@
 
 ## Overview
 
-The Cli Core module is the command-line interface layer of CodeWiki. It is the entry point that end users interact with when running `codewiki` from a terminal: it manages persistent user configuration, wraps git repository operations, drives the backend documentation pipeline with progress reporting, renders a static HTML viewer for GitHub Pages, and provides shared logging/progress utilities used throughout the CLI experience.
+The Cli Core module implements the command-line interface layer of CodeWiki. It is the entry point that end users interact with when running documentation generation from a terminal: it manages persistent configuration (models, API keys, generation settings), wraps the [Backend Core](backend-core.md) documentation engine with progress reporting and CLI-friendly error handling, produces a self-contained HTML viewer for GitHub Pages, integrates with git to create documentation branches and commits, and defines the data models (`Configuration`, `DocumentationJob`, etc.) that describe a generation run from start to finish.
 
-Rather than reimplementing documentation generation, Cli Core acts as a **thin orchestration and presentation layer** on top of the backend engine (see the [Backend Core](backend-core.md) module). It translates CLI-specific concerns — credential storage, terminal progress bars, colored logging, git branch management, and static site generation — into calls against the backend's `DocumentationGenerator` and `Config` primitives.
+Cli Core does not perform dependency analysis or call an LLM directly - that work is delegated to [Backend Core](backend-core.md). Instead, Cli Core is responsible for:
 
-## Responsibilities
-
-- **Configuration persistence**: securely store LLM provider credentials (cluster/main/fallback API keys) in the OS keyring, and persist non-sensitive settings (models, base URLs, token limits, agent instructions) to `~/.codewiki/config.json`.
-- **Job orchestration**: adapt the backend's async documentation pipeline into a CLI-friendly staged workflow (dependency analysis → module clustering → documentation generation → optional HTML generation → finalization) with verbose/non-verbose progress reporting.
-- **Git integration**: detect repository state, verify a clean working tree, create timestamped documentation branches, commit generated docs, and compute GitHub PR/Pages URLs.
-- **Static site generation**: render a self-contained `index.html` viewer for GitHub Pages by combining a template with the generated `module_tree.json` and `metadata.json`.
-- **Job/result modeling**: define typed data models (`DocumentationJob`, `LLMConfig`, `JobStatistics`, `GenerationOptions`, `JobStatus`) that describe a documentation run's inputs, progress, and outputs, with JSON (de)serialization for the `metadata.json` artifact.
-- **Terminal UX utilities**: colored logging and multi-stage progress tracking with ETA estimation, shared across all CLI commands.
+- Translating user-facing configuration (persisted in `~/.codewiki/config.json` and the system keyring) into the backend's runtime `Config` object
+- Orchestrating the multi-stage generation pipeline and reporting progress to the terminal
+- Managing git repository state (clean-check, branch creation, committing generated docs)
+- Rendering a static HTML documentation viewer for GitHub Pages
+- Providing consistent logging and progress-bar utilities across all CLI commands
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    User["CLI User"] -->|"codewiki generate"| ConfigMgr["ConfigManager"]
-    ConfigMgr -->|"loads/saves"| ConfigFile[("~/.codewiki/config.json")]
-    ConfigMgr -->|"stores API keys"| Keyring[("OS Keyring")]
-    ConfigMgr -->|"provides"| Config["Configuration + AgentInstructions"]
+    User["CLI User / codewiki command"] --> ConfigMgmt["Configuration Management"]
+    User --> GenPipeline["Generation Pipeline"]
 
-    Config -->|"to_backend_config()"| CLIDocGen["CLIDocumentationGenerator"]
-    GitMgr["GitManager"] -->|"branch/commit info"| CLIDocGen
+    ConfigMgmt -->|"loads/saves Configuration"| ConfigFile[("~/.codewiki/config.json + keyring")]
+    ConfigMgmt -->|"builds backend Config"| GenPipeline
 
-    CLIDocGen -->|"drives"| BackendGen["Backend DocumentationGenerator"]
-    CLIDocGen -->|"tracks progress via"| Progress["ProgressTracker"]
-    CLIDocGen -->|"builds"| Job["DocumentationJob"]
-    CLIDocGen -->|"optional"| HTMLGen["HTMLGenerator"]
+    GenPipeline -->|"tracks progress via"| CLIUtils["CLI Utilities"]
+    GenPipeline -->|"produces"| JobModels["Job and Generation Models"]
+    GenPipeline -->|"delegates analysis/generation"| BackendCore["Backend Core"]
+    GenPipeline -->|"branch/commit operations"| GitOps["Git Manager"]
+    GenPipeline -->|"renders viewer"| HTMLOut["index.html (GitHub Pages)"]
 
-    HTMLGen -->|"reads"| ModuleTree[("module_tree.json")]
-    HTMLGen -->|"reads"| Metadata[("metadata.json")]
-    HTMLGen -->|"writes"| IndexHTML[("index.html")]
-
-    Job -->|"serializes to"| Metadata
-
-    Logger["CLILogger"] -.->|"used by"| CLIDocGen
-    Logger -.->|"used by"| ConfigMgr
-    Logger -.->|"used by"| GitMgr
-
-    BackendGen -->|"belongs to"| BackendCore["Backend Core module"]
-
-    style BackendCore fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    subgraph submodules["Cli Core Sub-Modules"]
+        ConfigMgmt
+        JobModels
+        GenPipeline
+        CLIUtils
+    end
 ```
 
-At a high level, a CLI command (e.g. `generate`) loads user settings via `ConfigManager`, optionally inspects/manipulates the repository via `GitManager`, and then hands control to `CLIDocumentationGenerator`, which converts CLI configuration into a backend `Config` object and drives the [Backend Core](backend-core.md) pipeline stage by stage, reporting progress through `ProgressTracker`. The resulting `DocumentationJob` captures statistics and status, which are persisted as `metadata.json`. If HTML output is requested, `HTMLGenerator` renders a static viewer from the generated `module_tree.json` and `metadata.json`.
+### How a generation run flows
 
-## Sub-modules
+```mermaid
+sequenceDiagram
+    participant CLI as "CLI Command"
+    participant CM as "ConfigManager"
+    participant DG as "CLIDocumentationGenerator"
+    participant BE as "Backend Core"
+    participant HG as "HTMLGenerator"
+    participant GM as "GitManager"
 
-Cli Core is organized into the following functional areas:
+    CLI->>CM: load()
+    CM-->>CLI: Configuration + API keys
+    CLI->>DG: generate()
+    DG->>DG: DocumentationJob.start()
+    DG->>BE: DocumentationGenerator(backend_config)
+    BE-->>DG: components, leaf_nodes
+    DG->>BE: cluster_modules(...)
+    BE-->>DG: module_tree
+    DG->>BE: generate_module_documentation(...)
+    BE-->>DG: markdown + metadata files
+    opt generate_html enabled
+        DG->>HG: generate(output_path, ...)
+        HG-->>DG: index.html
+    end
+    DG->>DG: DocumentationJob.complete()
+    DG-->>CLI: DocumentationJob
+    opt create-branch requested
+        CLI->>GM: create_documentation_branch()
+        CLI->>GM: commit_documentation(docs_path)
+    end
+```
 
-| Sub-module | Responsibility |
-|---|---|
-| [Generation](cli-core/generation/generation.md) | Adapts the backend documentation pipeline for CLI use with staged progress reporting and logging configuration. |
-| [Configuration](cli-core/configuration/configuration.md) | Manages persistent CLI settings and secure API key storage via the OS keyring; defines the configuration data model. |
-| [Job Models](cli-core/job_models/job_models.md) | Typed data models describing a documentation job's status, statistics, and LLM configuration, with JSON serialization. |
-| [Git Integration](cli-core/git_integration/git_integration.md) | Wraps git operations needed for documentation branch workflows (clean-check, branch creation, commit, remote/PR URL detection). |
-| [Html Generation](cli-core/html_generation/html_generation.md) | Renders a static, self-contained HTML documentation viewer for GitHub Pages. |
-| [Utils](cli-core/utils/utils.md) | Shared terminal UX helpers: colored logging and multi-stage progress tracking with ETA. |
+## Sub-Modules
 
-### Generation
+Cli Core is organized into four functional areas, each documented in detail below:
 
-The [Generation](cli-core/generation/generation.md) sub-module contains `CLIDocumentationGenerator`, the central adapter that bridges CLI configuration and the backend engine. It normalizes additional source paths, builds a backend `Config`, configures backend logging with colored output, and runs the five-stage pipeline (dependency analysis, module clustering, documentation generation, optional HTML generation, finalization), reporting progress and raising `APIError` on failure.
+### [Configuration Management](configuration_management.md)
 
-### Configuration
+Handles persistent user settings and secure credential storage. `ConfigManager` reads/writes `~/.codewiki/config.json` and stores per-provider API keys in the system keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service). The `Configuration` and `AgentInstructions` data models describe model selection (cluster/main/fallback), token/temperature settings, and custom documentation instructions, and know how to convert themselves into the backend's runtime `Config` object.
 
-The [Configuration](cli-core/configuration/configuration.md) sub-module contains `ConfigManager` together with the `Configuration` and `AgentInstructions` data models. `ConfigManager` persists non-sensitive settings to `~/.codewiki/config.json` and stores per-provider API keys (cluster/main/fallback) in the OS keyring, falling back gracefully when the keyring is unavailable. `Configuration.to_backend_config()` is the bridge that converts persisted CLI settings into a backend `Config` instance for a specific run.
+### [Job and Generation Models](job_and_generation_models.md)
 
-### Job Models
+Defines the data models that represent a single documentation generation run: `DocumentationJob` (status, timestamps, statistics, generated files), `JobStatus`, `GenerationOptions`, `JobStatistics`, and `LLMConfig`. These models provide serialization (`to_dict`/`to_json`/`from_dict`) used for the `metadata.json` produced alongside generated documentation.
 
-The [Job Models](cli-core/job_models/job_models.md) sub-module defines `DocumentationJob` and its supporting types (`JobStatus`, `JobStatistics`, `GenerationOptions`, `LLMConfig`). These models track a single documentation run's lifecycle (pending → running → completed/failed), record statistics such as files analyzed and leaf nodes, and support round-trip JSON serialization used for the `metadata.json` artifact.
+### [Generation Pipeline](generation_pipeline.md)
 
-### Git Integration
+The operational core of the CLI: `CLIDocumentationGenerator` adapts the [Backend Core](backend-core.md) documentation engine to the CLI, coordinating the dependency-analysis, module-clustering, and documentation-generation stages while updating progress and building the `DocumentationJob`. `HTMLGenerator` renders a static, self-contained `index.html` viewer suitable for GitHub Pages. `GitManager` provides git operations (clean working-directory checks, documentation branch creation, committing generated docs, and GitHub PR URL construction) used by CLI commands that want to publish documentation via a pull request.
 
-The [Git Integration](cli-core/git_integration/git_integration.md) sub-module contains `GitManager`, which wraps the `git` Python library to support the "create documentation branch and commit" workflow: checking for a clean working directory, generating timestamped branch names, committing generated docs, and deriving GitHub remote/PR URLs.
+### [Cli Utilities](cli_utilities.md)
 
-### Html Generation
-
-The [Html Generation](cli-core/html_generation/html_generation.md) sub-module contains `HTMLGenerator`, which loads `module_tree.json` and `metadata.json` from a documentation output directory, populates a bundled HTML template, and writes a self-contained `index.html` suitable for GitHub Pages hosting.
-
-### Utils
-
-The [Utils](cli-core/utils/utils.md) sub-module contains `CLILogger`, `ProgressTracker`, and `ModuleProgressBar` — shared terminal presentation helpers used across the CLI for colored log output and multi-stage progress bars with ETA estimation.
+Shared terminal UX helpers: `CLILogger` for colored, leveled console output, and `ProgressTracker`/`ModuleProgressBar` for multi-stage progress reporting and per-module progress bars during long-running generation jobs.
 
 ## Relationship to Other Modules
 
-- **Backend Core**: Cli Core does not implement documentation generation itself; it delegates to the backend's `DocumentationGenerator`, dependency analyzer, and LLM services. See the [Backend Core](backend-core.md) module for details on dependency analysis, clustering, and agent orchestration.
-- **Config Core**: The backend-facing `Config` object that `Configuration.to_backend_config()` produces is defined in the shared configuration module. See [Config Core](config-core.md) for details on the runtime configuration surface consumed by the backend.
+- **[Backend Core](backend-core.md)**: Cli Core's `CLIDocumentationGenerator` wraps `DocumentationGenerator` and builds the backend's `Config` (via `Configuration.to_backend_config` / `BackendConfig.from_cli`) to perform the actual dependency analysis, clustering, and LLM-driven documentation generation. Cli Core never talks to an LLM or the file system's dependency graph directly.
+- **[Config Core](config-core.md)**: The backend runtime configuration object (`Config`) referenced throughout the generation pipeline lives in this module; Cli Core constructs it but does not define it.
 
-## Error Handling
+## Design Notes
 
-Cli Core raises a small hierarchy of typed exceptions used to communicate failures to the CLI entry point with distinct exit codes:
-
-- `ConfigurationError` — raised by `ConfigManager` when configuration cannot be loaded/saved or the keychain is unavailable.
-- `RepositoryError` — raised by `GitManager` when git operations fail (e.g., dirty working directory, invalid repository).
-- `FileSystemError` — raised by `HTMLGenerator` and configuration I/O helpers when reading/writing files fails.
-- `APIError` — raised by `CLIDocumentationGenerator` when a backend/LLM stage (dependency analysis, clustering, documentation generation) fails.
-
-Each exception type maps to a dedicated process exit code, allowing CLI scripts and CI pipelines to distinguish between configuration problems, repository issues, filesystem errors, and API failures.
+- **Separation of persistent vs. runtime configuration**: `Configuration` (Cli Core) represents what a user has saved locally, while the backend `Config` object represents a fully-resolved runtime configuration for a single generation job. The conversion happens in `Configuration.to_backend_config`.
+- **Secrets never touch disk in plaintext**: API keys are stored exclusively via `keyring`; `config.json` only contains non-sensitive settings.
+- **Progress reporting is stage-based**: `ProgressTracker` models generation as five weighted stages (dependency analysis, clustering, documentation generation, optional HTML generation, finalization) to provide ETA estimates without requiring the backend to know about CLI concerns.
+- **CLI adapter isolates backend logging**: `CLIDocumentationGenerator._configure_backend_logging` reconfigures backend loggers (`codewiki.src.be`) with colored formatting and appropriate verbosity so backend log noise doesn't leak into normal (non-verbose) CLI output.

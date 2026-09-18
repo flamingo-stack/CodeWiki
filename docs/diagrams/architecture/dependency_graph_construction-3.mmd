@@ -1,0 +1,5 @@
+flowchart LR
+    OriginalID["original_id: module.path::ComponentName"] --> Namespace["namespace = basename(repo_path)"]
+    Namespace --> FQDN["fqdn = namespace + '.' + original_id"]
+    FQDN --> NodeObj["Node(id=fqdn, short_id=original_id, namespace=namespace, ...)"]
+    FQDN --> ModulesSet["self.modules += namespace + '.' + module_path"]

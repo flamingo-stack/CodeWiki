@@ -1,114 +1,108 @@
 # Quick Start
 
-This guide gets you from zero to a generated documentation set in about five minutes, using the `codewiki` CLI against a local repository.
+This guide gets you from a fresh clone to your first generated documentation set as quickly as possible.
 
-> If you'd rather run CodeWiki as a hosted web service (submit a GitHub URL, poll for job status, view cached results), see the Docker-based setup mentioned at the end of this guide instead.
+## TL;DR Setup
 
-## Step 1: Install CodeWiki
-
-Clone the repository and install the package (editable install is convenient for exploring the source):
+### Option A — Run the CLI locally
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/flamingo-stack/CodeWiki.git
 cd CodeWiki
-pip install -e .
+
+# 2. Install Python dependencies
+pip install -r requirements.txt
+
+# 3. Configure your LLM provider (cluster/main/fallback)
+python -m codewiki config set \
+  --cluster-api-key "YOUR_API_KEY" \
+  --main-api-key "YOUR_API_KEY" \
+  --fallback-api-key "YOUR_API_KEY" \
+  --cluster-model "claude-sonnet-4" \
+  --main-model "claude-sonnet-4" \
+  --fallback-model "claude-sonnet-4" \
+  --cluster-base-url "https://api.anthropic.com/v1" \
+  --main-base-url "https://api.anthropic.com/v1" \
+  --fallback-base-url "https://api.anthropic.com/v1"
+
+# 4. Run it against any local repository
+cd /path/to/some/repo
+python -m codewiki generate
 ```
 
-This registers the `codewiki` console command, defined in `pyproject.toml` as:
-
-```text
-[project.scripts]
-codewiki = "codewiki.cli.main:cli"
-```
-
-Verify the install:
+### Option B — Run the web application with Docker Compose
 
 ```bash
-codewiki --version
-codewiki version
+# 1. Clone the repository
+git clone https://github.com/flamingo-stack/CodeWiki.git
+cd CodeWiki
+
+# 2. Provide environment variables (LLM keys, models, etc.) in a .env file
+#    at the repository root (see Prerequisites for the full variable list)
+cat > .env << 'EOF'
+MAIN_MODEL=claude-sonnet-4
+CLUSTER_MODEL=claude-sonnet-4
+FALLBACK_MODEL=claude-sonnet-4
+MAIN_API_KEY=YOUR_API_KEY
+CLUSTER_API_KEY=YOUR_API_KEY
+FALLBACK_API_KEY=YOUR_API_KEY
+EOF
+
+# 3. Create the external network required by the compose file
+docker network create codewiki-network
+
+# 4. Start the web application
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-## Step 2: Configure Your LLM Credentials
+The web application listens on `http://localhost:8000` (configurable via `APP_PORT`).
 
-CodeWiki needs API credentials for at least a **main model** and a **cluster model** (a fallback model is optional but recommended). Credentials are stored securely in your OS keyring; non-secret settings go to `~/.codewiki/config.json`.
+> **Note:** No default credentials, usernames, or passwords are built into CodeWiki — LLM API keys must come from your own provider account, and you supply them explicitly as shown above.
+
+## A "Hello World" Example
+
+Once configured, generate documentation for CodeWiki's own repository (or any repository you have locally):
 
 ```bash
-codewiki config set \
-  --cluster-api-key "sk-your-cluster-provider-key" \
-  --main-api-key "sk-your-main-provider-key" \
-  --cluster-model "your-cluster-model-name" \
-  --main-model "your-main-model-name" \
-  --cluster-base-url "https://api.your-provider.com/v1" \
-  --main-base-url "https://api.your-provider.com/v1"
+cd CodeWiki
+python -m codewiki generate
 ```
 
-> **Note:** Replace the model names, base URLs, and API keys with values for your actual LLM provider. CodeWiki does not ship with default credentials — you must supply your own.
+This runs the full pipeline:
 
-Confirm the configuration was saved and is complete:
-
-```bash
-codewiki config validate
-```
-
-## Step 3: Generate Documentation for a Repository
-
-Navigate to any Git repository you want to document, then run:
-
-```bash
-cd /path/to/your/project
-codewiki generate
-```
-
-By default, output is written to `./docs`. The CLI runs through four staged checks and then the documentation pipeline itself:
-
-```text
-Validating configuration...
-Validating repository...
-Analyzing dependencies...
-Generating documentation...
-```
+1. **Repository validation** — confirms the current directory is a supported repository and detects languages present.
+2. **Dependency analysis** — parses source files and builds a dependency graph.
+3. **Module clustering** — an LLM groups related code components into logical modules.
+4. **Documentation generation** — each module (leaf-first, then parents) is documented and written as Markdown.
+5. **Finalization** — a repository-level overview and `metadata.json` are written to the output directory.
 
 ## Expected Output
 
-After a successful run, you should see a `docs/` directory in your project containing:
+By default, generated docs are written under a `docs/` output directory relative to your target repository, containing:
 
-- Markdown files for each analyzed module (leaf modules first, then parent overview pages)
-- A `module_tree.json` describing the hierarchical module structure
-- A `metadata.json` describing job statistics and status
-
-## Example: Verbose Run with Custom Output
-
-```bash
-codewiki generate --output ./generated-docs --verbose
+```text
+docs/
+├── README.md              # Top-level repository overview
+├── metadata.json           # Generation statistics and job info
+└── <module-name>/
+    └── <module-name>.md    # Per-module documentation
 ```
 
-Add `--verbose` any time you want detailed stage-by-stage progress and debug information printed to your terminal.
+If you passed `--github-pages` to `codewiki generate`, an `index.html` static viewer is also produced alongside the Markdown files.
 
-## Example: Generate a GitHub Pages Site
+The terminal output shows staged progress (dependency analysis → clustering → documentation generation) with colored status messages and a completion summary listing the files generated.
 
-```bash
-codewiki generate --github-pages --create-branch
-```
+## Using the Web Application (Manual Flow)
 
-This additionally renders a self-contained `index.html` viewer (from the generated `module_tree.json` and `metadata.json`) and creates a timestamped Git branch for the documentation changes, ready to push and open a pull request.
+If you're running the FastAPI web app (Option B, or directly via `python codewiki/run_web_app.py`):
 
-## Running the Web Application Instead
-
-If you prefer the hosted web workflow (submit a GitHub repo URL through a browser, track job status, and view cached results), you can run the FastAPI app directly:
-
-```bash
-python codewiki/run_web_app.py
-```
-
-Or via Docker Compose:
-
-```bash
-cd docker
-docker compose up --build
-```
-
-The web app listens on port `8000` by default (configurable via the `APP_PORT` environment variable read by `docker/docker-compose.yml`).
+1. Open `http://localhost:8000` in your browser.
+2. Submit a GitHub repository URL (and optionally a commit ID) through the form.
+3. The job is queued and processed by a background worker; poll `GET /api/job/{job_id}` for status, or wait on the redirect.
+4. Once complete, view the generated documentation at `/docs/{job_id}`.
 
 ## Next Steps
 
-Once you've generated your first documentation set, continue to [First Steps](first-steps.md) to learn about customizing what gets documented, exploring the CLI's other options, and where to find help.
+- Read [First Steps](first-steps.md) to learn what to configure and explore right after your first run.
+- Review [Prerequisites](prerequisites.md) if any command above failed due to missing tools or environment variables.

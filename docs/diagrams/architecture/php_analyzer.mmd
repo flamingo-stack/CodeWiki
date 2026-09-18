@@ -1,9 +1,17 @@
 flowchart TD
-    Caller["Dependency Analysis Pipeline"] -->|"analyze_php_file(path, content, repo_path)"| Analyze["analyze_php_file()"]
-    Analyze --> Analyzer["TreeSitterPHPAnalyzer"]
-    Analyzer -->|"uses"| Resolver["NamespaceResolver"]
-    Analyzer -->|"parses with"| TreeSitter["tree_sitter_php / Parser"]
-    Analyzer -->|"produces"| Nodes["List of Node"]
-    Analyzer -->|"produces"| Rels["List of CallRelationship"]
-    Nodes --> Models["Dependency Analyzer Models"]
-    Rels --> Models
+    Content["PHP File Content"] --> Analyzer["TreeSitterPHPAnalyzer"]
+    Analyzer --> Parser["tree-sitter PHP Parser"]
+    Parser --> AST["Parsed AST"]
+
+    AST --> NSPass["Pass 1: Namespace/Use Extraction"]
+    NSPass --> Resolver["NamespaceResolver"]
+
+    AST --> NodePass["Pass 2: Node Extraction"]
+    NodePass --> Nodes["Node objects<br/>(class/interface/trait/enum/function/method)"]
+
+    AST --> RelPass["Pass 3: Relationship Extraction"]
+    Resolver --> RelPass
+    RelPass --> Rels["CallRelationship objects"]
+
+    Nodes --> Output["analyze_php_file() output"]
+    Rels --> Output

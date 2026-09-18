@@ -1,21 +1,12 @@
 flowchart TD
-    subgraph CLIFlow["CLI Core entry point"]
-        CM["ConfigManager: persisted JSON plus keyring"]
-        CM -->|"from_config_manager"| FC1["Config.from_cli(...)"]
+    subgraph CLIFlow["CLI entry point"]
+        CLIManager["ConfigManager"] -->|"from_config_manager()"| CfgCLI["Config"]
     end
-    subgraph WebFlow["Frontend Core entry point"]
-        BW["BackgroundWorker for web job"]
-        BW -->|"from_web_job"| FA1["Config.from_args wrapping Namespace"]
+    subgraph WebFlow["Web application entry point"]
+        Worker["Background job"] -->|"from_web_job()"| CfgWeb["Config"]
     end
-    subgraph EnvFlow["Environment-driven CLI entry point"]
-        ArgParse["argparse.Namespace from CLI arguments"]
-        ArgParse -->|"from_args"| FA2["Reads MAIN_MODEL, FALLBACK_MODEL, CLUSTER_API_KEY, MAIN_API_KEY, FALLBACK_API_KEY from environment"]
-    end
-    subgraph DirectFlow["Direct parameter entry point"]
-        Caller["Any caller with explicit parameters"]
-        Caller -->|"from_cli"| Validate["Validation block: keys, urls, types, ranges, max_token_field enum"]
-        Validate --> VSP["validate_source_paths()"]
-        VSP --> Instance["Config instance"]
-    end
-    FA1 --> FA2
-    FC1 --> Validate
+    CfgCLI --> Pipeline["Backend documentation pipeline"]
+    CfgWeb --> Pipeline
+    Pipeline --> Analysis["Dependency analysis"]
+    Pipeline --> Orchestration["Agent orchestration"]
+    Pipeline --> Generation["Documentation generation"]

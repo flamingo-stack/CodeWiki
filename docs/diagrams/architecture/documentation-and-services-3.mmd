@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph stages["Pipeline Stages"]
+        ClusterStage["Clustering<br/>(cluster_modules)"]
+        GenStage["Generation<br/>(Agent tool loop)"]
+        OverviewStage["Overview Summarization<br/>(call_llm)"]
+    end
+
+    Config["Config<br/>(cluster_*, main_*, fallback_*)"] --> CreateCluster["create_cluster_model()"]
+    Config --> CreateMain["create_main_model()"]
+    Config --> CreateFallback["create_fallback_model()"]
+
+    CreateCluster --> ClusterStage
+    CreateMain --> Combine["create_fallback_models()"]
+    CreateFallback --> Combine
+    Combine --> CountingModel["CountingFallbackModel"]
+    CountingModel --> GenStage
+
+    Config --> CallLLM["call_llm()"]
+    CallLLM --> OverviewStage
+    CallLLM -->|"selects max_tokens field"| TokenHelpers["get_model_max_token_field() / get_max_output_tokens()"]

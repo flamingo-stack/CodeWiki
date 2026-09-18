@@ -24,20 +24,20 @@ classDiagram
         +float fallback_temperature
         +Optional~Dict~ agent_instructions
         +Optional~str~ diagrams_dir
-        +Optional~List~str~~ additional_source_paths
+        +Optional~List~ additional_source_paths
         +to_dict(include_secrets) Dict
         +from_dict(data)$ Config
-        +include_patterns() Optional~List~
-        +exclude_patterns() Optional~List~
-        +focus_modules() Optional~List~
-        +doc_type() Optional~str~
-        +custom_instructions() Optional~str~
-        +all_source_paths() List~str~
-        +validate_source_paths() void
-        +is_multi_path_mode() bool
-        +get_prompt_addition() str
         +from_args(args)$ Config
         +from_web_job(repo_path, docs_dir)$ Config
         +from_cli(...)$ Config
         +from_config_manager(manager, repo_path, output_dir)$ Config
+        +validate_source_paths() void
+        +is_multi_path_mode() bool
+        +get_prompt_addition() str
+        +include_patterns Optional~List~
+        +exclude_patterns Optional~List~
+        +focus_modules Optional~List~
+        +doc_type Optional~str~
+        +custom_instructions Optional~str~
+        +all_source_paths List~str~
     }

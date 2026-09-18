@@ -1,0 +1,5 @@
+flowchart LR
+    TMC["Test Multi Path Core"] -->|"configures"| ConfigCore["Config Core"]
+    TMC -->|"invokes"| BackendCore["Backend Core<br/>DependencyGraphBuilder"]
+    BackendCore -->|"produces"| Graph["Component<br/>Dependency Graph"]
+    TMC -->|"asserts on"| Graph

@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant Component as "Backend Component"
+    participant Setup as "setup_module_logging()"
+    participant Formatter as "ColoredFormatter"
+    participant Console as "Console Output"
+
+    Component->>Setup: "request logger for module"
+    Setup->>Formatter: "instantiate formatter"
+    Setup->>Setup: "attach StreamHandler with formatter"
+    Component->>Setup: "logger.info(message)"
+    Setup->>Formatter: "format(record)"
+    Formatter->>Formatter: "colorize timestamp, level, message"
+    Formatter-->>Console: "colored log line"

@@ -1,0 +1,6 @@
+flowchart LR
+    Input["List of repo paths"] --> Namespace["Derive namespace per path"]
+    Namespace --> Build["Build individual file tree"]
+    Build --> Wrap["Wrap with namespace prefix"]
+    Wrap --> Merge["Merge into multi-repo root"]
+    Merge --> Summary["Aggregate summary<br/>files, size, namespaces"]

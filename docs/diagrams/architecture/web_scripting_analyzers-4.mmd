@@ -1,0 +1,12 @@
+flowchart TD
+    A["_traverse_for_calls(node, current_top_level)"] --> B{"Node type?"}
+    B -->|"class_declaration heritage"| C["Emit inheritance CallRelationship"]
+    B -->|"call_expression / await_expression"| D["_extract_call_from_node()"]
+    D --> E["_extract_callee_name(): identifier / member_expression / super / this"]
+    E --> F["Emit resolved or unresolved CallRelationship"]
+    B -->|"new_expression"| G["Emit constructor CallRelationship"]
+    B -->|"comment near declaration"| H["_parse_jsdoc_types()"]
+    H --> I["Extract @param/@returns/@type/@typedef/@interface types"]
+    I --> J["Filter builtin types (_is_builtin_type_js)"]
+    J --> K["Emit unresolved type CallRelationship"]
+    A --> L["_add_relationship() dedupes by (caller, callee, call_line)"]

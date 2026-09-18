@@ -1,123 +1,138 @@
-# CodeWiki Overview
+# CodeWiki
 
-CodeWiki is an AI-powered documentation generator for source repositories. It analyzes a codebase, builds dependency relationships, groups components into meaningful modules, and uses LLM-backed agents to produce structured Markdown documentation with navigation metadata and optional static HTML output.
+CodeWiki is an AI-assisted documentation generator for software repositories. It analyzes source code across supported languages, builds dependency relationships, clusters components into logical modules, and uses LLM-backed agents to produce hierarchical Markdown documentation. It provides both a terminal workflow and a web application workflow for generating, viewing, caching, and optionally publishing documentation.
 
-The repository supports two primary entry points:
-
-- **CLI workflow** for local repository documentation, configuration management, Git workflows, progress reporting, and static-site generation.
-- **Web workflow** for submitting GitHub repositories, queueing asynchronous generation jobs, caching results, and serving generated documentation.
+Repository: [flamingo-stack/CodeWiki](https://github.com/flamingo-stack/CodeWiki)
 
 ## End-to-End Architecture
 
 ```mermaid
 flowchart TD
-    User["Developer or Web User"] --> Entry{{"Choose entry point?"}}
-    Entry -->|CLI| CLI["CLI Core"]
-    Entry -->|Web| Frontend["Frontend Core"]
+    User["Developer or Documentation User"] --> Entry["CLI or Web Application"]
 
-    CLI --> RuntimeConfig["Config Core"]
-    Frontend --> RuntimeConfig
+    Entry --> CliCore["CLI Core"]
+    Entry --> FrontendCore["Frontend Core"]
 
-    CLI --> GitOps["Git Integration"]
-    Frontend --> RepoProcessor["GitHub Repository Processor"]
+    CliCore --> ConfigCore["Config Core"]
+    FrontendCore --> ConfigCore
 
-    GitOps --> Source["Source Repository"]
-    RepoProcessor --> Source
+    CliCore --> BackendCore["Backend Core"]
+    FrontendCore --> BackendCore
 
-    RuntimeConfig --> Generator["DocumentationGenerator"]
-    Source --> Generator
+    ConfigCore --> BackendCore
 
-    Generator --> Analysis["Dependency Analysis"]
-    Analysis --> Parsers["Language Parsers"]
-    Parsers --> Graph["Dependency Graph"]
-
+    BackendCore --> Analysis["Dependency Analysis"]
+    Analysis --> Graph["Repository Components and Dependency Graph"]
     Graph --> Clustering["Module Clustering"]
-    Clustering --> Agents["LLM Agent Orchestration"]
-    Agents --> Docs["Markdown Documentation"]
+    Clustering --> Agents["Agent Orchestration and Editing Tools"]
+    Agents --> Markdown["Hierarchical Markdown Documentation"]
 
-    Docs --> Metadata["Module Tree and Metadata"]
-    Metadata --> HTML["Optional HTML Viewer"]
-    Docs --> Output["Generated Documentation Output"]
-    HTML --> Output
+    CliCore --> Html["Static HTML Viewer"]
+    CliCore --> GitOps["Git Branch and Commit Operations"]
+
+    Markdown --> Html
+    FrontendCore --> Cache["Job Status and Documentation Cache"]
+    Markdown --> Cache
 ```
 
-## Documentation Generation Flow
+## Generation Lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant Caller
+    participant User as "User"
+    participant Entry as "CLI or Web Entry Point"
     participant Config as "Config Core"
-    participant Generator as "DocumentationGenerator"
-    participant Analyzer as "Dependency Analyzer"
-    participant Agents as "AgentOrchestrator"
+    participant Backend as "DocumentationGenerator"
+    participant Analysis as "Dependency Analysis"
+    participant Agent as "Documentation Agent"
     participant Output as "Documentation Output"
 
-    Caller->>Config: Build validated runtime configuration
-    Caller->>Generator: Start documentation run
-    Generator->>Analyzer: Analyze repository files and calls
-    Analyzer-->>Generator: Dependency graph and leaf components
-    Generator->>Generator: Cluster components into modules
-    Generator->>Agents: Generate leaf module documentation
-    Agents-->>Generator: Generated module content
-    Generator->>Output: Write Markdown, module tree, and metadata
-    Generator-->>Caller: Generation complete
+    User->>Entry: Submit repository and generation settings
+    Entry->>Config: Build runtime configuration
+    Entry->>Backend: Start documentation generation
+    Backend->>Analysis: Build dependency graph
+    Analysis-->>Backend: Components and relationships
+    Backend->>Backend: Cluster components into modules
+    Backend->>Agent: Generate leaf module documentation
+    Agent->>Output: Write validated Markdown
+    Backend->>Output: Create parent overviews and metadata
+    Output-->>Entry: Generated documentation tree
+    Entry-->>User: Serve, render, or publish documentation
+```
+
+## Repository Structure
+
+```text
+CodeWiki/
+├── codewiki/
+│   ├── cli/                 CLI configuration, generation, HTML, and Git workflows
+│   └── src/
+│       ├── be/              Backend analysis, orchestration, and documentation engine
+│       ├── fe/              FastAPI web application and background job processing
+│       └── config.py        Shared runtime configuration
+├── test-multi-path/         Multi-source-path dependency analysis fixtures and tests
+└── test_clustering/         Module clustering diagnostic and validation tests
 ```
 
 ## Core Modules
 
-| Module | Purpose | Source |
-|---|---|---|
-| [CLI Core](cli-core.md) | Command-line orchestration, local configuration, Git integration, terminal progress, and static HTML generation. | [`codewiki/cli`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/cli) |
-| [Backend Core](backend-core.md) | Repository analysis, dependency-graph construction, module clustering, LLM agent orchestration, and documentation generation. | [`codewiki/src/be`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src/be) |
-| [Frontend Core](frontend-core.md) | FastAPI web application, repository submission, background job processing, caching, and documentation serving. | [`codewiki/src/fe`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src/fe) |
-| [Config Core](config-core.md) | Shared runtime `Config` model for source paths, output locations, provider settings, token limits, and agent instructions. | [`codewiki/src`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src) |
-| [Test Multi Path](test-multi-path.md) | Fixtures and executable checks for analysis across multiple source roots. | [`test-multi-path`](https://github.com/flamingo-stack/CodeWiki/tree/main/test-multi-path) |
-| [Test Clustering](test-clustering.md) | Diagnostic and validation scripts for LLM-based module clustering and component-ID normalization. | [`test_clustering`](https://github.com/flamingo-stack/CodeWiki/tree/main/test_clustering) |
+| Module | Location | Responsibility | Documentation |
+|---|---|---|---|
+| CLI Core | `codewiki/cli` | Provides the terminal-facing workflow, persistent configuration, generation-job tracking, progress reporting, HTML generation, and Git operations. | [CLI Core](cli-core.md) |
+| Backend Core | `codewiki/src/be` | Implements repository analysis, dependency graph construction, module clustering, agent orchestration, and Markdown generation. | [Backend Core](backend-core.md) |
+| Frontend Core | `codewiki/src/fe` | Provides the web-facing application for repository submission, asynchronous processing, status tracking, caching, and documentation delivery. | [Frontend Core](frontend-core.md) |
+| Config Core | `codewiki/src/config.py` | Defines the shared `Config` runtime object for paths, LLM providers, generation limits, source roots, and agent instructions. | [Config Core](config-core.md) |
+| Test Multi Path Core | `test-multi-path` | Validates analysis across a primary repository and additional source directories. | [Test Multi Path Core](test-multi-path-core.md) |
+| Test Clustering Core | `test_clustering` | Validates live and offline module-clustering behavior, ID normalization, and response validation. | [Test Clustering Core](test-clustering-core.md) |
 
 ## Module Relationships
 
 ```mermaid
 flowchart LR
-    Config["Config Core"] --> CLI["CLI Core"]
-    Config --> Frontend["Frontend Core"]
+    Cli["CLI Core"] --> Config["Config Core"]
+    Web["Frontend Core"] --> Config
     Config --> Backend["Backend Core"]
 
-    CLI --> Backend
-    Frontend --> Backend
+    Backend --> Analysis["Dependency Analysis"]
+    Backend --> Agents["Agent Orchestration"]
+    Backend --> Docs["Documentation Generation"]
 
-    Backend --> AgentTools["Agent Tools Core"]
-    Backend --> Analyzer["Dependency Analyzer Core"]
-    Backend --> Language["Tree-sitter Analyzers"]
-    Backend --> LLM["LLM Services"]
+    MultiPathTests["Test Multi Path Core"] --> Config
+    MultiPathTests --> Analysis
 
-    TestPaths["Test Multi Path"] --> Config
-    TestPaths --> Analyzer
-
-    TestCluster["Test Clustering"] --> Config
-    TestCluster --> Backend
+    ClusteringTests["Test Clustering Core"] --> Config
+    ClusteringTests --> Backend
 ```
 
-## Backend Documentation References
+## Documentation References
 
-The Backend Core module is decomposed into focused subsystems:
+### CLI Core
 
-- [Agent Tools Core](backend-core/agent-tools-core/agent-tools-core.md) — controlled repository inspection and documentation editing tools.
-- [Dependency Analyzer Core](backend-core/dependency-analyzer-core/dependency-analyzer-core.md) — file discovery, AST parsing, call analysis, and graph construction.
-- [Tree Sitter Analyzers](backend-core/tree-sitter-analyzers/tree-sitter-analyzers.md) — language support for C, C++, C#, Java, JavaScript, TypeScript, PHP, and Python.
-- [Dependency Analyzer Models](backend-core/dependency-analyzer-models/dependency-analyzer-models.md) — repository, node, relationship, and analysis-result contracts.
-- [Documentation Generator](backend-core/documentation-generator/documentation-generator.md) — top-level pipeline coordination and documentation output.
-- [LLM Services](backend-core/llm-services/llm-services.md) — LLM model selection, request counting, and fallback handling.
-- [Logging Config](backend-core/logging-config/logging-config.md) — shared colorized logging support.
+- [Configuration Management](configuration_management.md)
+- [Job and Generation Models](job_and_generation_models.md)
+- [Generation Pipeline](generation_pipeline.md)
+- [CLI Utilities](cli_utilities.md)
 
-## CLI Documentation References
+### Backend Core
 
-- [Generation](cli-core/generation/generation.md) — CLI adapter for staged documentation generation.
-- [Configuration](cli-core/configuration/configuration.md) — persisted settings, keyring-backed credentials, and agent instructions.
-- [Job Models](cli-core/job_models/job_models.md) — generation job status, statistics, and LLM configuration models.
-- [Git Integration](cli-core/git_integration/git_integration.md) — clean-tree checks, branch creation, commits, and remote URL handling.
-- [HTML Generation](cli-core/html_generation/html_generation.md) — static documentation viewer generation.
-- [Utils](cli-core/utils/utils.md) — terminal logging and progress tracking.
+- [Agent Orchestration and Tools](agent-orchestration-and-tools/agent-orchestration-and-tools.md)
+- [Dependency Analysis](dependency-analysis/dependency-analysis.md)
+  - [Repository and Call Graph Analysis](dependency-analysis/repository_and_call_graph_analysis.md)
+  - [Language Analyzers](dependency-analysis/language_analyzers.md)
+  - [Dependency Graph Construction](dependency-analysis/dependency_graph_construction.md)
+  - [Data Models and Utilities](dependency-analysis/data_models_and_utilities.md)
+- [Documentation and Services](documentation-and-services/documentation-and-services.md)
 
-## Summary
+### Frontend Core
 
-CodeWiki separates user-facing workflows from its reusable generation engine. CLI and web layers construct a shared runtime configuration and delegate to Backend Core, which transforms source code into dependency-aware, module-oriented documentation. Test modules provide targeted coverage for multi-root analysis and the LLM-driven clustering stage.
+- [Request Handling](frontend-core/request_handling/request_handling.md)
+- [Job Processing](frontend-core/job_processing/job_processing.md)
+- [GitHub Integration](frontend-core/github_integration/github_integration.md)
+- [Configuration and Data Models](frontend-core/configuration_and_data_models/configuration_and_data_models.md)
+
+### Test Modules
+
+- [Test Fixtures](test_fixtures.md)
+- [Test Runners](test_runners.md)
+- [Live Clustering Tests](test-clustering-core/live_clustering_tests/live_clustering_tests.md)
+- [Validation and Logic Tests](test-clustering-core/validation_and_logic_tests/validation_and_logic_tests.md)

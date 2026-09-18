@@ -1,95 +1,80 @@
 # First Steps
 
-You've installed CodeWiki, configured your LLM credentials, and generated your first documentation set. Here's what to explore next.
+You've generated your first documentation set — here's what to do next.
 
-## 1. Inspect and Confirm Your Configuration
+## 1. Review Your Generated Configuration
 
-Use `codewiki config show` to review everything CodeWiki currently knows about your setup — models, base URLs, token limits, temperature settings, and agent instructions. API keys are always masked (only the first/last few characters shown).
+The CLI persists non-sensitive settings to `~/.codewiki/config.json`, while API keys are stored securely in your system keyring (macOS Keychain, Windows Credential Manager, or Linux Secret Service). Inspect what was saved:
 
 ```bash
-codewiki config show
-codewiki config show --json
+cat ~/.codewiki/config.json
 ```
 
-Use `codewiki config validate` any time you change providers or suspect something is misconfigured. It checks the config file, verifies all three API keys are present, validates base URL formats, confirms models are set, and (unless `--quick` is passed) performs a live connectivity test against each configured provider.
+You can update any per-provider setting at any time with `codewiki config set`:
 
 ```bash
-codewiki config validate
-codewiki config validate --quick     # Skip live API connectivity test
-codewiki config validate --verbose   # Step-by-step diagnostic output
+# Update just the fallback model's token limit
+codewiki config set --fallback-max-tokens 64000
 ```
 
-## 2. Customize What Gets Documented
+> Deprecated single-provider flags (`--base-url`, `--max-tokens`, `--api-version`, `--max-token-field`, `--api-path`) have been removed in favor of per-provider equivalents (`--cluster-*`, `--main-*`, `--fallback-*`). Attempting to use them raises a migration error with guidance.
 
-The `generate` command accepts several options that narrow or reshape the analysis without touching your saved configuration:
+## 2. Explore the Generated Documentation Tree
+
+Open the output directory produced by your first run (default `docs/` relative to the analyzed repository):
+
+- `README.md` — the top-level repository overview, generated last by summarizing all top-level modules.
+- Per-module folders and Markdown files — hierarchical documentation for each logical module the clustering stage identified.
+- `metadata.json` — statistics about the run (module count, files analyzed, generation time).
+
+## 3. Scope Your Next Generation Run
+
+`codewiki generate` supports several options to control scope and behavior:
 
 ```bash
-# Only analyze C# files, skip test projects
-codewiki generate --include "*.cs" --exclude "*Tests*,*Specs*,test_*"
+# Only include specific file patterns
+codewiki generate --include "*.py,*.ts"
+
+# Exclude test files
+codewiki generate --exclude "*Tests*,*test_*"
 
 # Focus documentation on specific modules/paths
-codewiki generate --focus "src/core,src/api" --doc-type architecture
+codewiki generate --focus "src/core,src/api"
 
-# Add free-form custom instructions for the documentation agent
-codewiki generate --instructions "Focus on public APIs and include usage examples"
+# Choose a documentation type and add custom instructions
+codewiki generate --doc-type architecture --instructions "Focus on public APIs"
 
-# Include additional source directories (e.g., vendored dependencies)
-codewiki generate --additional-paths "vendor/packages,external/deps"
+# Skip the cache and force a full regeneration
+codewiki generate --no-cache
 ```
 
-If you want these choices to become your **default** behavior for every future run (rather than one-off flags), persist them with:
+By default, if documentation already exists at the output path, the CLI will prompt before overwriting it — pass `--force` to skip the prompt.
 
-```bash
-codewiki config agent --include "*.cs" --exclude "*Tests*,*Specs*"
-codewiki config agent --doc-type architecture
-codewiki config agent --instructions "Focus on public APIs and include usage examples"
+## 4. Try Git-Integrated Publishing
 
-# Clear all saved agent instructions
-codewiki config agent --clear
-```
-
-`--doc-type` accepts one of: `api`, `architecture`, `user-guide`, or `developer`.
-
-## 3. Tune Token Budgets and Depth for Large Repositories
-
-If your repository is very large or the LLM response is being truncated, adjust token and depth limits either per-run or persistently:
-
-```bash
-# Per-run override
-codewiki generate --max-tokens 32768 --max-token-per-module 40000 --max-token-per-leaf-module 20000 --max-depth 3
-
-# Persist as defaults
-codewiki config set --cluster-max-tokens 128000 --main-max-tokens 128000 \
-  --max-token-per-module 40000 --max-token-per-leaf-module 20000 --max-depth 3
-```
-
-`--max-depth` controls how many levels of hierarchical module decomposition are produced (default: 2).
-
-## 4. Explore the Git and GitHub Pages Workflow
-
-If you're documenting a Git-tracked project, CodeWiki can create a dedicated branch for the generated docs and prepare a GitHub Pages-ready static site:
+If your target directory is a git repository, you can have CodeWiki create a dedicated documentation branch and prepare it for review:
 
 ```bash
 codewiki generate --create-branch --github-pages
 ```
 
-`--create-branch` requires a clean working tree and creates a timestamped branch. `--github-pages` renders a self-contained `index.html` from the generated `module_tree.json` and `metadata.json`, suitable for publishing directly.
+This will:
 
-For CI/CD pipelines where you don't want interactive prompts, add `--force` to overwrite existing documentation without prompting, and `--no-cache` to force a full regeneration.
+- Verify the working tree is clean (or fail with `RepositoryError` unless forced).
+- Create a timestamped branch like `docs/codewiki-20240315-143022`.
+- Generate an `index.html` static viewer alongside the Markdown output for GitHub Pages.
+- Print next-step instructions, including a URL you can use to open a pull request.
 
-## 5. Explore the Generated Output Structure
+## 5. Try the Web Application Flow
 
-After a run, look inside your output directory (default `./docs`) for:
+If you'd rather not use the terminal for every run, start the FastAPI web app (see [Quick Start](quick-start.md) for Docker Compose setup) and submit repository URLs through the browser. The web app will:
 
-- Individual Markdown files per analyzed module (leaves generated first, then parent overview pages)
-- `module_tree.json` — the hierarchical module structure used for navigation
-- `metadata.json` — job status and generation statistics
-- `index.html` (only if `--github-pages` was used)
+- Validate the GitHub URL and check for a cached result first.
+- Queue a background job if no cache hit exists, cloning the repository and running the same generation pipeline used by the CLI.
+- Serve the finished documentation at `/docs/{job_id}` once processing completes.
 
-If you used `--diagrams-output`, Mermaid diagrams extracted from the generated Markdown are also saved separately as `.mmd` files.
+## Getting Help
 
-## Where to Get Help
-
-- Run `codewiki --help`, `codewiki generate --help`, or `codewiki config --help` / `codewiki config set --help` for full flag references directly in your terminal — these are the most up-to-date source of truth for available options.
-- For questions, feedback, or community discussion, join the OpenMSP Slack community: [https://www.openmsp.ai/](https://www.openmsp.ai/) ([join link](https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA)).
-- If you plan to contribute code or documentation improvements back to CodeWiki itself, continue on to the development section of this documentation.
+- Run `codewiki --help` or `codewiki generate --help` to see all available CLI options and inline documentation.
+- Run `codewiki config set --help` for the full list of per-provider LLM configuration options.
+- For community support, join the OpenMSP Slack community at https://www.openmsp.ai/ or via the invite link: https://join.slack.com/t/openmsp/shared_invite/zt-36bl7mx0h-3~U2nFH6nqHqoTPXMaHEHA

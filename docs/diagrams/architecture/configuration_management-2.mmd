@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant CLI as "CLI Command"
+    participant Config as "Configuration"
+    participant CM as "ConfigManager"
+    participant Keyring as "System Keyring"
+    participant Backend as "Backend Config"
+
+    CLI->>Config: to_backend_config(repo_path, output_dir, runtime_instructions)
+    alt "API keys not passed explicitly"
+        Config->>CM: get_cluster_api_key() / get_main_api_key() / get_fallback_api_key()
+        CM->>Keyring: get_password(service, account)
+        Keyring-->>CM: api_key
+        CM-->>Config: api_key
+    end
+    Config->>Config: "merge runtime_instructions with agent_instructions"
+    Config->>Backend: Config.from_cli(...)
+    Backend-->>CLI: "runtime Config instance"

@@ -1,0 +1,12 @@
+flowchart TD
+    A["analyze()"] --> B["Parse content with tree-sitter-typescript"]
+    B --> C["_extract_all_entities(root_node, all_entities)"]
+    C --> D["Recursively record every function/class/interface/type/enum/variable"]
+    A --> E["_filter_top_level_declarations(all_entities)"]
+    E --> F{"_is_actually_top_level(entity)?"}
+    F -->|"yes"| G["_create_node_from_entity() -> Node"]
+    G --> H{"_should_include_node()?"}
+    H -->|"yes"| I["Append to nodes + top_level_nodes"]
+    I --> J["Class? -> _extract_constructor_dependencies()"]
+    F -->|"no"| K["Discard (nested/local entity)"]
+    A --> L["_extract_all_relationships(root_node, all_entities)"]

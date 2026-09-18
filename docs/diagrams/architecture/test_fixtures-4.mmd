@@ -1,0 +1,6 @@
+flowchart TD
+    Create["Create DataPlugin(name)"] --> Init["initialize()"]
+    Init -->|"sets initialized = True"| Ready["Plugin Ready"]
+    Ready --> Exec["execute(context)"]
+    Exec -->|"initialized is True"| Result["Return processed result"]
+    Exec -->|"initialized is False"| Error["Raise RuntimeError"]

@@ -1,0 +1,19 @@
+flowchart TD
+    Client["Caller (Documentation Generator / CLI)"] --> AS["AnalysisService"]
+
+    AS -->|"clone_repository()"| Cloning["Repository Cloning Utility"]
+    AS -->|"analyze_repository_structure()"| RA["RepoAnalyzer"]
+    AS -->|"analyze_code_files() / extract_code_files()"| CGA["CallGraphAnalyzer"]
+
+    RA -->|"file_tree"| CGA
+    CGA -->|"routes by language"| LangAnalyzers["Language Analyzers<br/>Python, JS, TS, Java, C#, C, C++, PHP"]
+
+    LangAnalyzers -->|"Node, CallRelationship"| CGA
+    CGA -->|"functions, relationships, visualization"| AS
+
+    AS -->|"builds"| Result["AnalysisResult"]
+    Result --> Repository["Repository model"]
+    Result --> Nodes["Node collection"]
+    Result --> Rels["CallRelationship collection"]
+
+    AS -->|"cleanup_repository()"| Cloning

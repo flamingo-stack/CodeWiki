@@ -1,0 +1,40 @@
+flowchart TD
+    subgraph LiveTests["Live Clustering Tests"]
+        Debug["test_clustering_debug.py"]
+        Forced["test_clustering_forced.py"]
+        Local["test_clustering_local.py"]
+    end
+
+    subgraph Shared["Shared Test Support"]
+        TR["TestResults<br/>(per-script class)"]
+    end
+
+    subgraph Fixtures["Test Inputs"]
+        NodeModel["Node<br/>(component representation)"]
+        ConfigObj["Config<br/>(LLM + repo settings)"]
+    end
+
+    subgraph Backend["Clustering Pipeline (external)"]
+        ClusterFn["cluster_modules()"]
+        LLMClient["LLM Client<br/>(create_llm_client)"]
+    end
+
+    Debug --> TR
+    Forced --> TR
+    Local --> TR
+
+    Debug --> NodeModel
+    Forced --> NodeModel
+    Local --> NodeModel
+
+    Debug --> ConfigObj
+    Forced --> ConfigObj
+    Local --> ConfigObj
+
+    NodeModel --> ClusterFn
+    ConfigObj --> ClusterFn
+    ClusterFn --> LLMClient
+    LLMClient -->|"Live API call"| ExternalLLM["OpenAI / Anthropic API"]
+    ExternalLLM --> LLMClient
+    LLMClient --> ClusterFn
+    ClusterFn -->|"module_tree"| TR

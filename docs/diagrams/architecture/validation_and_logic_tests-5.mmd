@@ -1,0 +1,10 @@
+flowchart LR
+    Main["main()"] --> T1["test_json_parsing()"]
+    Main --> T2["test_return_types()"]
+    Main --> T3["test_id_validation()"]
+    Main --> T4["test_normalization()"]
+    T1 --> R["TestResults.add_test(...)"]
+    T2 --> R
+    T3 --> R
+    T4 --> R
+    R --> Summary["print_summary()"]

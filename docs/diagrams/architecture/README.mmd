@@ -1,29 +1,26 @@
 flowchart TD
-    User["Developer or Web User"] --> Entry{{"Choose entry point?"}}
-    Entry -->|CLI| CLI["CLI Core"]
-    Entry -->|Web| Frontend["Frontend Core"]
+    User["Developer or Documentation User"] --> Entry["CLI or Web Application"]
 
-    CLI --> RuntimeConfig["Config Core"]
-    Frontend --> RuntimeConfig
+    Entry --> CliCore["CLI Core"]
+    Entry --> FrontendCore["Frontend Core"]
 
-    CLI --> GitOps["Git Integration"]
-    Frontend --> RepoProcessor["GitHub Repository Processor"]
+    CliCore --> ConfigCore["Config Core"]
+    FrontendCore --> ConfigCore
 
-    GitOps --> Source["Source Repository"]
-    RepoProcessor --> Source
+    CliCore --> BackendCore["Backend Core"]
+    FrontendCore --> BackendCore
 
-    RuntimeConfig --> Generator["DocumentationGenerator"]
-    Source --> Generator
+    ConfigCore --> BackendCore
 
-    Generator --> Analysis["Dependency Analysis"]
-    Analysis --> Parsers["Language Parsers"]
-    Parsers --> Graph["Dependency Graph"]
-
+    BackendCore --> Analysis["Dependency Analysis"]
+    Analysis --> Graph["Repository Components and Dependency Graph"]
     Graph --> Clustering["Module Clustering"]
-    Clustering --> Agents["LLM Agent Orchestration"]
-    Agents --> Docs["Markdown Documentation"]
+    Clustering --> Agents["Agent Orchestration and Editing Tools"]
+    Agents --> Markdown["Hierarchical Markdown Documentation"]
 
-    Docs --> Metadata["Module Tree and Metadata"]
-    Metadata --> HTML["Optional HTML Viewer"]
-    Docs --> Output["Generated Documentation Output"]
-    HTML --> Output
+    CliCore --> Html["Static HTML Viewer"]
+    CliCore --> GitOps["Git Branch and Commit Operations"]
+
+    Markdown --> Html
+    FrontendCore --> Cache["Job Status and Documentation Cache"]
+    Markdown --> Cache

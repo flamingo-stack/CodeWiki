@@ -1,0 +1,24 @@
+flowchart TD
+    Caller["Documentation Generator"] -->|"process_module(...)"| Orchestrator["AgentOrchestrator"]
+
+    Orchestrator -->|"is_complex_module(...)"| Complexity["Module Complexity Check"]
+    Complexity -->|"complex"| ComplexAgent["Agent with sub-module tool"]
+    Complexity -->|"leaf"| LeafAgent["Agent without sub-module tool"]
+
+    Orchestrator -->|"builds"| Deps["CodeWikiDeps"]
+    Deps -->|"passed to"| ComplexAgent
+    Deps -->|"passed to"| LeafAgent
+
+    ComplexAgent -->|"uses"| ReadTool["read_code_components_tool"]
+    ComplexAgent -->|"uses"| EditorTool["str_replace_editor_tool"]
+    ComplexAgent -->|"uses"| SubModuleTool["generate_sub_module_documentation_tool"]
+
+    LeafAgent -->|"uses"| ReadTool
+    LeafAgent -->|"uses"| EditorTool
+
+    EditorTool -->|"delegates to"| EditToolImpl["EditTool"]
+    EditToolImpl -->|"expands viewports via"| WindowExpander["WindowExpander"]
+    EditToolImpl -->|"summarizes large files via"| Filemap["Filemap"]
+
+    Orchestrator -->|"reads/writes"| ModuleTreeFile[("module_tree.json")]
+    EditToolImpl -->|"reads/writes"| DocsFiles[("Generated .md files")]

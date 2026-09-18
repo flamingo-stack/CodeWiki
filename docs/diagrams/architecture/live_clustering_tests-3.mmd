@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Script as test_clustering_debug.py
+    participant Patch as capture_llm_response()
+    participant CM as cluster_modules
+    participant Client as LLM Client
+    participant LLM as Live LLM API
+
+    Script->>Patch: capture_llm_response()
+    Patch->>CM: patch create_llm_client
+    Script->>CM: cluster_modules(leaf_nodes, components, config, ...)
+    CM->>Client: create_llm_client(...)
+    Client-->>CM: patched client
+    CM->>Client: client.call(...)
+    Client->>LLM: live API request
+    LLM-->>Client: raw response text
+    Client-->>CM: response (also captured globally)
+    CM-->>Script: module_tree
+    Script->>Script: print captured_response (truncated to 2000 chars)
+    Script->>Script: evaluate module_tree, check for GROUPED_COMPONENTS tag

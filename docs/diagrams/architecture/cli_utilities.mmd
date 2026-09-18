@@ -1,0 +1,23 @@
+flowchart TD
+    subgraph CliUtilities["Cli Utilities"]
+        CLILogger["CLILogger"]
+        CreateLogger["create_logger()"]
+        QuietLoggers["quiet_third_party_loggers()"]
+        ProgressTracker["ProgressTracker"]
+        ModuleProgressBar["ModuleProgressBar"]
+    end
+
+    Click["click (console I/O)"]
+    StdLogging["Python logging module"]
+
+    CreateLogger --> QuietLoggers
+    CreateLogger --> CLILogger
+    QuietLoggers --> StdLogging
+    CLILogger --> Click
+    ProgressTracker --> Click
+    ModuleProgressBar --> Click
+
+    Consumers["CLI commands and\nGeneration Pipeline"] --> CreateLogger
+    Consumers --> CLILogger
+    Consumers --> ProgressTracker
+    Consumers --> ModuleProgressBar

@@ -1,19 +1,38 @@
-flowchart TD
-    subgraph Pipeline["Dependency Analysis Pipeline"]
-        CGA["CallGraphAnalyzer"] -->|"dispatches .java files"| JA["TreeSitterJavaAnalyzer"]
-    end
-
-    subgraph JavaAnalyzerModule["Java Analyzer"]
-        JA -->|"1: parse source"| TS["tree-sitter-java grammar"]
-        TS -->|"AST"| EN["_extract_nodes()"]
-        TS -->|"AST"| ER["_extract_relationships()"]
-        EN -->|"appends"| Nodes["self.nodes: List[Node]"]
-        ER -->|"appends"| Rels["self.call_relationships: List[CallRelationship]"]
-    end
-
-    Nodes -->|"consumed by"| DP["DependencyParser"]
-    Rels -->|"consumed by"| DP
-    DP -->|"builds"| Graph["Dependency Graph"]
-
-    Node["Node model"] -.->|"defines schema for"| Nodes
-    CallRel["CallRelationship model"] -.->|"defines schema for"| Rels
+classDiagram
+    class TreeSitterJavaAnalyzer {
+        +file_path: Path
+        +content: str
+        +repo_path: str
+        +nodes: List
+        +call_relationships: List
+        +__init__(file_path, content, repo_path)
+        -_analyze()
+        -_extract_nodes(node, top_level_nodes, lines)
+        -_extract_relationships(node, top_level_nodes)
+        -_get_module_path()
+        -_get_relative_path()
+        -_get_component_id(name, parent_class)
+        -_find_containing_class(node, top_level_nodes)
+        -_find_variable_type(node, variable_name, top_level_nodes)
+        -_is_primitive_type(type_name)
+    }
+    class Node {
+        +id: str
+        +name: str
+        +component_type: str
+        +file_path: str
+        +relative_path: str
+        +source_code: str
+        +start_line: int
+        +end_line: int
+        +display_name: str
+        +component_id: str
+    }
+    class CallRelationship {
+        +caller: str
+        +callee: str
+        +call_line: int
+        +is_resolved: bool
+    }
+    TreeSitterJavaAnalyzer --> Node : produces
+    TreeSitterJavaAnalyzer --> CallRelationship : produces

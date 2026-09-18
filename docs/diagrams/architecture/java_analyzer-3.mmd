@@ -1,6 +1,16 @@
-flowchart LR
-    A["class_declaration<br/>with superclass"] -->|"1: Inheritance"| R1["CallRelationship<br/>class extends BaseClass"]
-    B["class/enum/record<br/>with super_interfaces"] -->|"2: Interface Implementation"| R2["CallRelationship<br/>class implements Interface"]
-    C["field_declaration"] -->|"3: Field Type Use"| R3["CallRelationship<br/>class has field of Type"]
-    D["method_invocation"] -->|"4: Method Call"| R4["CallRelationship<br/>caller calls object.method()"]
-    E["object_creation_expression"] -->|"5: Object Creation"| R5["CallRelationship<br/>class creates new Type()"]
+flowchart TD
+    Visit["Visit AST node"] --> Inherit{"class_declaration with superclass?"}
+    Inherit -->|"yes"| RelInherit["Relationship: Class extends BaseClass"]
+    Visit --> Impl{"class/enum/record with super_interfaces?"}
+    Impl -->|"yes"| RelImpl["Relationship: Type implements Interface (per interface)"]
+    Visit --> Field{"field_declaration with non-primitive type?"}
+    Field -->|"yes"| RelField["Relationship: ContainingClass uses FieldType"]
+    Visit --> Invoke{"method_invocation on known object?"}
+    Invoke -->|"resolved via top_level_nodes or local/field variable type"| RelInvoke["Relationship: Caller (method or class) calls TargetType"]
+    Visit --> Create{"object_creation_expression?"}
+    Create -->|"yes"| RelCreate["Relationship: ContainingClass creates CreatedType"]
+    RelInherit --> Recurse["Recurse into children"]
+    RelImpl --> Recurse
+    RelField --> Recurse
+    RelInvoke --> Recurse
+    RelCreate --> Recurse

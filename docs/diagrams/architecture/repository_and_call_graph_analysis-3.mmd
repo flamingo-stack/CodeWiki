@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant Caller
+    participant AS as AnalysisService
+    participant Clone as "Cloning Utility"
+    participant RA as RepoAnalyzer
+    participant CGA as CallGraphAnalyzer
+    participant Lang as "Language Analyzers"
+
+    Caller->>AS: analyze_repository_full(github_url)
+    AS->>Clone: clone_repository(github_url)
+    Clone-->>AS: temp_dir
+    AS->>AS: _parse_repository_info(github_url)
+    AS->>RA: analyze_repository_structure(temp_dir)
+    RA-->>AS: file_tree, summary
+    AS->>CGA: extract_code_files(file_tree)
+    CGA-->>AS: code_files
+    AS->>AS: _filter_supported_languages(code_files)
+    AS->>CGA: analyze_code_files(supported_files, temp_dir)
+    loop for each code file
+        CGA->>Lang: analyze_*_file(path, content, repo_path)
+        Lang-->>CGA: functions, relationships
+    end
+    CGA->>CGA: _resolve_call_relationships()
+    CGA->>CGA: _deduplicate_relationships()
+    CGA->>CGA: _generate_visualization_data()
+    CGA-->>AS: functions, relationships, visualization
+    AS->>AS: _read_readme_file(temp_dir)
+    AS->>AS: build AnalysisResult
+    AS->>Clone: cleanup_repository(temp_dir)
+    AS-->>Caller: AnalysisResult

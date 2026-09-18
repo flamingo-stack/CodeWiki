@@ -1,22 +1,25 @@
 # Config Core
 
-The Config Core module defines the central `Config` dataclass that CodeWiki uses to drive every stage of the documentation-generation pipeline. It is the single source of truth for repository paths, output directories, LLM provider settings (models, API keys, base URLs, temperatures, and token limits), and agent-instruction customization such as include/exclude file patterns, focus modules, documentation type, and free-form custom instructions.
+Config Core is the central configuration module for CodeWiki. It defines the `Config` dataclass — the single source of truth for repository paths, output directories, per-provider LLM settings (models, API keys, base URLs, temperatures, and token limits), and agent-instruction customization (include/exclude patterns, focus modules, doc type, and custom instructions). Every entry point into the documentation-generation pipeline — the CLI, the web application, and internal orchestration code — constructs and passes around a `Config` instance to drive behavior consistently across the system.
 
-Config Core is intentionally small and dependency-light: it contains one component, `Config`, but it is consumed heavily by [Backend Core](backend-core.md) (which executes the actual analysis and generation pipeline), [CLI Core](cli-core.md) (which builds a `Config` from a locally persisted configuration file), and [Frontend Core](frontend-core.md) (which builds a `Config` for each web-submitted documentation job). Because nearly every other module depends on `Config`, understanding its shape and construction paths is a prerequisite for understanding the rest of the system.
+## Purpose and Scope
 
-## Purpose and Responsibilities
+The `Config` dataclass, defined in `codewiki/src/config.py`, exists to:
 
-`Config` serves three distinct responsibilities:
-
-1. **Data container** — holds all repository, output, and per-provider LLM settings (cluster/main/fallback models, keys, base URLs, API versions, max tokens, temperatures, and the field name used to send max-tokens to the provider).
-2. **Construction factory** — offers four classmethod entry points (`from_args`, `from_web_job`, `from_cli`, `from_config_manager`) that adapt different callers' inputs (argparse namespaces, web job parameters, explicit CLI parameters, or a `ConfigManager`) into a fully validated `Config` instance.
-3. **Derived-behavior provider** — exposes properties and helper methods (`include_patterns`, `exclude_patterns`, `focus_modules`, `doc_type`, `custom_instructions`, `all_source_paths`, `is_multi_path_mode`, `get_prompt_addition`, `validate_source_paths`) that downstream consumers use instead of re-implementing agent-instruction parsing or multi-path logic themselves.
+- Provide a single, strongly-typed configuration object consumed by the backend documentation pipeline (analysis, clustering, and generation stages).
+- Normalize configuration construction from multiple entry points: CLI arguments, web-app jobs, explicit CLI parameters, and a persisted `ConfigManager` profile.
+- Encapsulate per-provider (cluster / main / fallback) LLM settings so each pipeline stage can select the right model, API key, base URL, temperature, and token limits.
+- Safely serialize/deserialize configuration while guaranteeing runtime-only secrets (API keys) are never persisted unless explicitly requested.
+- Support multi-path analysis, allowing a primary repository plus additional source directories to be validated and merged into a single documentation run.
+- Translate high-level "agent instructions" (doc type, focus modules, custom text) into concrete prompt additions consumed by the LLM-driven generation stages.
 
 ## Core Component
 
-### Config (`codewiki/src/config.py`)
+| Component | Description |
+|---|---|
+| `Config` | Dataclass holding all pipeline configuration; provides constructors, serialization helpers, validation, and prompt-generation logic. |
 
-`Config` is a `@dataclass` with required fields (`repo_path`, `output_dir`, `dependency_graph_dir`, `docs_dir`, `max_depth`, `main_model`, `cluster_model`, `fallback_model`, `cluster_api_key`, `main_api_key`, `fallback_api_key`) and a large set of optional fields with sensible defaults for base URLs, API versions, max-tokens, temperatures, and multi-path/diagram directory support.
+### Class Structure
 
 ```mermaid
 classDiagram
@@ -45,176 +48,135 @@ classDiagram
         +float fallback_temperature
         +Optional~Dict~ agent_instructions
         +Optional~str~ diagrams_dir
-        +Optional~List~str~~ additional_source_paths
+        +Optional~List~ additional_source_paths
         +to_dict(include_secrets) Dict
         +from_dict(data)$ Config
-        +include_patterns() Optional~List~
-        +exclude_patterns() Optional~List~
-        +focus_modules() Optional~List~
-        +doc_type() Optional~str~
-        +custom_instructions() Optional~str~
-        +all_source_paths() List~str~
-        +validate_source_paths() void
-        +is_multi_path_mode() bool
-        +get_prompt_addition() str
         +from_args(args)$ Config
         +from_web_job(repo_path, docs_dir)$ Config
         +from_cli(...)$ Config
         +from_config_manager(manager, repo_path, output_dir)$ Config
+        +validate_source_paths() void
+        +is_multi_path_mode() bool
+        +get_prompt_addition() str
+        +include_patterns Optional~List~
+        +exclude_patterns Optional~List~
+        +focus_modules Optional~List~
+        +doc_type Optional~str~
+        +custom_instructions Optional~str~
+        +all_source_paths List~str~
     }
 ```
 
-## Field Groups
+## Configuration Fields
 
-| Group | Fields | Purpose |
-|---|---|---|
-| Paths | `repo_path`, `output_dir`, `dependency_graph_dir`, `docs_dir`, `diagrams_dir` | Where source code is read from and where analysis artifacts and docs are written |
-| Multi-path support | `additional_source_paths` | Allows analyzing multiple source directories as one unified documentation set |
-| Model selection | `main_model`, `cluster_model`, `fallback_model` | Which LLM is used for generation, clustering, and fallback |
-| Per-provider credentials | `cluster_api_key`, `main_api_key`, `fallback_api_key` | Required, runtime-only secrets — never serialized by `to_dict()` unless explicitly requested |
-| Per-provider connectivity | `*_base_url`, `*_api_version` | Endpoint configuration for each provider |
-| Per-provider limits | `*_max_tokens`, `*_max_token_field`, `max_token_per_module`, `max_token_per_leaf_module` | Token budgeting for generation and clustering |
-| Per-provider sampling | `*_temperature`, `*_temperature_supported` | Controls determinism/creativity per provider, with a flag for providers that reject custom temperatures |
-| Agent customization | `agent_instructions` | Dict-based include/exclude patterns, focus modules, doc type, and custom instructions consumed via properties |
+`Config` groups its fields into logical categories:
 
-## Secret Handling: `to_dict` / `from_dict`
+- **Paths**: `repo_path`, `output_dir`, `dependency_graph_dir`, `docs_dir`, `diagrams_dir`, `additional_source_paths`.
+- **Pipeline behavior**: `max_depth` (hierarchical decomposition depth), `max_token_per_module`, `max_token_per_leaf_module`.
+- **Per-provider LLM settings** (repeated for `cluster`, `main`, and `fallback` providers): model name, API key, base URL, API version, max tokens, max-token field name (`max_tokens` vs `max_completion_tokens`), temperature, and whether the provider supports custom temperature.
+- **Agent instructions**: an optional dict (`agent_instructions`) exposing `include_patterns`, `exclude_patterns`, `focus_modules`, `doc_type`, and `custom_instructions` via read-only properties.
 
-`Config` maintains a frozen set of runtime-only secret field names (`cluster_api_key`, `main_api_key`, `fallback_api_key`). `to_dict()` strips these by default so that serialized configuration (e.g., cached to disk or logged) never leaks API keys; callers must pass `include_secrets=True` to get a fully round-trippable dict. `from_dict()` reconstructs a `Config` by filtering the input to only known dataclass fields, so extra keys are safely ignored, but if secrets were stripped they must be supplied separately or construction raises a `TypeError` (missing required field).
+### Secret Handling
 
-```mermaid
-flowchart TD
-    A["Config instance"] --> B["to_dict(include_secrets=False)"]
-    B --> C["Plain dict, no API keys"]
-    A --> D["to_dict(include_secrets=True)"]
-    D --> E["Plain dict, includes API keys"]
-    C --> F["from_dict(data)"]
-    E --> F
-    F -->|"missing secrets"| G["TypeError: missing required field"]
-    F -->|"secrets present"| H["Reconstructed Config"]
-```
-
-## Agent Instructions Properties
-
-`agent_instructions` is an optional dict (or an object exposing `to_dict()`, e.g. `AgentInstructions` from [CLI Core](cli-core.md)). Five read-only properties expose its contents without requiring callers to know its internal shape:
-
-- `include_patterns` — file glob patterns to include in analysis
-- `exclude_patterns` — file glob patterns to exclude
-- `focus_modules` — module names that should receive more detailed documentation
-- `doc_type` — one of `api`, `architecture`, `user-guide`, `developer`, or a free-form string
-- `custom_instructions` — free-form additional guidance text
-
-`get_prompt_addition()` combines `doc_type`, `focus_modules`, and `custom_instructions` into a single prompt-ready string, escaping curly braces in `custom_instructions` (via `escape_format_braces`) so JSON-like content does not break downstream `.format()` calls in the generation pipeline consumed by [Backend Core](backend-core.md).
-
-```mermaid
-flowchart TD
-    AI["agent_instructions dict"] --> IP["include_patterns"]
-    AI --> EP["exclude_patterns"]
-    AI --> FM["focus_modules"]
-    AI --> DT["doc_type"]
-    AI --> CI["custom_instructions"]
-    DT --> GPA["get_prompt_addition()"]
-    FM --> GPA
-    CI -->|"escape_format_braces"| GPA
-    GPA --> Prompt["Combined prompt-addition string"]
-```
-
-## Multi-Path Source Support
-
-`additional_source_paths` enables analyzing more than one directory as a single logical repository. `all_source_paths` always returns `repo_path` as the first absolute path, followed by any additional paths. `validate_source_paths()` raises `ValueError`/`OSError` if any path is missing, not a directory, or unreadable. `is_multi_path_mode()` is a simple boolean check used by the analysis pipeline in [Backend Core](backend-core.md) to decide whether to merge multiple source trees.
-
-```mermaid
-flowchart TD
-    Start["Config.validate_source_paths()"] --> CheckPrimary{{"repo_path exists and is dir?"}}
-    CheckPrimary -->|"no"| Err1["raise ValueError"]
-    CheckPrimary -->|"yes"| HasAdditional{{"additional_source_paths set?"}}
-    HasAdditional -->|"no"| Done["Validation OK single-path mode"]
-    HasAdditional -->|"yes"| Loop["For each additional path"]
-    Loop --> CheckExists{{"path exists and is dir?"}}
-    CheckExists -->|"no"| Err2["raise ValueError"]
-    CheckExists -->|"yes"| CheckRead{{"path readable?"}}
-    CheckRead -->|"no"| Err3["raise OSError"]
-    CheckRead -->|"yes"| Loop
-    Loop --> Done2["Validation OK multi-path mode"]
-```
+API key fields (`cluster_api_key`, `main_api_key`, `fallback_api_key`) are runtime-only. `to_dict()` excludes them by default (`_RUNTIME_ONLY_SECRET_FIELDS`) to prevent accidental persistence, caching, or logging. Callers that need a fully round-trippable dict (e.g., for in-process transfer within the same trust boundary) must pass `include_secrets=True`, and `from_dict()` will raise a `TypeError` if required secret fields are missing from the input.
 
 ## Construction Paths
 
-`Config` provides four classmethods for building an instance, each tailored to a different caller in the system.
+`Config` exposes four classmethod constructors, each tailored to a different caller in the system:
 
 ```mermaid
 flowchart TD
-    subgraph CLIFlow["CLI Core entry point"]
-        CM["ConfigManager: persisted JSON plus keyring"]
-        CM -->|"from_config_manager"| FC1["Config.from_cli(...)"]
-    end
-    subgraph WebFlow["Frontend Core entry point"]
-        BW["BackgroundWorker for web job"]
-        BW -->|"from_web_job"| FA1["Config.from_args wrapping Namespace"]
-    end
-    subgraph EnvFlow["Environment-driven CLI entry point"]
-        ArgParse["argparse.Namespace from CLI arguments"]
-        ArgParse -->|"from_args"| FA2["Reads MAIN_MODEL, FALLBACK_MODEL, CLUSTER_API_KEY, MAIN_API_KEY, FALLBACK_API_KEY from environment"]
-    end
-    subgraph DirectFlow["Direct parameter entry point"]
-        Caller["Any caller with explicit parameters"]
-        Caller -->|"from_cli"| Validate["Validation block: keys, urls, types, ranges, max_token_field enum"]
-        Validate --> VSP["validate_source_paths()"]
-        VSP --> Instance["Config instance"]
-    end
-    FA1 --> FA2
-    FC1 --> Validate
+    CLIArgs["CLI argparse.Namespace"] -->|"from_args()"| ConfigObj["Config instance"]
+    WebJob["Web job repo_path + docs_dir"] -->|"from_web_job()"| FromArgsInternal["from_args() + docs_dir override"]
+    FromArgsInternal --> ConfigObj
+    ExplicitParams["Explicit CLI parameters"] -->|"from_cli()"| ConfigObj
+    Manager["ConfigManager profile"] -->|"from_config_manager()"| FromCliInternal["from_cli() with resolved settings"]
+    FromCliInternal --> ConfigObj
 ```
 
-### `from_args(args)`
+- **`from_args(args)`** — Builds a `Config` from an `argparse.Namespace`, reading required environment variables (`FALLBACK_MODEL`, `CLUSTER_API_KEY`, `MAIN_API_KEY`, `FALLBACK_API_KEY`) and deriving `docs_dir` from a sanitized repository name. Raises `ValueError` if any required environment variable is missing.
+- **`from_web_job(repo_path, docs_dir)`** — A thin wrapper around `from_args()` used by the web application's background job processing, since there is no CLI `Namespace` to construct in that context. It builds a synthetic `Namespace(repo_path=repo_path)`, then overrides `docs_dir` with the job-specific output directory.
+- **`from_cli(...)`** — Accepts fully explicit parameters (models, API keys, base URLs, token limits, temperatures, agent instructions, multi-path directories) and performs extensive validation (see below) before constructing the instance. This is the canonical constructor used when configuration values come from a source other than environment variables, such as a loaded `ConfigManager` profile.
+- **`from_config_manager(manager, repo_path, output_dir)`** — Reads a loaded configuration profile and per-provider API keys from a `ConfigManager` instance, validates presence of required models and keys, extracts `additional_source_paths` from agent instructions if present, and delegates to `from_cli()`.
 
-Builds a `Config` purely from environment variables (`MAIN_MODEL`, `CLUSTER_MODEL`, `LLM_BASE_URL`, `FALLBACK_MODEL`, `CLUSTER_API_KEY`, `MAIN_API_KEY`, `FALLBACK_API_KEY`) plus the `repo_path` supplied on `args`. It computes a sanitized repo name for the docs output directory and raises `ValueError` if `FALLBACK_MODEL` or any per-provider API key is missing. This is the lowest-level, environment-driven constructor.
+### `from_cli` Validation Rules
 
-### `from_web_job(repo_path, docs_dir)`
+`from_cli()` is the strictest constructor and enforces:
 
-A thin wrapper used by [Frontend Core](frontend-core.md)'s background worker. It delegates to `from_args` (wrapping `repo_path` in a synthetic `argparse.Namespace`) and then overrides `docs_dir` with the job-specific output directory, avoiding the need to fabricate a fake CLI namespace at the call site.
+1. All three API keys (`cluster_api_key`, `main_api_key`, `fallback_api_key`) must be non-empty strings.
+2. All three base URLs must be non-empty strings.
+3. All numeric fields (`*_max_tokens`, `max_token_per_module`, `max_token_per_leaf_module`, `max_depth`) are coerced to `int` and must be positive.
+4. All temperature fields are coerced to `float` and must fall within `0.0`–`2.0`.
+5. `*_max_token_field` values must be one of `max_tokens` or `max_completion_tokens`.
+6. After construction, `validate_source_paths()` is invoked to confirm the repository path and any additional source paths exist, are directories, and (for additional paths) are readable.
 
-### `from_cli(...)`
+## Multi-Path Source Support
 
-The most comprehensive constructor, accepting every field explicitly (models, keys, base URLs, API versions, token limits, temperatures, max-token field names, `agent_instructions`, `diagrams_dir`, `additional_source_paths`). It performs an extensive validation block before construction:
+`Config` supports analyzing a primary repository alongside additional source directories, merging them into a single documentation run:
 
-- Required, non-empty API keys and base URLs for all three providers
-- Type coercion and validation for token limits (`int`) and temperatures (`float`)
-- Range checks: token limits must be positive, temperatures must be within `0.0`–`2.0`
-- Enum checks: `*_max_token_field` must be `max_tokens` or `max_completion_tokens`
+- `all_source_paths` (property) returns the absolute path list: `repo_path` first, followed by any `additional_source_paths`.
+- `is_multi_path_mode()` returns `True` when `additional_source_paths` is set and non-empty.
+- `validate_source_paths()` raises `ValueError` for missing/non-directory paths and `OSError` for unreadable additional paths.
 
-After construction, it calls `validate_source_paths()` to ensure the repository and any additional paths actually exist and are accessible before returning the instance.
+```mermaid
+flowchart LR
+    Repo["repo_path"] --> AllPaths["all_source_paths"]
+    Additional["additional_source_paths"] --> AllPaths
+    AllPaths --> Validate["validate_source_paths()"]
+    Validate --> Analysis["Downstream dependency analysis"]
+```
 
-### `from_config_manager(manager, repo_path, output_dir)`
+## Agent Instructions and Prompt Generation
 
-Used by [CLI Core](cli-core.md) to bridge its persisted `ConfigManager`/`Configuration` model into a runtime `Config`. It pulls the loaded `Configuration` object and per-provider API keys from the `ConfigManager`, validates that models and keys are present (raising actionable `ValueError`s referencing the `codewiki config set` command), extracts `additional_source_paths` from `agent_instructions` if present, and finally delegates to `from_cli(...)` with all fields populated from the manager.
+`agent_instructions` is an optional dict that customizes generation behavior. `Config` exposes it through read-only properties (`include_patterns`, `exclude_patterns`, `focus_modules`, `doc_type`, `custom_instructions`), and `get_prompt_addition()` combines them into a single text block appended to LLM prompts:
+
+- `doc_type` maps to predefined focus instructions (`api`, `architecture`, `user-guide`, `developer`) or a generic fallback for custom types.
+- `focus_modules` produces an instruction to give the listed modules more detailed documentation.
+- `custom_instructions` is escaped (via `escape_format_braces`) to avoid `KeyError` when the text is later used with Python's `.format()` — this matters when custom instructions embed JSON (e.g., external-repository configuration).
 
 ```mermaid
 sequenceDiagram
-    participant CLI as "CLI Core (ConfigManager)"
-    participant Config as "Config.from_config_manager"
-    participant FromCli as "Config.from_cli"
-    participant Validate as "validate_source_paths"
+    participant Caller as "Pipeline stage"
+    participant Config as "Config"
+    participant Escaper as "escape_format_braces"
 
-    CLI->>Config: from_config_manager(manager, repo_path, output_dir)
-    Config->>CLI: manager.get_config()
-    Config->>CLI: get_cluster_api_key / get_main_api_key / get_fallback_api_key
-    Config->>Config: check models and keys are present
-    Config->>FromCli: from_cli(repo_path, output_dir, models, keys, urls, tokens, temps)
-    FromCli->>FromCli: validation block keys urls types ranges enums
-    FromCli->>Validate: validate_source_paths()
-    Validate-->>FromCli: OK or raises ValueError or OSError
-    FromCli-->>Config: Config instance
-    Config-->>CLI: Config instance
+    Caller->>Config: get_prompt_addition()
+    Config->>Config: read doc_type
+    Config->>Config: read focus_modules
+    Config->>Config: read custom_instructions
+    Config->>Escaper: escape_format_braces(custom_instructions)
+    Escaper-->>Config: escaped text
+    Config-->>Caller: combined prompt addition string
 ```
 
-## Integration with Other Modules
+## Integration with the Rest of the System
 
-- **[Backend Core](backend-core.md)** — the `AgentOrchestrator`, `DocumentationGenerator`, and dependency-analyzer components consume a fully constructed `Config` for repo paths, model selection, token limits, and prompt additions (`get_prompt_addition()`), and use `all_source_paths()`/`is_multi_path_mode()` to drive multi-path analysis.
-- **[CLI Core](cli-core.md)** — `ConfigManager` and the `Configuration`/`AgentInstructions` models persist user settings to disk; `Config.from_config_manager` bridges that persisted state into the runtime `Config` used for a documentation run.
-- **[Frontend Core](frontend-core.md)** — `BackgroundWorker` builds a `Config` per submitted job via `Config.from_web_job`, using job-specific `repo_path` and `docs_dir` values while relying on environment-configured models and keys.
+Config Core sits at the intersection of the CLI, the web application, and the backend generation pipeline:
 
-## Design Rationale
+- The [Cli Core](cli-core.md) module's `ConfigManager` (see its `configuration_management` sub-module) persists user-level settings (models, API keys via keyring, agent instructions) that `Config.from_config_manager()` reads to build a runtime `Config` for a documentation run.
+- The [Frontend Core](frontend-core.md) module's background job processing constructs a `Config` via `Config.from_web_job()` when a repository submission is picked up for processing, using the job's cloned repository path and job-specific docs directory.
+- The [Backend Core](backend-core.md) module consumes the resulting `Config` instance throughout the documentation pipeline: dependency analysis stages read `repo_path`/`all_source_paths` and `max_depth`; the agent orchestration and generation stages read per-provider model/API key/temperature/token settings and the `get_prompt_addition()` output.
 
-- **Secrets never leak by default.** The `_RUNTIME_ONLY_SECRET_FIELDS` frozenset and the `include_secrets` flag on `to_dict()` ensure API keys are excluded from any dict representation used for caching, logging, or persistence, unless a caller explicitly opts in for same-process reconstruction.
-- **Fail fast, fail clearly.** `from_cli` performs exhaustive validation (presence, type, range, enum) before constructing the object, and `validate_source_paths()` checks filesystem accessibility immediately after — so configuration errors surface with actionable messages before any expensive analysis or LLM calls begin.
-- **One shape, many origins.** Regardless of whether a `Config` originates from CLI environment variables, a persisted `ConfigManager` configuration, or a web job submission, all paths converge on the same validated dataclass shape, so the rest of the pipeline ([Backend Core](backend-core.md)) never needs to know which caller produced it.
+```mermaid
+flowchart TD
+    subgraph CLIFlow["CLI entry point"]
+        CLIManager["ConfigManager"] -->|"from_config_manager()"| CfgCLI["Config"]
+    end
+    subgraph WebFlow["Web application entry point"]
+        Worker["Background job"] -->|"from_web_job()"| CfgWeb["Config"]
+    end
+    CfgCLI --> Pipeline["Backend documentation pipeline"]
+    CfgWeb --> Pipeline
+    Pipeline --> Analysis["Dependency analysis"]
+    Pipeline --> Orchestration["Agent orchestration"]
+    Pipeline --> Generation["Documentation generation"]
+```
+
+## Serialization
+
+`Config` supports safe round-tripping through plain dictionaries:
+
+- `to_dict(include_secrets=False)` — Uses `dataclasses.asdict()` and strips secret fields unless explicitly requested. Suitable for caching, logging, or transmitting configuration metadata without leaking API keys.
+- `from_dict(data)` — Filters the incoming dict to known dataclass fields (ignoring unknown keys) and constructs a `Config`. If secrets were stripped during serialization, they must be supplied separately or construction will fail with a `TypeError` due to missing required fields.
+
+This pattern allows configuration state to be safely stored (e.g., alongside a job record in [Frontend Core](frontend-core.md)) while API keys remain sourced from environment variables, keyring, or explicit runtime parameters at the point of use.

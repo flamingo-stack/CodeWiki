@@ -1,0 +1,7 @@
+flowchart LR
+    A["10 synthetic Component_N Nodes"] --> B["Config<br/>max_token_per_module=50<br/>cluster_max_tokens=4096"]
+    B --> C["cluster_modules(...)"]
+    C -->|"token budget exceeded"| D["LLM clustering invoked"]
+    D --> E{"module_tree non-empty?"}
+    E -->|"Yes"| F["PASS: print module breakdown"]
+    E -->|"No"| G["FAIL: GROUPED_COMPONENTS tag not followed"]

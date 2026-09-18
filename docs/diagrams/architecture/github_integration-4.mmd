@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Worker as BackgroundWorker
+    participant GHP as GitHubRepoProcessor
+    participant Git as "git CLI"
+    participant DocGen as DocumentationGenerator
+
+    Worker->>GHP: get_repo_info(job.repo_url)
+    GHP-->>Worker: repo_info (owner, repo, full_name, clone_url)
+    Worker->>GHP: clone_repository(clone_url, temp_repo_dir, job.commit_id)
+    GHP->>Git: git clone / git checkout
+    Git-->>GHP: success or failure
+    GHP-->>Worker: bool result
+    alt Clone succeeded
+        Worker->>DocGen: run() against temp_repo_dir
+    else Clone failed
+        Worker->>Worker: mark job as failed
+    end

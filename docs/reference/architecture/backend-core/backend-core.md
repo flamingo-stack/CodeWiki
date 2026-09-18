@@ -1,98 +1,89 @@
 # Backend Core
 
-Backend Core is CodeWiki’s server-side documentation pipeline. Located in `codewiki/src/be`, it analyzes source repositories, constructs dependency graphs, organizes components into modules, invokes LLM-backed agents to write documentation, and provides the filesystem tools and logging needed to run those workflows safely.
+## Purpose
 
-Its primary entry point is `DocumentationGenerator`, which coordinates repository analysis and hierarchical documentation output. `AgentOrchestrator` manages agent-driven generation for individual modules, while `CountingFallbackModel` provides resilient LLM execution.
+Backend Core (`codewiki/src/be`) contains CodeWiki’s documentation-generation engine. It analyzes source repositories, builds dependency graphs, groups components into modules, and uses LLM-backed agents to generate and validate hierarchical Markdown documentation.
+
+The module has three cooperating areas:
+
+- **Dependency Analysis** discovers code components and their relationships across supported languages.
+- **Agent Orchestration And Tools** gives documentation agents controlled access to source code and generated documentation files.
+- **Documentation And Services** coordinates the end-to-end generation run, LLM fallback behavior, module processing order, and output metadata.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    Input["Source Repository"] --> Generator["DocumentationGenerator"]
-    Generator --> GraphBuilder["DependencyGraphBuilder"]
-    GraphBuilder --> Parser["DependencyParser"]
-    Parser --> Analysis["AnalysisService"]
-    Analysis --> RepoAnalyzer["RepoAnalyzer"]
-    Analysis --> CallAnalyzer["CallGraphAnalyzer"]
-    CallAnalyzer --> LanguageAnalyzers["Tree-sitter and Python Analyzers"]
-    LanguageAnalyzers --> Models["Dependency Analyzer Models"]
-
-    GraphBuilder --> Components["Component Dependency Graph"]
-    Components --> Generator
-
-    Generator --> Orchestrator["AgentOrchestrator"]
-    Orchestrator --> AgentTools["Agent Tools Core"]
-    Orchestrator --> LLM["CountingFallbackModel"]
-    LLM --> Provider["Configured LLM Provider"]
-
-    AgentTools --> Docs["Generated Markdown Documentation"]
-    Generator --> Docs
+    Input["Target Repository and Configuration"] --> Analysis["Dependency Analysis"]
+    Analysis --> Graph["Components and Dependency Graph"]
+    Graph --> Documentation["Documentation And Services"]
+    Documentation --> Orchestration["Agent Orchestration And Tools"]
+    Orchestration --> Source["Read Source Components"]
+    Orchestration --> Docs["Write and Validate Markdown"]
+    Documentation --> Overview["Generate Parent and Repository Overviews"]
+    Docs --> Output["Documentation Tree and Metadata"]
+    Overview --> Output
 ```
 
-## Documentation Generation Flow
+### Generation Flow
 
 ```mermaid
 sequenceDiagram
-    participant Caller
     participant Generator as "DocumentationGenerator"
-    participant Builder as "DependencyGraphBuilder"
-    participant Agent as "AgentOrchestrator"
-    participant Tools as "Agent Tools"
-    participant Output as "Documentation Files"
+    participant Analyzer as "DependencyGraphBuilder"
+    participant Orchestrator as "AgentOrchestrator"
+    participant Agent as "Documentation Agent"
+    participant Files as "Documentation Files"
 
-    Caller->>Generator: run()
-    Generator->>Builder: build_dependency_graph()
-    Builder-->>Generator: components and leaf nodes
-    Generator->>Generator: cluster modules and order leaves first
-    Generator->>Agent: process leaf module
-    Agent->>Tools: inspect repository and write docs
-    Tools-->>Agent: tool results
-    Agent-->>Generator: module documentation complete
-    Generator->>Output: write parent overviews and metadata
-    Generator-->>Caller: documentation complete
+    Generator->>Analyzer: build_dependency_graph()
+    Analyzer-->>Generator: components and leaf nodes
+    Generator->>Generator: cluster modules and order processing
+    Generator->>Orchestrator: process leaf module
+    Orchestrator->>Agent: run with CodeWikiDeps and tools
+    Agent->>Files: read source context and write module docs
+    Agent-->>Orchestrator: generation result
+    Orchestrator-->>Generator: updated module tree
+    Generator->>Files: write parent overviews and metadata
 ```
 
 ## Core Components
 
-| Component | Responsibility |
+| Area | Key components | Responsibility |
+|---|---|---|
+| Agent orchestration | `AgentOrchestrator`, `CodeWikiDeps` | Selects an agent configuration, supplies per-module execution context, and runs module documentation tasks. |
+| Agent editing tools | `EditTool`, `Filemap`, `WindowExpander` | Provides controlled source viewing and documentation editing, edit history, bounded file views, and Mermaid validation. |
+| Repository analysis | `AnalysisService`, `RepoAnalyzer`, `CallGraphAnalyzer` | Inspects repository structure, extracts code components, and resolves call relationships. |
+| Language analysis | `PythonASTAnalyzer`, Tree-sitter analyzers, `NamespaceResolver` | Parses supported language files and emits structural nodes and dependency relationships. |
+| Graph construction | `DependencyParser`, `DependencyGraphBuilder` | Converts analysis results into namespaced dependency graphs and identifies documentable leaf nodes. |
+| Shared graph models | `Node`, `CallRelationship`, `Repository`, `AnalysisResult`, `NodeSelection` | Defines the data contracts exchanged through the analysis and generation pipeline. |
+| Documentation generation | `DocumentationGenerator` | Processes modules bottom-up, delegates leaf generation to agents, and summarizes parent and repository documentation. |
+| LLM services | `CountingFallbackModel` | Wraps fallback LLM models while tracking request volume for generation runs. |
+
+## Sub-modules
+
+| Sub-module | Description |
 |---|---|
-| `AgentOrchestrator` | Creates and runs documentation-writing agents for module-level generation. |
-| `DocumentationGenerator` | Coordinates graph building, module clustering, leaf-first generation, parent overviews, and metadata output. |
-| `AnalysisService` | Orchestrates repository structure analysis and call-graph extraction. |
-| `RepoAnalyzer` | Discovers repository files and builds filtered file-tree representations. |
-| `CallGraphAnalyzer` | Routes source files to language analyzers and aggregates call relationships. |
-| `DependencyParser` | Converts analysis results into namespaced dependency-graph components. |
-| `DependencyGraphBuilder` | Builds, validates, filters, and persists the repository dependency graph. |
-| `CountingFallbackModel` | Wraps LLM models with request counting and automatic fallback behavior. |
-| `CodeWikiDeps` | Carries shared run context and configuration into agent tools. |
-| `EditTool` | Provides controlled repository viewing and documentation-file editing for agents. |
-| `ColoredFormatter` | Produces readable, colorized backend console logs. |
+| [Agent Orchestration And Tools](agent-orchestration-and-tools/agent-orchestration-and-tools.md) | Configures LLM agents for modules and exposes safe tools for reading code, generating sub-module documentation, and editing Markdown output. |
+| [Dependency Analysis](dependency-analysis/dependency-analysis.md) | Analyzes repository structure and source code, producing a multi-language dependency graph for downstream documentation generation. |
+| [Documentation And Services](documentation-and-services/documentation-and-services.md) | Coordinates dependency analysis, module clustering, leaf-module generation, parent summaries, LLM clients, and output metadata. |
 
-## Backend Subsystems
+## Dependency Analysis Structure
 
-- [Agent Tools Core](agent-tools-core/agent-tools-core.md) — Safe filesystem interaction through `CodeWikiDeps`, `EditTool`, `Filemap`, and `WindowExpander`.
-- [Dependency Analyzer Core](dependency-analyzer-core/dependency-analyzer-core.md) — End-to-end repository analysis and dependency-graph construction.
-- [Tree Sitter Analyzers](tree-sitter-analyzers/tree-sitter-analyzers.md) — Language-specific parsing for C, C++, C#, Java, JavaScript, TypeScript, PHP, and Python.
-- [Dependency Analyzer Models](dependency-analyzer-models/dependency-analyzer-models.md) — Shared `Node`, `CallRelationship`, `Repository`, and analysis-result contracts.
-- [Documentation Generator](documentation-generator/documentation-generator.md) — The top-level documentation generation workflow.
-- [LLM Services](llm-services/llm-services.md) — Model factories, fallback handling, token configuration, and direct LLM calls.
-- [Logging Config](logging-config/logging-config.md) — Shared colorized logging utilities.
+The Dependency Analysis sub-module is organized into focused components:
 
-## Component Relationships
+- [Repository And Call Graph Analysis](dependency-analysis/repository_and_call_graph_analysis.md) covers repository scanning, file selection, and call-graph extraction.
+- [Language Analyzers](dependency-analysis/language_analyzers.md) provides language-specific AST and Tree-sitter parsers.
+- [Dependency Graph Construction](dependency-analysis/dependency_graph_construction.md) creates FQDN-keyed component graphs and selects leaf nodes.
+- [Data Models And Utilities](dependency-analysis/data_models_and_utilities.md) defines shared analysis models and logging utilities.
 
-```mermaid
-flowchart LR
-    Models["Dependency Analyzer Models"] --> Analyzer["Dependency Analyzer Core"]
-    Language["Tree-sitter Analyzers"] --> Analyzer
-    Logging["Logging Config"] -.-> Analyzer
+## Operational Boundaries
 
-    Analyzer --> Generator["Documentation Generator"]
-    LLM["LLM Services"] --> Generator
-    Generator --> Orchestrator["AgentOrchestrator"]
-    Orchestrator --> Tools["Agent Tools Core"]
-    Tools --> Output["Markdown Documentation"]
-```
+Backend Core separates analysis from generation:
 
-## Source Location
+1. Dependency Analysis reads repository code and produces structured graph data.
+2. Documentation And Services determines module hierarchy and processing order.
+3. Agent Orchestration And Tools executes per-module documentation tasks.
+4. Agents can view source files but only write within the documentation output tree.
+5. Generated Markdown is checked for Mermaid validity before completion.
 
-Backend Core source is maintained under [`codewiki/src/be`](https://github.com/flamingo-stack/CodeWiki/tree/main/codewiki/src/be). The module is consumed by the CLI and frontend layers to transform a repository into structured, navigable documentation.
+This separation lets CodeWiki support resumable, hierarchical documentation generation while keeping source analysis, LLM execution, and output editing responsibilities distinct.
