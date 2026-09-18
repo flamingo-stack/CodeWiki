@@ -201,6 +201,7 @@ class DocumentationGenerator:
         # Process modules in dependency order
         final_module_tree = module_tree
         processed_modules = set()
+        failed_modules = []
 
         if len(module_tree) > 0:
             logger.info(f"├─ Processing {len(processing_order)} modules...")
@@ -284,8 +285,19 @@ class DocumentationGenerator:
                     logger.error(f"│  ├─ [{idx}/{len(processing_order)}] ❌ Failed: {module_key}")
                     logger.error(f"│  │  └─ Error: {str(e)}")
                     logger.error(f"│  │  └─ Traceback:\n{traceback.format_exc()}")
-                    # Continue processing other modules (graceful degradation)
+                    # Record the failure so the overall run can be reported/failed
+                    # instead of silently degrading to a stale/incomplete tree.
+                    failed_modules.append((module_key, str(e)))
                     continue
+
+            if failed_modules:
+                failure_summary = "; ".join(f"{key}: {err}" for key, err in failed_modules)
+                logger.error(
+                    f"├─ ❌ {len(failed_modules)}/{len(processing_order)} module(s) failed to generate: {failure_summary}"
+                )
+                raise RuntimeError(
+                    f"Module documentation generation failed for {len(failed_modules)} module(s): {failure_summary}"
+                )
 
             # Generate repo overview
             logger.info(f"├─ 📚 Generating repository overview...")
