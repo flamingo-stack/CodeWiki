@@ -163,13 +163,18 @@ def test_clustering(results):
         return False
 
 if __name__ == "__main__":
+    test_results = TestResults()
+
     # Check for API keys
     if not (os.getenv("OPENAI_API_KEY") or os.getenv("MAIN_API_KEY")):
         print("❌ ERROR: OPENAI_API_KEY or MAIN_API_KEY environment variable not set")
         print("   Set it with: export OPENAI_API_KEY='your-key-here'")
+        test_results.add_test("api_key_configured", False, "OPENAI_API_KEY or MAIN_API_KEY environment variable not set")
+        test_results.print_summary()
         sys.exit(1)
 
-    test_results = TestResults()
+    test_results.add_test("api_key_configured", True)
+
     success = test_clustering(test_results)
     test_results.print_summary()
     sys.exit(0 if success else 1)
