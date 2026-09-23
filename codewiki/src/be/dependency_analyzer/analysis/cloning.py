@@ -106,8 +106,8 @@ def clone_repository(github_url: str) -> str:
                     capture_output=True,
                     text=True,
                 )
-            except:
-                pass
+            except (OSError, subprocess.SubprocessError) as e:
+                logger.debug(f"Failed to set git core.longpaths on Windows: {e}")
 
         subprocess.run(
             [
@@ -158,8 +158,8 @@ def clone_repository(github_url: str) -> str:
                     capture_output=True,
                     text=True,
                 )
-            except:
-                pass
+            except (OSError, subprocess.SubprocessError) as e:
+                logger.debug(f"Failed to configure sparse-checkout on Windows: {e}")
         return temp_dir
     except subprocess.TimeoutExpired:
         if os.path.exists(temp_dir):
