@@ -128,11 +128,48 @@ class Config:
         only when the caller explicitly needs to reconstruct a fully-functional
         Config via from_dict() (e.g. in-process transfer within the same trust
         boundary).
+
+        Each field is listed explicitly (rather than delegating to
+        dataclasses.asdict()) so that adding a new field to Config requires a
+        deliberate decision about whether/how it is serialized here.
         """
-        data = asdict(self)
-        if not include_secrets:
-            for secret_field in _RUNTIME_ONLY_SECRET_FIELDS:
-                data.pop(secret_field, None)
+        data = {
+            'repo_path': self.repo_path,
+            'output_dir': self.output_dir,
+            'dependency_graph_dir': self.dependency_graph_dir,
+            'docs_dir': self.docs_dir,
+            'max_depth': self.max_depth,
+            'main_model': self.main_model,
+            'cluster_model': self.cluster_model,
+            'fallback_model': self.fallback_model,
+            'cluster_base_url': self.cluster_base_url,
+            'main_base_url': self.main_base_url,
+            'fallback_base_url': self.fallback_base_url,
+            'cluster_api_version': self.cluster_api_version,
+            'main_api_version': self.main_api_version,
+            'fallback_api_version': self.fallback_api_version,
+            'cluster_max_tokens': self.cluster_max_tokens,
+            'main_max_tokens': self.main_max_tokens,
+            'fallback_max_tokens': self.fallback_max_tokens,
+            'max_token_per_module': self.max_token_per_module,
+            'max_token_per_leaf_module': self.max_token_per_leaf_module,
+            'cluster_temperature': self.cluster_temperature,
+            'main_temperature': self.main_temperature,
+            'fallback_temperature': self.fallback_temperature,
+            'cluster_temperature_supported': self.cluster_temperature_supported,
+            'main_temperature_supported': self.main_temperature_supported,
+            'fallback_temperature_supported': self.fallback_temperature_supported,
+            'cluster_max_token_field': self.cluster_max_token_field,
+            'main_max_token_field': self.main_max_token_field,
+            'fallback_max_token_field': self.fallback_max_token_field,
+            'agent_instructions': self.agent_instructions,
+            'diagrams_dir': self.diagrams_dir,
+            'additional_source_paths': self.additional_source_paths,
+        }
+        if include_secrets:
+            data['cluster_api_key'] = self.cluster_api_key
+            data['main_api_key'] = self.main_api_key
+            data['fallback_api_key'] = self.fallback_api_key
         return data
 
     @classmethod
@@ -143,10 +180,21 @@ class Config:
         If secret fields (cluster_api_key, main_api_key, fallback_api_key) were
         excluded (the default for to_dict()), they must be supplied separately
         in `data` or this will raise a TypeError due to missing required fields.
+
+        Unknown/unexpected keys in `data` (e.g. leftover fields from a previous
+        schema version) are rejected with a ValueError rather than silently
+        discarded, so that config drift between the CLI and backend Config is
+        surfaced instead of hidden.
         """
         known_fields = {f.name for f in fields(cls)}
-        filtered = {k: v for k, v in data.items() if k in known_fields}
-        return cls(**filtered)
+        unknown = set(data.keys()) - known_fields
+        if unknown:
+            raise ValueError(
+                f"Unknown Config field(s) in data passed to from_dict(): {sorted(unknown)}. "
+                "This usually indicates config drift between schema versions; "
+                "remove or migrate these fields before constructing a Config."
+            )
+        return cls(**data)
 
     @property
     def include_patterns(self) -> Optional[List[str]]:
@@ -760,3 +808,4 @@ class Config:
             diagrams_dir=None,
             additional_source_paths=additional_paths
         )
+
