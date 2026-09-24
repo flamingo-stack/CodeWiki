@@ -1,17 +1,41 @@
 """
 Test Cases for FQDN Normalization Fix
 
-Run with: python -m pytest test_fqdn_normalization.py -v
+Run with: python test_fqdn_normalization.py
 """
 
-import pytest
 from collections import namedtuple
 
 # Mock Node class for testing
 Node = namedtuple('Node', ['short_id'])
 
 
-def test_strip_deps_prefix():
+class TestResults:
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.failures = []
+
+    def add_test(self, name, condition, message=""):
+        if condition:
+            self.passed += 1
+        else:
+            self.failed += 1
+            self.failures.append(f"{name}: {message}")
+
+    def print_summary(self):
+        total = self.passed + self.failed
+        print(f"\n{'=' * 60}")
+        print(f"Test Summary: {self.passed}/{total} passed")
+        if self.failures:
+            print("Failures:")
+            for failure in self.failures:
+                print(f"  - {failure}")
+        print(f"{'=' * 60}")
+        return self.failed == 0
+
+
+def test_strip_deps_prefix(results):
     """Test that 'deps.' prefix is correctly stripped."""
     # Simulated components dictionary
     components = {
@@ -34,11 +58,19 @@ def test_strip_deps_prefix():
     # Test normalization
     for llm_id, expected_fqdn in zip(llm_output, expected):
         stripped = llm_id[5:] if llm_id.startswith("deps.") else llm_id
-        assert stripped in components, f"Failed to find {stripped} after stripping"
-        assert stripped == expected_fqdn
+        results.add_test(
+            "test_strip_deps_prefix: stripped in components",
+            stripped in components,
+            f"Failed to find {stripped} after stripping",
+        )
+        results.add_test(
+            "test_strip_deps_prefix: stripped == expected_fqdn",
+            stripped == expected_fqdn,
+            f"{stripped} != {expected_fqdn}",
+        )
 
 
-def test_fuzzy_component_name_match():
+def test_fuzzy_component_name_match(results):
     """Test fuzzy matching by component name (last segment)."""
     components = {
         "openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer": Node(short_id="PinotConfigInitializer"),
@@ -50,16 +82,29 @@ def test_fuzzy_component_name_match():
 
     # Extract component name
     component_name = llm_id.split('.')[-1]
-    assert component_name == "PinotConfigInitializer"
+    results.add_test(
+        "test_fuzzy_component_name_match: component_name extraction",
+        component_name == "PinotConfigInitializer",
+        f"component_name was {component_name}",
+    )
 
     # Find matches
     matches = [fqdn for fqdn in components.keys() if fqdn.split('.')[-1] == component_name]
 
-    assert len(matches) == 1, f"Expected 1 match, found {len(matches)}"
-    assert matches[0] == "openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer"
+    results.add_test(
+        "test_fuzzy_component_name_match: match count",
+        len(matches) == 1,
+        f"Expected 1 match, found {len(matches)}",
+    )
+    if matches:
+        results.add_test(
+            "test_fuzzy_component_name_match: match value",
+            matches[0] == "openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer",
+            f"matches[0] was {matches[0]}",
+        )
 
 
-def test_path_suffix_matching():
+def test_path_suffix_matching(results):
     """Test matching by path suffix (last N segments)."""
     components = {
         "openframe-oss-lib.different.path.java.config.pinot.PinotConfigInitializer": Node(short_id="PinotConfigInitializer"),
@@ -73,11 +118,20 @@ def test_path_suffix_matching():
 
     matches = [fqdn for fqdn in components.keys() if fqdn.endswith(suffix_3)]
 
-    assert len(matches) == 1
-    assert matches[0] == "openframe-oss-lib.different.path.java.config.pinot.PinotConfigInitializer"
+    results.add_test(
+        "test_path_suffix_matching: match count",
+        len(matches) == 1,
+        f"Expected 1 match, found {len(matches)}",
+    )
+    if matches:
+        results.add_test(
+            "test_path_suffix_matching: match value",
+            matches[0] == "openframe-oss-lib.different.path.java.config.pinot.PinotConfigInitializer",
+            f"matches[0] was {matches[0]}",
+        )
 
 
-def test_exact_fqdn_match():
+def test_exact_fqdn_match(results):
     """Test that exact FQDN matches work without modification."""
     components = {
         "main-repo.src.services.user_service.UserService": Node(short_id="UserService"),
@@ -85,10 +139,14 @@ def test_exact_fqdn_match():
 
     llm_id = "main-repo.src.services.user_service.UserService"
 
-    assert llm_id in components
+    results.add_test(
+        "test_exact_fqdn_match: llm_id in components",
+        llm_id in components,
+        f"{llm_id} not found in components",
+    )
 
 
-def test_short_id_mapping():
+def test_short_id_mapping(results):
     """Test that short ID → FQDN mapping works."""
     components = {
         "main-repo.src.services.user_service.UserService": Node(short_id="UserService"),
@@ -102,11 +160,19 @@ def test_short_id_mapping():
         mapping[short_id] = fqdn
 
     # Test mapping
-    assert mapping["UserService"] == "main-repo.src.services.user_service.UserService"
-    assert mapping["Logger"] == "main-repo.src.utils.logger.Logger"
+    results.add_test(
+        "test_short_id_mapping: UserService",
+        mapping.get("UserService") == "main-repo.src.services.user_service.UserService",
+        f"mapping['UserService'] was {mapping.get('UserService')}",
+    )
+    results.add_test(
+        "test_short_id_mapping: Logger",
+        mapping.get("Logger") == "main-repo.src.utils.logger.Logger",
+        f"mapping['Logger'] was {mapping.get('Logger')}",
+    )
 
 
-def test_partial_path_mapping():
+def test_partial_path_mapping(results):
     """Test that partial paths are mapped correctly."""
     components = {
         "main-repo.src.services.auth.UserService": Node(short_id="UserService"),
@@ -128,13 +194,29 @@ def test_partial_path_mapping():
                 mapping[partial] = fqdn
 
     # Test mappings
-    assert "UserService" in mapping
-    assert "auth.UserService" in mapping
-    assert "services.auth.UserService" in mapping
-    assert "src.services.auth.UserService" in mapping
+    results.add_test(
+        "test_partial_path_mapping: UserService in mapping",
+        "UserService" in mapping,
+        "UserService not found in mapping",
+    )
+    results.add_test(
+        "test_partial_path_mapping: auth.UserService in mapping",
+        "auth.UserService" in mapping,
+        "auth.UserService not found in mapping",
+    )
+    results.add_test(
+        "test_partial_path_mapping: services.auth.UserService in mapping",
+        "services.auth.UserService" in mapping,
+        "services.auth.UserService not found in mapping",
+    )
+    results.add_test(
+        "test_partial_path_mapping: src.services.auth.UserService in mapping",
+        "src.services.auth.UserService" in mapping,
+        "src.services.auth.UserService not found in mapping",
+    )
 
 
-def test_collision_detection():
+def test_collision_detection(results):
     """Test that collisions are detected when same short ID maps to multiple FQDNs."""
     from collections import defaultdict
 
@@ -154,11 +236,19 @@ def test_collision_detection():
         else:
             mapping[short_id] = fqdn
 
-    assert "UserService" in collisions
-    assert len(collisions["UserService"]) >= 1  # At least one collision
+    results.add_test(
+        "test_collision_detection: UserService in collisions",
+        "UserService" in collisions,
+        "UserService not found in collisions",
+    )
+    results.add_test(
+        "test_collision_detection: at least one collision",
+        len(collisions["UserService"]) >= 1,
+        f"collisions['UserService'] had length {len(collisions['UserService'])}",
+    )
 
 
-def test_best_path_match_scoring():
+def test_best_path_match_scoring(results):
     """Test the path similarity scoring algorithm."""
     llm_id = "deps.openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer"
     candidates = [
@@ -180,11 +270,19 @@ def test_best_path_match_scoring():
     scores.sort(key=lambda x: x[1], reverse=True)
 
     # Best match should have highest score
-    assert scores[0][0] == "openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer"
-    assert scores[0][1] > scores[2][1]  # Better than different namespace
+    results.add_test(
+        "test_best_path_match_scoring: best match",
+        scores[0][0] == "openframe-oss-lib.src.main.java.config.pinot.PinotConfigInitializer",
+        f"scores[0][0] was {scores[0][0]}",
+    )
+    results.add_test(
+        "test_best_path_match_scoring: better than different namespace",
+        scores[0][1] > scores[2][1],
+        f"scores[0][1]={scores[0][1]} not > scores[2][1]={scores[2][1]}",
+    )
 
 
-def test_non_existent_component():
+def test_non_existent_component(results):
     """Test that non-existent components fail normalization."""
     components = {
         "main-repo.src.services.UserService": Node(short_id="UserService"),
@@ -194,14 +292,22 @@ def test_non_existent_component():
 
     # Should not match anything
     stripped = llm_id[5:] if llm_id.startswith("deps.") else llm_id
-    assert stripped not in components
+    results.add_test(
+        "test_non_existent_component: stripped not in components",
+        stripped not in components,
+        f"{stripped} unexpectedly found in components",
+    )
 
     component_name = llm_id.split('.')[-1]
     matches = [fqdn for fqdn in components.keys() if component_name in fqdn]
-    assert len(matches) == 0
+    results.add_test(
+        "test_non_existent_component: no matches",
+        len(matches) == 0,
+        f"Expected 0 matches, found {len(matches)}",
+    )
 
 
-def test_double_class_name():
+def test_double_class_name(results):
     """Test handling of paths with duplicate component names."""
     # This tests the scenario: PintoConfigInitializer.PinotConfigInitializer
     components = {
@@ -218,10 +324,14 @@ def test_double_class_name():
     # Should match by component name
     matches = [fqdn for fqdn in components.keys() if fqdn.split('.')[-1] == component_name]
 
-    assert len(matches) == 1
+    results.add_test(
+        "test_double_class_name: match count",
+        len(matches) == 1,
+        f"Expected 1 match, found {len(matches)}",
+    )
 
 
-def test_java_package_path():
+def test_java_package_path(results):
     """Test handling of Java package paths with com.openframe prefix."""
     components = {
         "openframe-oss-lib.src.main.java.com.openframe.management.config.PinotConfig": Node(
@@ -235,8 +345,25 @@ def test_java_package_path():
     # Strip deps prefix
     stripped = llm_id[5:] if llm_id.startswith("deps.") else llm_id
 
-    assert stripped in components
+    results.add_test(
+        "test_java_package_path: stripped in components",
+        stripped in components,
+        f"{stripped} not found in components",
+    )
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    results = TestResults()
+    test_strip_deps_prefix(results)
+    test_fuzzy_component_name_match(results)
+    test_path_suffix_matching(results)
+    test_exact_fqdn_match(results)
+    test_short_id_mapping(results)
+    test_partial_path_mapping(results)
+    test_collision_detection(results)
+    test_best_path_match_scoring(results)
+    test_non_existent_component(results)
+    test_double_class_name(results)
+    test_java_package_path(results)
+    success = results.print_summary()
+    raise SystemExit(0 if success else 1)
