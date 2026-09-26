@@ -17,11 +17,14 @@ downstream documentation generation stages.
 from dataclasses import dataclass, field, fields, asdict
 from typing import Optional, List, Dict, Any
 import argparse
+import logging
 import os
 import sys
 from dotenv import load_dotenv
 from codewiki.src.be.flamingo_guidelines import escape_format_braces
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Constants
 OUTPUT_BASE_DIR = 'output'
@@ -65,6 +68,47 @@ _RUNTIME_ONLY_SECRET_FIELDS = frozenset({
     'main_api_key',
     'fallback_api_key',
 })
+
+
+def _to_int(value: Any, default: int) -> int:
+    """Coerce a value to int, falling back to `default` on failure."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def _to_float(value: Any, default: float) -> float:
+    """Coerce a value to float, falling back to `default` on failure."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def _to_bool(value: Any, default: bool) -> bool:
+    """Coerce a value to bool, falling back to `default` on failure."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    try:
+        return bool(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def _to_optional_str(value: Any) -> Optional[str]:
+    """Coerce a value to str, preserving None."""
+    if value is None:
+        return None
+    return str(value)
 
 @dataclass
 class Config:
@@ -118,35 +162,104 @@ class Config:
     # When set, all paths are analyzed and merged into unified documentation
     additional_source_paths: Optional[List[str]] = None
 
-    def to_dict(self, include_secrets: bool = False) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """
         Serialize this Config to a plain dict.
 
-        By default, runtime-only secret fields (cluster_api_key, main_api_key,
-        fallback_api_key) are excluded from the result to prevent accidental
-        persistence, caching, or logging of API keys. Pass include_secrets=True
-        only when the caller explicitly needs to reconstruct a fully-functional
-        Config via from_dict() (e.g. in-process transfer within the same trust
-        boundary).
+        Runtime-only secret fields (cluster_api_key, main_api_key,
+        fallback_api_key) are never included in the result, with no exception,
+        to prevent accidental persistence, caching, or logging of API keys.
+
+        Each field is listed explicitly rather than delegating to
+        dataclasses.asdict(), so that adding a new field to Config requires an
+        explicit decision about whether it belongs in the serialized output.
         """
-        data = asdict(self)
-        if not include_secrets:
-            for secret_field in _RUNTIME_ONLY_SECRET_FIELDS:
-                data.pop(secret_field, None)
-        return data
+        return {
+            'repo_path': self.repo_path,
+            'output_dir': self.output_dir,
+            'dependency_graph_dir': self.dependency_graph_dir,
+            'docs_dir': self.docs_dir,
+            'max_depth': self.max_depth,
+            'main_model': self.main_model,
+            'cluster_model': self.cluster_model,
+            'fallback_model': self.fallback_model,
+            'cluster_base_url': self.cluster_base_url,
+            'main_base_url': self.main_base_url,
+            'fallback_base_url': self.fallback_base_url,
+            'cluster_api_version': self.cluster_api_version,
+            'main_api_version': self.main_api_version,
+            'fallback_api_version': self.fallback_api_version,
+            'cluster_max_tokens': self.cluster_max_tokens,
+            'main_max_tokens': self.main_max_tokens,
+            'fallback_max_tokens': self.fallback_max_tokens,
+            'max_token_per_module': self.max_token_per_module,
+            'max_token_per_leaf_module': self.max_token_per_leaf_module,
+            'cluster_temperature': self.cluster_temperature,
+            'main_temperature': self.main_temperature,
+            'fallback_temperature': self.fallback_temperature,
+            'cluster_temperature_supported': self.cluster_temperature_supported,
+            'main_temperature_supported': self.main_temperature_supported,
+            'fallback_temperature_supported': self.fallback_temperature_supported,
+            'cluster_max_token_field': self.cluster_max_token_field,
+            'main_max_token_field': self.main_max_token_field,
+            'fallback_max_token_field': self.fallback_max_token_field,
+            'agent_instructions': self.agent_instructions,
+            'diagrams_dir': self.diagrams_dir,
+            'additional_source_paths': self.additional_source_paths,
+        }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Config':
         """
         Construct a Config from a dict previously produced by to_dict().
 
-        If secret fields (cluster_api_key, main_api_key, fallback_api_key) were
-        excluded (the default for to_dict()), they must be supplied separately
-        in `data` or this will raise a TypeError due to missing required fields.
+        Secret fields (cluster_api_key, main_api_key, fallback_api_key) are
+        never present in to_dict() output, so they must be supplied separately
+        in `data` or this will raise a TypeError due to missing required
+        fields.
+
+        Numeric and boolean fields are explicitly coerced via named helper
+        functions (_to_int, _to_float, _to_bool) so that values originating
+        from JSON (e.g. string '128000' for a token limit) are stored with
+        the correct type, matching the pattern used by the CLI's
+        Configuration.from_dict().
         """
-        known_fields = {f.name for f in fields(cls)}
-        filtered = {k: v for k, v in data.items() if k in known_fields}
-        return cls(**filtered)
+        return cls(
+            repo_path=data['repo_path'],
+            output_dir=data['output_dir'],
+            dependency_graph_dir=data['dependency_graph_dir'],
+            docs_dir=data['docs_dir'],
+            max_depth=_to_int(data.get('max_depth'), MAX_DEPTH),
+            main_model=data['main_model'],
+            cluster_model=data['cluster_model'],
+            fallback_model=data['fallback_model'],
+            cluster_api_key=data['cluster_api_key'],
+            main_api_key=data['main_api_key'],
+            fallback_api_key=data['fallback_api_key'],
+            cluster_base_url=_to_optional_str(data.get('cluster_base_url')),
+            main_base_url=_to_optional_str(data.get('main_base_url')),
+            fallback_base_url=_to_optional_str(data.get('fallback_base_url')),
+            cluster_api_version=_to_optional_str(data.get('cluster_api_version')),
+            main_api_version=_to_optional_str(data.get('main_api_version')),
+            fallback_api_version=_to_optional_str(data.get('fallback_api_version')),
+            cluster_max_tokens=_to_int(data.get('cluster_max_tokens'), DEFAULT_MAX_TOKENS),
+            main_max_tokens=_to_int(data.get('main_max_tokens'), DEFAULT_MAX_TOKENS),
+            fallback_max_tokens=_to_int(data.get('fallback_max_tokens'), DEFAULT_MAX_TOKENS),
+            max_token_per_module=_to_int(data.get('max_token_per_module'), DEFAULT_MAX_TOKEN_PER_MODULE),
+            max_token_per_leaf_module=_to_int(data.get('max_token_per_leaf_module'), DEFAULT_MAX_TOKEN_PER_LEAF_MODULE),
+            cluster_temperature=_to_float(data.get('cluster_temperature'), 0.0),
+            main_temperature=_to_float(data.get('main_temperature'), 0.0),
+            fallback_temperature=_to_float(data.get('fallback_temperature'), 0.0),
+            cluster_temperature_supported=_to_bool(data.get('cluster_temperature_supported'), True),
+            main_temperature_supported=_to_bool(data.get('main_temperature_supported'), True),
+            fallback_temperature_supported=_to_bool(data.get('fallback_temperature_supported'), True),
+            cluster_max_token_field=data.get('cluster_max_token_field', 'max_tokens'),
+            main_max_token_field=data.get('main_max_token_field', 'max_tokens'),
+            fallback_max_token_field=data.get('fallback_max_token_field', 'max_tokens'),
+            agent_instructions=data.get('agent_instructions'),
+            diagrams_dir=data.get('diagrams_dir'),
+            additional_source_paths=data.get('additional_source_paths'),
+        )
 
     @property
     def include_patterns(self) -> Optional[List[str]]:
@@ -199,9 +312,6 @@ class Config:
             List of absolute paths. Always includes repo_path as first element.
             If additional_source_paths is None, returns single-element list.
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         paths = [os.path.abspath(self.repo_path)]
         if self.additional_source_paths:
             paths.extend([os.path.abspath(p) for p in self.additional_source_paths])
@@ -221,9 +331,6 @@ class Config:
             ValueError: If any path does not exist or is not a directory
             OSError: If any path cannot be accessed
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         logger.info("🔍 Validating source paths...")
 
         # Validate primary repo_path
@@ -259,9 +366,6 @@ class Config:
         Returns:
             True if additional_source_paths is set and non-empty, False otherwise
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         result = bool(self.additional_source_paths)
         if result:
             logger.debug(f"🔍 Multi-path mode: ENABLED ({len(self.additional_source_paths)} additional paths)")
@@ -271,9 +375,6 @@ class Config:
 
     def get_prompt_addition(self) -> str:
         """Generate prompt additions based on agent instructions."""
-        import logging
-        logger = logging.getLogger(__name__)
-
         if not self.agent_instructions:
             logger.debug("📋 get_prompt_addition: No agent_instructions configured")
             return ""
@@ -760,3 +861,4 @@ class Config:
             diagrams_dir=None,
             additional_source_paths=additional_paths
         )
+
