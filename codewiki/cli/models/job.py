@@ -37,11 +37,24 @@ class JobStatistics:
 
 
 @dataclass
+class LLMRoleConfig:
+    """LLM configuration for a single role (cluster, main, or fallback)."""
+    model: str = ""
+    api_key: str = ""
+    base_url: str = ""
+    api_version: str = ""
+    max_tokens: int = 0
+    temperature: float = 0.0
+    temperature_supported: bool = True
+    max_token_field: str = "max_tokens"
+
+
+@dataclass
 class LLMConfig:
     """LLM configuration for a job."""
-    main_model: str
-    cluster_model: str
-    base_url: str
+    cluster: LLMRoleConfig = field(default_factory=LLMRoleConfig)
+    main: LLMRoleConfig = field(default_factory=LLMRoleConfig)
+    fallback: LLMRoleConfig = field(default_factory=LLMRoleConfig)
 
 
 def _coerce_job_status(value: Any, default: JobStatus = JobStatus.PENDING) -> JobStatus:
@@ -80,6 +93,24 @@ def _coerce_generation_options(value: Any) -> GenerationOptions:
     )
 
 
+def _coerce_llm_role_config(value: Any) -> LLMRoleConfig:
+    """Coerce a raw dict into an LLMRoleConfig instance."""
+    if isinstance(value, LLMRoleConfig):
+        return value
+    if not value:
+        return LLMRoleConfig()
+    return LLMRoleConfig(
+        model=value.get('model', ''),
+        api_key=value.get('api_key', ''),
+        base_url=value.get('base_url', ''),
+        api_version=value.get('api_version', ''),
+        max_tokens=_coerce_int(value.get('max_tokens'), 0),
+        temperature=float(value.get('temperature', 0.0) or 0.0),
+        temperature_supported=bool(value.get('temperature_supported', True)),
+        max_token_field=value.get('max_token_field', 'max_tokens'),
+    )
+
+
 def _coerce_llm_config(value: Any) -> Optional[LLMConfig]:
     """Coerce a raw dict into an LLMConfig instance, or None."""
     if isinstance(value, LLMConfig):
@@ -87,9 +118,9 @@ def _coerce_llm_config(value: Any) -> Optional[LLMConfig]:
     if not value:
         return None
     return LLMConfig(
-        main_model=value.get('main_model', ''),
-        cluster_model=value.get('cluster_model', ''),
-        base_url=value.get('base_url', ''),
+        cluster=_coerce_llm_role_config(value.get('cluster')),
+        main=_coerce_llm_role_config(value.get('main')),
+        fallback=_coerce_llm_role_config(value.get('fallback')),
     )
 
 
@@ -163,6 +194,18 @@ class DocumentationJob:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
+        def _role_dict(role: LLMRoleConfig) -> Dict[str, Any]:
+            return {
+                "model": role.model,
+                "api_key": role.api_key,
+                "base_url": role.base_url,
+                "api_version": role.api_version,
+                "max_tokens": role.max_tokens,
+                "temperature": role.temperature,
+                "temperature_supported": role.temperature_supported,
+                "max_token_field": role.max_token_field,
+            }
+
         data = {
             "job_id": self.job_id,
             "repository_path": self.repository_path,
@@ -183,9 +226,9 @@ class DocumentationJob:
                 "custom_output": self.generation_options.custom_output,
             },
             "llm_config": {
-                "main_model": self.llm_config.main_model,
-                "cluster_model": self.llm_config.cluster_model,
-                "base_url": self.llm_config.base_url,
+                "cluster": _role_dict(self.llm_config.cluster),
+                "main": _role_dict(self.llm_config.main),
+                "fallback": _role_dict(self.llm_config.fallback),
             } if self.llm_config else None,
             "statistics": {
                 "total_files_analyzed": self.statistics.total_files_analyzed,
@@ -229,4 +272,5 @@ class DocumentationJob:
             job.statistics = _coerce_statistics(data['statistics'])
         
         return job
+
 
