@@ -1,3 +1,13 @@
+"""Backend utility helpers for the CodeWiki documentation pipeline.
+
+Responsibilities:
+- Complexity heuristics for module clustering (is_complex_module)
+- Token counting via tiktoken for LLM context budgeting
+- Extraction, validation, and persistence of Mermaid diagrams embedded in
+  generated markdown documentation, including error-window rendering for
+  diagnosing parser failures.
+"""
+
 import re
 from pathlib import Path
 from typing import List, Tuple
