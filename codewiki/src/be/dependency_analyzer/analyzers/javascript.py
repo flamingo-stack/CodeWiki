@@ -698,7 +698,16 @@ class TreeSitterJSAnalyzer:
 def analyze_javascript_file_treesitter(
     file_path: str, content: str, repo_path: str = None
 ) -> Tuple[List[Node], List[CallRelationship]]:
-    """Analyze a JavaScript file using tree-sitter."""
+    """Analyze a JavaScript file using tree-sitter.
+
+    Thin wrapper around `TreeSitterJSAnalyzer`, structurally identical to
+    `analyze_typescript_file_treesitter` in the sibling `typescript` module
+    (both build an analyzer, run `.analyze()`, and return its nodes and
+    relationships). Kept file-local because the analyzer classes themselves
+    (`TreeSitterJSAnalyzer` vs. the TypeScript analyzer) differ and are not
+    currently unified behind a shared interface; extracting a shared wrapper
+    would require introducing that shared interface first.
+    """
     try:
         logger.debug(f"Tree-sitter JS analysis for {file_path}")
         analyzer = TreeSitterJSAnalyzer(file_path, content, repo_path)
@@ -710,7 +719,3 @@ def analyze_javascript_file_treesitter(
     except Exception as e:
         logger.error(f"Error in tree-sitter JS analysis for {file_path}: {e}", exc_info=True)
         return [], []
-
-
-
-
