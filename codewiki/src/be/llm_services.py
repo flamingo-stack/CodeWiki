@@ -85,6 +85,70 @@ def get_model_max_token_field(stage: str = 'generation') -> str:
     return os.environ.get(env_var, 'max_tokens')
 
 
+def _create_provider_model(config: Config, prefix: str) -> OpenAIModel:
+    """
+    Create an LLM model for the given per-provider config prefix (e.g. 'main' or 'fallback').
+
+    NOTE: Pydantic AI currently hardcodes the 'max_tokens' parameter name in OpenAIModelSettings.
+    For reasoning models (o3, o3-mini) that require 'max_completion_tokens', the direct API call
+    in call_llm() uses the correct parameter name. If Pydantic AI models fail with "Unrecognized
+    request argument supplied: max_tokens", the system will fall back to the direct API call.
+    """
+    model_name = getattr(config, f'{prefix}_model')
+
+    # Use per-provider max_tokens
+    max_tokens = getattr(config, f'{prefix}_max_tokens', None) or get_max_output_tokens()
+    # Check if model supports custom temperature (use per-provider field)
+    temperature = getattr(config, f'{prefix}_temperature', 0.0)
+    temperature_supported = getattr(config, f'{prefix}_temperature_supported', True)
+
+    # Build settings dict - only include temperature if model supports it
+    settings_dict = {'max_tokens': max_tokens}
+    if temperature_supported:
+        settings_dict['temperature'] = temperature
+
+    # Build provider with per-provider base_url and optional api_version header
+    base_url = getattr(config, f'{prefix}_base_url', None)
+    if not base_url:
+        raise ValueError(
+            f"{prefix}_base_url is required in configuration for {prefix} model.\n"
+            f"Model: {model_name}\n"
+            f"Please set via CLI: --{prefix}-base-url <url>\n"
+            f"Or in config file: {prefix}_base_url = '<url>'"
+        )
+
+    # Prepare default headers for API version (Anthropic models)
+    default_headers = {}
+    api_version = getattr(config, f'{prefix}_api_version', None)
+    if api_version:
+        default_headers['anthropic-version'] = api_version
+
+    # Get per-provider API key
+    api_key = getattr(config, f'{prefix}_api_key', None)
+    if not api_key:
+        raise ValueError(
+            f"{prefix}_api_key is required in configuration for {prefix} model.\n"
+            f"Model: {model_name}\n"
+            f"Please set via CLI: --{prefix}-api-key <key>\n"
+            "Different AI providers require different API keys."
+        )
+
+    return OpenAIModel(
+        model_name=model_name,
+        provider=OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+            # openai_client and http_client - there is no default_headers
+            # parameter (verified against pydantic-ai 2.40.0), so passing one
+            # raises TypeError. To send anthropic-version here, build an
+            # AsyncOpenAI client with default_headers and pass it as
+            # openai_client=.
+        ),
+        settings=OpenAIModelSettings(**settings_dict)
+    )
+
+
 def create_main_model(config: Config) -> OpenAIModel:
     """
     Create the main LLM model from configuration.
@@ -94,112 +158,12 @@ def create_main_model(config: Config) -> OpenAIModel:
     in call_llm() uses the correct parameter name. If Pydantic AI models fail with "Unrecognized
     request argument supplied: max_tokens", the system will fall back to the direct API call.
     """
-    # Use per-provider max_tokens
-    max_tokens = getattr(config, 'main_max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature (use per-provider field)
-    temperature = getattr(config, 'main_temperature', 0.0)
-    temperature_supported = getattr(config, 'main_temperature_supported', True)
-
-    # Build settings dict - only include temperature if model supports it
-    settings_dict = {'max_tokens': max_tokens}
-    if temperature_supported:
-        settings_dict['temperature'] = temperature
-
-    # Build provider with per-provider base_url and optional api_version header
-    base_url = getattr(config, 'main_base_url', None)
-    if not base_url:
-        raise ValueError(
-            "main_base_url is required in configuration for main/generation model.\n"
-            f"Model: {config.main_model}\n"
-            "Please set via CLI: --main-base-url <url>\n"
-            "Or in config file: main_base_url = '<url>'"
-        )
-
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'main_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
-    # Get per-provider API key
-    api_key = getattr(config, 'main_api_key', None)
-    if not api_key:
-        raise ValueError(
-            "main_api_key is required in configuration for main/generation model.\n"
-            f"Model: {config.main_model}\n"
-            "Please set via CLI: --main-api-key <key>\n"
-            "Different AI providers require different API keys."
-        )
-
-    return OpenAIModel(
-        model_name=config.main_model,
-        provider=OpenAIProvider(
-            base_url=base_url,
-            api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
-        settings=OpenAIModelSettings(**settings_dict)
-    )
+    return _create_provider_model(config, 'main')
 
 
 def create_fallback_model(config: Config) -> OpenAIModel:
     """Create the fallback LLM model from configuration."""
-    # Use per-provider max_tokens
-    max_tokens = getattr(config, 'fallback_max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature (use per-provider field)
-    temperature = getattr(config, 'fallback_temperature', 0.0)
-    temperature_supported = getattr(config, 'fallback_temperature_supported', True)
-
-    # Build settings dict - only include temperature if model supports it
-    settings_dict = {'max_tokens': max_tokens}
-    if temperature_supported:
-        settings_dict['temperature'] = temperature
-
-    # Build provider with per-provider base_url and optional api_version header
-    base_url = getattr(config, 'fallback_base_url', None)
-    if not base_url:
-        raise ValueError(
-            "fallback_base_url is required in configuration for fallback model.\n"
-            f"Model: {config.fallback_model}\n"
-            "Please set via CLI: --fallback-base-url <url>\n"
-            "Or in config file: fallback_base_url = '<url>'"
-        )
-
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'fallback_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
-    # Get per-provider API key
-    api_key = getattr(config, 'fallback_api_key', None)
-    if not api_key:
-        raise ValueError(
-            "fallback_api_key is required in configuration for fallback model.\n"
-            f"Model: {config.fallback_model}\n"
-            "Please set via CLI: --fallback-api-key <key>\n"
-            "Different AI providers require different API keys."
-        )
-
-    return OpenAIModel(
-        model_name=config.fallback_model,
-        provider=OpenAIProvider(
-            base_url=base_url,
-            api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
-        settings=OpenAIModelSettings(**settings_dict)
-    )
+    return _create_provider_model(config, 'fallback')
 
 
 
@@ -473,3 +437,4 @@ def call_llm(
             f"Unexpected error calling {model_stage_name} model '{model}': "
             f"{type(e).__name__}: {str(e)}"
         ) from e
+

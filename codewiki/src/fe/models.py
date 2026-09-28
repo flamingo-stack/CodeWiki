@@ -5,28 +5,13 @@ Data models and classes for the CodeWiki web application.
 
 from datetime import datetime
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pydantic import BaseModel, HttpUrl
 
 
 class RepositorySubmission(BaseModel):
     """Pydantic model for repository submission form."""
     repo_url: HttpUrl
-
-
-class JobStatusResponse(BaseModel):
-    """Pydantic model for job status API response."""
-    job_id: str
-    repo_url: str
-    status: str
-    created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-    progress: str = ""
-    docs_path: Optional[str] = None
-    main_model: Optional[str] = None
-    commit_id: Optional[str] = None
 
 
 @dataclass
@@ -43,6 +28,26 @@ class JobStatus:
     docs_path: Optional[str] = None
     main_model: Optional[str] = None
     commit_id: Optional[str] = None
+
+
+class JobStatusResponse(BaseModel):
+    """Pydantic model for job status API response."""
+    job_id: str
+    repo_url: str
+    status: str
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    progress: str = ""
+    docs_path: Optional[str] = None
+    main_model: Optional[str] = None
+    commit_id: Optional[str] = None
+
+    @classmethod
+    def from_job_status(cls, job_status: JobStatus) -> "JobStatusResponse":
+        """Build a JobStatusResponse from a JobStatus instance."""
+        return cls(**asdict(job_status))
 
 
 @dataclass
