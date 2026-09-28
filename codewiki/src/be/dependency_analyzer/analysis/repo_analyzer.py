@@ -8,9 +8,12 @@ detailed file tree representations with filtering capabilities.
 import os
 import fnmatch
 import json
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 from codewiki.src.be.dependency_analyzer.utils.patterns import DEFAULT_IGNORE_PATTERNS, DEFAULT_INCLUDE_PATTERNS
+
+logger = logging.getLogger(__name__)
 
 
 class RepoAnalyzer:
@@ -67,9 +70,6 @@ class RepoAnalyzer:
         Returns:
             Dictionary with merged file_tree and combined summary
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         logger.info(f"🔍 Analyzing {len(repo_dirs)} repository paths...")
 
         merged_children = []
