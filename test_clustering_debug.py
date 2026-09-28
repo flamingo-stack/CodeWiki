@@ -22,24 +22,16 @@ def capture_llm_response():
     """Monkey patch to capture LLM response."""
     global captured_response
     from codewiki.src.be import cluster_modules as cm_module
-    from codewiki.src.be.llm_services import create_llm_client
 
-    original_create = create_llm_client
+    original_call_llm = cm_module.call_llm
 
-    def patched_create(*args, **kwargs):
-        client = original_create(*args, **kwargs)
-        original_call = client.call
+    def patched_call_llm(*call_args, **call_kwargs):
+        result = original_call_llm(*call_args, **call_kwargs)
+        global captured_response
+        captured_response = result
+        return result
 
-        def patched_call(*call_args, **call_kwargs):
-            result = original_call(*call_args, **call_kwargs)
-            global captured_response
-            captured_response = result
-            return result
-
-        client.call = patched_call
-        return client
-
-    cm_module.create_llm_client = patched_create
+    cm_module.call_llm = patched_call_llm
 
 capture_llm_response()
 

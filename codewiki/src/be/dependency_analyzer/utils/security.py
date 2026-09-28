@@ -27,11 +27,21 @@ def assert_safe_path(base_dir: Path, target: Path):
 
 def safe_open_text(base_dir: Path, target: Path, encoding="utf-8"):
     assert_safe_path(base_dir, target)
-    flags = os.O_RDONLY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise PermissionError(
+            f"Cannot safely open {target}: platform does not support O_NOFOLLOW"
+        )
+    flags = os.O_RDONLY | os.O_NOFOLLOW
     fd = os.open(str(target), flags)
     try:
+        # Re-verify post-open that the opened file descriptor is not a
+        # symlink and still resolves inside base_dir, closing the TOCTOU
+        # window between the pre-open check and the open() call.
+        st = os.fstat(fd)
+        import stat as _stat
+        if _stat.S_ISLNK(st.st_mode):
+            raise PermissionError(f"Symlink blocked: {target}")
+        assert_safe_path(base_dir, target)
         with os.fdopen(fd, "r", encoding=encoding, errors="replace") as f:
             return f.read()
     finally:
