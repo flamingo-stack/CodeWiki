@@ -356,16 +356,11 @@ class CallGraphAnalyzer:
                 relationship.is_resolved = True
                 resolved_count += 1
             elif "." in callee_name:
-                if callee_name in func_lookup:
-                    relationship.callee = func_lookup[callee_name]
+                method_name = callee_name.split(".")[-1]
+                if method_name in func_lookup:
+                    relationship.callee = func_lookup[method_name]
                     relationship.is_resolved = True
                     resolved_count += 1
-                else:
-                    method_name = callee_name.split(".")[-1]
-                    if method_name in func_lookup:
-                        relationship.callee = func_lookup[method_name]
-                        relationship.is_resolved = True
-                        resolved_count += 1
 
     def _deduplicate_relationships(self):
         """
@@ -538,4 +533,5 @@ class CallGraphAnalyzer:
             for rel in self.call_relationships
             if rel.caller in selected_func_ids and rel.callee in selected_func_ids
         ]
+
 
