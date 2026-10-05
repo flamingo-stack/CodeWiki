@@ -189,7 +189,7 @@ class TreeSitterJavaAnalyzer:
 				if field_type_name and not self._is_primitive_type(field_type_name):
 					self.call_relationships.append(CallRelationship(
 						caller=containing_class,
-						callee=field_type_name,  
+						callee=self._get_component_id(field_type_name),  
 						call_line=node.start_point[0]+1,
 						is_resolved=False
 					))
@@ -224,7 +224,7 @@ class TreeSitterJavaAnalyzer:
 					if target_type and not self._is_primitive_type(target_type):
 						self.call_relationships.append(CallRelationship(
 							caller=caller_id,
-							callee=target_type,
+							callee=self._get_component_id(target_type),
 							call_line=node.start_point[0]+1,
 							is_resolved=False
 						))
@@ -238,7 +238,7 @@ class TreeSitterJavaAnalyzer:
 				if created_type and not self._is_primitive_type(created_type):
 					self.call_relationships.append(CallRelationship(
 						caller=containing_class,
-						callee=created_type,
+						callee=self._get_component_id(created_type),
 						call_line=node.start_point[0]+1,
 						is_resolved=False
 					))
@@ -270,8 +270,10 @@ class TreeSitterJavaAnalyzer:
 			type_node = next((c for c in node.children if c.type == "type_identifier"), None)
 			return type_node.text.decode() if type_node else None
 		elif node.type == "superclass":
-			type_node = next((c for c in node.children if c.type == "type_identifier"), None)
-			return type_node.text.decode() if type_node else None
+			type_node = next((c for c in node.children if c.type in ["type_identifier", "generic_type"]), None)
+			if type_node:
+				return self._get_type_name(type_node)
+			return None
 		return None
 	
 	def _find_containing_class(self, node, top_level_nodes):
@@ -364,3 +366,4 @@ class TreeSitterJavaAnalyzer:
 def analyze_java_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
 	analyzer = TreeSitterJavaAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+
