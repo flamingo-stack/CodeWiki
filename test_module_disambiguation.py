@@ -17,6 +17,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+class TestResults:
+    """Accumulates pass/fail results and prints a structured summary."""
+
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.results = []
+
+    def add_test(self, name: str, passed: bool, message: str = ""):
+        if passed:
+            self.passed += 1
+            status = "PASSED"
+            symbol = "✅"
+        else:
+            self.failed += 1
+            status = "FAILED"
+            symbol = "❌"
+        self.results.append((name, passed, message))
+        print(f"\n{symbol} {name} {status}" + (f": {message}" if message else ""))
+
+    def print_summary(self):
+        total = self.passed + self.failed
+        print("\n" + "="*80)
+        print("Test Summary")
+        print("="*80)
+        print(f"✅ Passed: {self.passed}/{total}")
+        print(f"❌ Failed: {self.failed}/{total}")
+
+        if self.failed == 0:
+            print("\n🎉 All tests passed! Module disambiguation is working correctly.")
+        else:
+            print(f"\n⚠️  {self.failed} test(s) failed. Please review the implementation.")
+
+    @property
+    def exit_code(self) -> int:
+        return 0 if self.failed == 0 else 1
+
+
 def _find_best_path_match_original(llm_id: str, candidates: List[str]) -> Optional[str]:
     """Original implementation WITHOUT module context."""
     llm_segments = llm_id.split('.')
@@ -255,50 +294,35 @@ def main():
     print("\nThis test demonstrates the fix for ambiguous component resolution")
     print("by using module name context to disambiguate candidates.")
 
-    # Run all tests
-    tests_passed = 0
-    tests_failed = 0
+    results = TestResults()
 
     # Test 1: DeviceController for openframe-api-service
     orig_result, enh_result = test_device_controller_disambiguation()
-    if orig_result is None and enh_result is not None:
-        tests_passed += 1
-        print("\n✅ Test 1 PASSED: Original failed (ambiguous), Enhanced succeeded")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 1 FAILED")
+    results.add_test(
+        "Test 1",
+        orig_result is None and enh_result is not None,
+        "Original failed (ambiguous), Enhanced succeeded"
+    )
 
     # Test 2: DeviceController for openframe-external-api-service
     ext_result = test_external_api_disambiguation()
-    if ext_result and "external" in ext_result:
-        tests_passed += 1
-        print("\n✅ Test 2 PASSED: Correctly matched external variant")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 2 FAILED")
+    results.add_test(
+        "Test 2",
+        bool(ext_result and "external" in ext_result),
+        "Correctly matched external variant"
+    )
 
     # Test 3: SecurityConfig for openframe-gateway-service
     sec_result = test_security_config_disambiguation()
-    if sec_result and "gateway" in sec_result:
-        tests_passed += 1
-        print("\n✅ Test 3 PASSED: Correctly matched gateway variant")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 3 FAILED")
+    results.add_test(
+        "Test 3",
+        bool(sec_result and "gateway" in sec_result),
+        "Correctly matched gateway variant"
+    )
 
-    # Summary
-    print("\n" + "="*80)
-    print("Test Summary")
-    print("="*80)
-    print(f"✅ Passed: {tests_passed}/3")
-    print(f"❌ Failed: {tests_failed}/3")
+    results.print_summary()
 
-    if tests_failed == 0:
-        print("\n🎉 All tests passed! Module disambiguation is working correctly.")
-        return 0
-    else:
-        print(f"\n⚠️  {tests_failed} test(s) failed. Please review the implementation.")
-        return 1
+    return results.exit_code
 
 
 if __name__ == "__main__":

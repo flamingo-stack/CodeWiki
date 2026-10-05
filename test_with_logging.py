@@ -14,6 +14,33 @@ from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
 from codewiki.src.config import Config
 
+
+class TestResults:
+    def __init__(self):
+        self.results = []
+
+    def add_test(self, name, passed, message=""):
+        self.results.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("TEST SUMMARY")
+        print("=" * 80)
+        failed = 0
+        for name, passed, message in self.results:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {name}")
+            if message:
+                print(f"   {message}")
+            if not passed:
+                failed += 1
+        print("=" * 80)
+        print(f"Total: {len(self.results)}, Passed: {len(self.results) - failed}, Failed: {failed}")
+        return failed == 0
+
+
+results = TestResults()
+
 # Setup logging FIRST
 setup_logging()
 
@@ -71,14 +98,15 @@ module_tree = cluster_modules(
     current_module_path=[]
 )
 
-print("\n" + "=" * 80)
-
 # Show result
 if len(module_tree) == 0:
-    print("❌ FAILED: Empty module tree")
-    print("   Check the INFO logs above for LLM response")
+    results.add_test("cluster_modules produces non-empty module tree", False,
+                      "Empty module tree. Check the INFO logs above for LLM response")
 else:
-    print(f"✅ SUCCESS: {len(module_tree)} modules created")
-    for name, info in module_tree.items():
-        print(f"   - {name}: {len(info.get('components', []))} components")
+    detail = ", ".join(f"{name}: {len(info.get('components', []))} components"
+                        for name, info in module_tree.items())
+    results.add_test("cluster_modules produces non-empty module tree", True,
+                      f"{len(module_tree)} modules created - {detail}")
 
+success = results.print_summary()
+sys.exit(0 if success else 1)

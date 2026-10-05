@@ -16,6 +16,33 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
+
+class TestResults:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, message=""):
+        self.tests.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("TEST SUMMARY")
+        print("=" * 80)
+        passed_count = 0
+        for name, passed, message in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status} - {name}" + (f": {message}" if message else ""))
+            if passed:
+                passed_count += 1
+        total = len(self.tests)
+        print("-" * 80)
+        print(f"Total: {passed_count}/{total} passed")
+        print("=" * 80)
+        return passed_count == total
+
+
+results = TestResults()
+
 test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
 config = Config(
@@ -53,13 +80,14 @@ module_tree = cluster_modules(
     current_module_tree={}, current_module_name=None, current_module_path=[]
 )
 
-print("\n" + "=" * 80)
 if len(module_tree) == 0:
     print("❌ FAILED - Check LLM response above")
-    sys.exit(1)
+    results.add_test("clustering produced modules", False, "module_tree is empty")
 else:
     print(f"✅ SUCCESS: {len(module_tree)} modules")
     for name, info in module_tree.items():
         print(f"   - {name}: {len(info.get('components', []))} components")
-    sys.exit(0)
+    results.add_test("clustering produced modules", True, f"{len(module_tree)} modules")
 
+success = results.print_summary()
+sys.exit(0 if success else 1)

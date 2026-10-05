@@ -17,6 +17,32 @@ from codewiki.cli.config_manager import ConfigManager
 from codewiki.src.config import Config
 
 
+class TestResults:
+    """Accumulates test results and prints a structured summary."""
+
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name: str, passed: bool, message: str = ""):
+        self.tests.append((name, passed, message))
+
+    def all_passed(self) -> bool:
+        return all(passed for _, passed, _ in self.tests)
+
+    def print_summary(self):
+        print_section("Test Summary")
+        for name, passed, message in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            line = f"{status}: {name}"
+            if message:
+                line += f" - {message}"
+            print(line)
+
+        total = len(self.tests)
+        passed_count = sum(1 for _, passed, _ in self.tests if passed)
+        print(f"\n{passed_count}/{total} tests passed")
+
+
 def print_section(title: str):
     """Print a section header."""
     print(f"\n{'='*60}")
@@ -208,48 +234,51 @@ def test_llm_service_creation(backend_config):
 def main():
     """Run all tests."""
     print_section("CodeWiki Local Configuration Test")
-    
+
+    results = TestResults()
+
     # Test 1: Load API keys from .env.local
     result = test_env_loading()
     if not result:
-        print("\n" + "="*60)
-        print("❌ FAILED: Could not load API keys from .env.local")
-        print("="*60)
+        results.add_test("Load API keys from .env.local", False, "Could not load API keys from .env.local")
+        results.print_summary()
         sys.exit(1)
-    
+    results.add_test("Load API keys from .env.local", True)
+
     openai_key, anthropic_key = result
-    
+
     # Test 2: Save configuration
     if not test_config_manager_save(openai_key, anthropic_key):
-        print("\n" + "="*60)
-        print("❌ FAILED: Could not save configuration")
-        print("="*60)
+        results.add_test("Save configuration", False, "Could not save configuration")
+        results.print_summary()
         sys.exit(1)
-    
+    results.add_test("Save configuration", True)
+
     # Test 3: Load configuration
     config_manager = test_config_manager_load()
     if not config_manager:
-        print("\n" + "="*60)
-        print("❌ FAILED: Could not load configuration")
-        print("="*60)
+        results.add_test("Load configuration", False, "Could not load configuration")
+        results.print_summary()
         sys.exit(1)
-    
+    results.add_test("Load configuration", True)
+
     # Test 4: Create backend config
     backend_config = test_backend_config_creation(config_manager)
     if not backend_config:
-        print("\n" + "="*60)
-        print("❌ FAILED: Could not create backend config")
-        print("="*60)
+        results.add_test("Create backend config", False, "Could not create backend config")
+        results.print_summary()
         sys.exit(1)
-    
+    results.add_test("Create backend config", True)
+
     # Test 5: Create LLM services
     if not test_llm_service_creation(backend_config):
-        print("\n" + "="*60)
-        print("❌ FAILED: Could not create LLM services")
-        print("="*60)
+        results.add_test("Create LLM services", False, "Could not create LLM services")
+        results.print_summary()
         sys.exit(1)
-    
+    results.add_test("Create LLM services", True)
+
     # Success!
+    results.print_summary()
     print_section("🎉 SUCCESS: All tests passed!")
     print("\nCodeWiki is properly configured and ready to use.")
     print("\nNext steps:")
