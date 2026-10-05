@@ -83,7 +83,7 @@ test_repo = os.getenv(
 )
 
 # Create config via factory (not direct construction) to satisfy validation/env-resolution
-config = Config(
+config = Config.from_args(
     repo_path=test_repo,
     output_dir="/tmp/codewiki_test",
     dependency_graph_dir="/tmp/codewiki_test/deps",

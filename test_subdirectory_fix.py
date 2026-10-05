@@ -12,8 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from codewiki.src.be.documentation_generator import DocumentationGenerator
 from codewiki.src.config import Config
 
-# Create minimal config
-config = Config(
+# Create minimal config via the from_args factory to preserve env-var
+# resolution, defaulting, and validation guarantees (CODEWIKI-007).
+config = Config.from_args(
     cluster_api_key=os.getenv("CLUSTER_API_KEY", os.getenv("OPENAI_API_KEY", "")),
     main_api_key=os.getenv("MAIN_API_KEY", os.getenv("OPENAI_API_KEY", "")),
     fallback_api_key=os.getenv("FALLBACK_API_KEY", os.getenv("ANTHROPIC_API_KEY", "")),
