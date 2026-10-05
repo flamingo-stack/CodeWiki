@@ -1,5 +1,32 @@
 """
 Documentation job data models.
+
+This module defines the persisted data structures used to track the
+lifecycle of a documentation generation job in the CLI pipeline. A
+DocumentationJob represents a single run of the documentation generator
+against a repository: it records where the repository lives, which commit
+and branch were processed, the status of the run, any error encountered,
+the files produced, and nested configuration/statistics objects describing
+how the run was performed and what it produced.
+
+Responsibilities:
+    - JobStatus: enumerates the possible lifecycle states of a job
+      (pending, running, completed, failed).
+    - GenerationOptions: captures user-selected options that influence how
+      documentation is generated (branch creation, GitHub Pages
+      publishing, cache usage, custom output location).
+    - LLMConfig: captures which LLM models and endpoint were used to
+      generate documentation for a given job.
+    - JobStatistics: captures metrics collected while generating
+      documentation (files analyzed, leaf node count, depth, tokens used).
+    - DocumentationJob: the aggregate root that is persisted to disk as
+      JSON so that job state can survive process restarts and be inspected
+      by CLI commands (e.g. status, resume, history).
+
+Each persisted dataclass owns its own to_dict()/from_dict() methods so
+that the field list for serialization lives in exactly one place per
+class, avoiding drift between the in-memory representation and the JSON
+representation used for storage.
 """
 
 from dataclasses import dataclass, field
@@ -18,6 +45,16 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Coerce a raw value into an int, falling back to a default."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class GenerationOptions:
     """Options for documentation generation."""
@@ -25,6 +62,29 @@ class GenerationOptions:
     github_pages: bool = False
     no_cache: bool = False
     custom_output: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "create_branch": self.create_branch,
+            "github_pages": self.github_pages,
+            "no_cache": self.no_cache,
+            "custom_output": self.custom_output,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> 'GenerationOptions':
+        """Create from dictionary."""
+        if isinstance(data, GenerationOptions):
+            return data
+        if not data:
+            return cls()
+        return cls(
+            create_branch=bool(data.get('create_branch', False)),
+            github_pages=bool(data.get('github_pages', False)),
+            no_cache=bool(data.get('no_cache', False)),
+            custom_output=data.get('custom_output'),
+        )
 
 
 @dataclass
@@ -35,6 +95,29 @@ class JobStatistics:
     max_depth: int = 0
     total_tokens_used: int = 0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "total_files_analyzed": self.total_files_analyzed,
+            "leaf_nodes": self.leaf_nodes,
+            "max_depth": self.max_depth,
+            "total_tokens_used": self.total_tokens_used,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> 'JobStatistics':
+        """Create from dictionary."""
+        if isinstance(data, JobStatistics):
+            return data
+        if not data:
+            return cls()
+        return cls(
+            total_files_analyzed=_coerce_int(data.get('total_files_analyzed'), 0),
+            leaf_nodes=_coerce_int(data.get('leaf_nodes'), 0),
+            max_depth=_coerce_int(data.get('max_depth'), 0),
+            total_tokens_used=_coerce_int(data.get('total_tokens_used'), 0),
+        )
+
 
 @dataclass
 class LLMConfig:
@@ -42,6 +125,27 @@ class LLMConfig:
     main_model: str
     cluster_model: str
     base_url: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "main_model": self.main_model,
+            "cluster_model": self.cluster_model,
+            "base_url": self.base_url,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Optional['LLMConfig']:
+        """Create from dictionary, or None if data is empty."""
+        if isinstance(data, LLMConfig):
+            return data
+        if not data:
+            return None
+        return cls(
+            main_model=data.get('main_model', ''),
+            cluster_model=data.get('cluster_model', ''),
+            base_url=data.get('base_url', ''),
+        )
 
 
 def _coerce_job_status(value: Any, default: JobStatus = JobStatus.PENDING) -> JobStatus:
@@ -54,57 +158,6 @@ def _coerce_job_status(value: Any, default: JobStatus = JobStatus.PENDING) -> Jo
         return JobStatus(value)
     except ValueError:
         return default
-
-
-def _coerce_int(value: Any, default: int = 0) -> int:
-    """Coerce a raw value into an int, falling back to a default."""
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _coerce_generation_options(value: Any) -> GenerationOptions:
-    """Coerce a raw dict into a GenerationOptions instance."""
-    if isinstance(value, GenerationOptions):
-        return value
-    if not value:
-        return GenerationOptions()
-    return GenerationOptions(
-        create_branch=bool(value.get('create_branch', False)),
-        github_pages=bool(value.get('github_pages', False)),
-        no_cache=bool(value.get('no_cache', False)),
-        custom_output=value.get('custom_output'),
-    )
-
-
-def _coerce_llm_config(value: Any) -> Optional[LLMConfig]:
-    """Coerce a raw dict into an LLMConfig instance, or None."""
-    if isinstance(value, LLMConfig):
-        return value
-    if not value:
-        return None
-    return LLMConfig(
-        main_model=value.get('main_model', ''),
-        cluster_model=value.get('cluster_model', ''),
-        base_url=value.get('base_url', ''),
-    )
-
-
-def _coerce_statistics(value: Any) -> JobStatistics:
-    """Coerce a raw dict into a JobStatistics instance."""
-    if isinstance(value, JobStatistics):
-        return value
-    if not value:
-        return JobStatistics()
-    return JobStatistics(
-        total_files_analyzed=_coerce_int(value.get('total_files_analyzed'), 0),
-        leaf_nodes=_coerce_int(value.get('leaf_nodes'), 0),
-        max_depth=_coerce_int(value.get('max_depth'), 0),
-        total_tokens_used=_coerce_int(value.get('total_tokens_used'), 0),
-    )
 
 
 @dataclass
@@ -176,23 +229,9 @@ class DocumentationJob:
             "error_message": self.error_message,
             "files_generated": self.files_generated,
             "module_count": self.module_count,
-            "generation_options": {
-                "create_branch": self.generation_options.create_branch,
-                "github_pages": self.generation_options.github_pages,
-                "no_cache": self.generation_options.no_cache,
-                "custom_output": self.generation_options.custom_output,
-            },
-            "llm_config": {
-                "main_model": self.llm_config.main_model,
-                "cluster_model": self.llm_config.cluster_model,
-                "base_url": self.llm_config.base_url,
-            } if self.llm_config else None,
-            "statistics": {
-                "total_files_analyzed": self.statistics.total_files_analyzed,
-                "leaf_nodes": self.statistics.leaf_nodes,
-                "max_depth": self.statistics.max_depth,
-                "total_tokens_used": self.statistics.total_tokens_used,
-            },
+            "generation_options": self.generation_options.to_dict(),
+            "llm_config": self.llm_config.to_dict() if self.llm_config else None,
+            "statistics": self.statistics.to_dict(),
         }
         return data
     
@@ -220,13 +259,14 @@ class DocumentationJob:
         
         # Parse nested objects
         if 'generation_options' in data:
-            job.generation_options = _coerce_generation_options(data['generation_options'])
+            job.generation_options = GenerationOptions.from_dict(data['generation_options'])
         
         if 'llm_config' in data and data['llm_config']:
-            job.llm_config = _coerce_llm_config(data['llm_config'])
+            job.llm_config = LLMConfig.from_dict(data['llm_config'])
         
         if 'statistics' in data:
-            job.statistics = _coerce_statistics(data['statistics'])
+            job.statistics = JobStatistics.from_dict(data['statistics'])
         
         return job
+
 
