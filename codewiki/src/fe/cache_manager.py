@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
 Cache management for documentation generation results.
+
+This module maintains an on-disk index (cache_index.json) mapping repository
+URLs to previously generated documentation output paths. It is used by the
+web-app layer (codewiki/src/fe) to avoid regenerating documentation for a
+repository that was already processed within the configured expiry window,
+including cache lookup, insertion, expiry cleanup, and recovery from a
+corrupted index file.
 """
 
 import hashlib
@@ -126,3 +133,4 @@ class CacheManager:
         
         if expired_entries:
             self.save_cache_index()
+

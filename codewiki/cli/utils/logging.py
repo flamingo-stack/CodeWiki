@@ -1,5 +1,10 @@
 """
 Logging utilities for CLI with colored output and progress tracking.
+
+Provides CLILogger, a lightweight click-based logger with debug/info/success/
+warning/error/step helpers for user-facing CLI output, plus
+quiet_third_party_loggers(), which caps noisy third-party HTTP/SDK loggers
+(httpx, openai, anthropic) at WARNING so CLI runs stay readable.
 """
 
 import logging
