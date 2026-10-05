@@ -242,10 +242,19 @@ class WebRoutes:
                 pass
         
         # Serve the requested file
-        docs_path_resolved = docs_path.resolve()
-        file_path = (docs_path / filename).resolve()
-        if docs_path_resolved != file_path and docs_path_resolved not in file_path.parents:
+        if not filename.endswith('.md'):
             raise HTTPException(status_code=400, detail="Invalid file path")
+
+        try:
+            docs_path_resolved = docs_path.resolve()
+            file_path = (docs_path / filename).resolve()
+            if not file_path.is_relative_to(docs_path_resolved):
+                raise HTTPException(status_code=400, detail="Invalid file path")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail=f"File {filename} not found")
         
@@ -304,3 +313,4 @@ class WebRoutes:
         for job_id in expired_jobs:
             if job_id in self.background_worker.job_status:
                 del self.background_worker.job_status[job_id]
+

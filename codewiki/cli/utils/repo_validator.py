@@ -4,10 +4,14 @@ Repository validation utilities for documentation generation.
 
 from pathlib import Path
 from typing import Tuple, List
+import logging
 import os
 
 from codewiki.cli.utils.errors import RepositoryError
 from codewiki.cli.utils.validation import validate_repository_path, detect_supported_languages
+
+
+logger = logging.getLogger(__name__)
 
 
 # Supported file extensions by language
@@ -146,6 +150,7 @@ def get_git_commit_hash(repo_path: Path) -> str:
         repo = git.Repo(repo_path)
         return repo.head.commit.hexsha
     except Exception:
+        logger.debug("Failed to read git commit hash for %s", repo_path, exc_info=True)
         return ""
 
 
@@ -167,6 +172,7 @@ def get_git_branch(repo_path: Path) -> str:
         repo = git.Repo(repo_path)
         return repo.active_branch.name
     except Exception:
+        logger.debug("Failed to read git branch for %s", repo_path, exc_info=True)
         return ""
 
 
