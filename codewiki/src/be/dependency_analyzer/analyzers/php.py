@@ -161,6 +161,15 @@ class TreeSitterPHPAnalyzer:
             return f"{module_path}::{parent_class}.{name}"
         return f"{module_path}::{name}"
 
+    def _get_component_id_for_resolved_name(self, resolved_name: str) -> str:
+        """Generate a component ID for an already-resolved fully qualified name,
+        splitting into module path and component name and joining with '::'."""
+        dotted = resolved_name.replace("\\", ".")
+        if "." in dotted:
+            module_path, name = dotted.rsplit(".", 1)
+            return f"{module_path}::{name}"
+        return f"{dotted}::{dotted}"
+
     def _analyze(self):
         """Parse and analyze the PHP file."""
         try:
@@ -359,7 +368,7 @@ class TreeSitterPHPAnalyzer:
                     resolved_base = self.namespace_resolver.resolve(base_name)
                     self.call_relationships.append(CallRelationship(
                         caller=self._get_component_id(class_name),
-                        callee=resolved_base.replace("\\", "."),
+                        callee=self._get_component_id_for_resolved_name(resolved_base),
                         call_line=node.start_point[0] + 1,
                         is_resolved=False
                     ))
@@ -376,7 +385,7 @@ class TreeSitterPHPAnalyzer:
                             resolved_interface = self.namespace_resolver.resolve(interface_name)
                             self.call_relationships.append(CallRelationship(
                                 caller=self._get_component_id(implementer_name),
-                                callee=resolved_interface.replace("\\", "."),
+                                callee=self._get_component_id_for_resolved_name(resolved_interface),
                                 call_line=node.start_point[0] + 1,
                                 is_resolved=False
                             ))
@@ -392,7 +401,7 @@ class TreeSitterPHPAnalyzer:
                     resolved_type = self.namespace_resolver.resolve(created_type)
                     self.call_relationships.append(CallRelationship(
                         caller=self._get_component_id(containing_class),
-                        callee=resolved_type.replace("\\", "."),
+                        callee=self._get_component_id_for_resolved_name(resolved_type),
                         call_line=node.start_point[0] + 1,
                         is_resolved=False
                     ))
@@ -408,7 +417,7 @@ class TreeSitterPHPAnalyzer:
                     resolved_target = self.namespace_resolver.resolve(target_class)
                     self.call_relationships.append(CallRelationship(
                         caller=self._get_component_id(containing_class),
-                        callee=resolved_target.replace("\\", "."),
+                        callee=self._get_component_id_for_resolved_name(resolved_target),
                         call_line=node.start_point[0] + 1,
                         is_resolved=False
                     ))
@@ -424,7 +433,7 @@ class TreeSitterPHPAnalyzer:
                     resolved_type = self.namespace_resolver.resolve(type_name)
                     self.call_relationships.append(CallRelationship(
                         caller=self._get_component_id(containing_class),
-                        callee=resolved_type.replace("\\", "."),
+                        callee=self._get_component_id_for_resolved_name(resolved_type),
                         call_line=node.start_point[0] + 1,
                         is_resolved=False
                     ))
@@ -604,3 +613,4 @@ def analyze_php_file(file_path: str, content: str, repo_path: str = None) -> Tup
     """
     analyzer = TreeSitterPHPAnalyzer(file_path, content, repo_path)
     return analyzer.nodes, analyzer.call_relationships
+
