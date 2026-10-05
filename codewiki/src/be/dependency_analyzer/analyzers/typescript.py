@@ -22,6 +22,7 @@ from tree_sitter import Parser, Language
 import tree_sitter_typescript
 
 from codewiki.src.be.dependency_analyzer.models.core import Node, CallRelationship
+from codewiki.src.be.dependency_analyzer.analyzers.javascript import analyze_javascript_file_treesitter
 
 logger = logging.getLogger(__name__)
 
@@ -992,3 +993,4 @@ def analyze_typescript_file_treesitter(
     except Exception as e:
         logger.error(f"Error in tree-sitter TS analysis for {file_path}: {e}", exc_info=True)
         return [], []
+

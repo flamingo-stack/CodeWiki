@@ -373,6 +373,14 @@ class TreeSitterCppAnalyzer:
 		return False
 
 def analyze_cpp_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
+	"""Analyze a C++ source file and extract nodes and call relationships.
+
+	Note: structurally similar to analyze_c_file (c.py) and other language
+	analyzers in this package, since each wraps a language-specific
+	TreeSitter*Analyzer with the same construct-and-collect pattern. Kept
+	separate because the underlying analyzer classes are not identical
+	(different tree-sitter grammars and node handling).
+	"""
 	analyzer = TreeSitterCppAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
 

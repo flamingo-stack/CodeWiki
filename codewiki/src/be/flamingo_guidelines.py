@@ -23,6 +23,38 @@ CUSTOM_INSTRUCTIONS_ENV_VAR = "CUSTOM_REPO_INSTRUCTIONS"
 VALIDATION_RULES_ENV_VAR = "VALIDATION_RULES_PATH"
 
 
+def _load_markdown_file_from_env(env_var: str, missing_log_suffix: str, content_description: str) -> str:
+    """
+    Load markdown content from a file path specified in an environment variable.
+
+    Args:
+        env_var: Name of the environment variable holding the file path.
+        missing_log_suffix: Text appended to the log message when the env var is not set.
+        content_description: Human-readable description of the content, used in log messages.
+
+    Returns:
+        File content string, or empty string if not available.
+    """
+    file_path = os.environ.get(env_var)
+
+    if not file_path:
+        logger.info(f"[CodeWiki] {env_var} not set - continuing without {missing_log_suffix}")
+        return ""
+
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            logger.warning(f"[CodeWiki] {content_description} file not found: {file_path}")
+            return ""
+
+        content = path.read_text(encoding='utf-8')
+        logger.info(f"[CodeWiki] Loaded {content_description} ({len(content)} chars)")
+        return content
+    except Exception as e:
+        logger.warning(f"[CodeWiki] Failed to load {content_description}: {e}")
+        return ""
+
+
 def load_flamingo_guidelines() -> str:
     """
     Load Flamingo markdown guidelines from file path specified in env var.
@@ -34,24 +66,11 @@ def load_flamingo_guidelines() -> str:
     Returns:
         Guidelines content string, or empty string if not available.
     """
-    guidelines_path = os.environ.get(GUIDELINES_ENV_VAR)
-
-    if not guidelines_path:
-        logger.info(f"[CodeWiki] {GUIDELINES_ENV_VAR} not set - continuing without Flamingo guidelines")
-        return ""
-
-    try:
-        path = Path(guidelines_path)
-        if not path.exists():
-            logger.warning(f"[CodeWiki] Guidelines file not found: {guidelines_path}")
-            return ""
-
-        content = path.read_text(encoding='utf-8')
-        logger.info(f"[CodeWiki] Loaded Flamingo markdown guidelines ({len(content)} chars)")
-        return content
-    except Exception as e:
-        logger.warning(f"[CodeWiki] Failed to load guidelines: {e}")
-        return ""
+    return _load_markdown_file_from_env(
+        GUIDELINES_ENV_VAR,
+        "Flamingo guidelines",
+        "Flamingo markdown guidelines",
+    )
 
 
 # Load guidelines at module import time
@@ -291,24 +310,11 @@ def load_validation_rules() -> str:
     Returns:
         Validation rules content string, or empty string if not available.
     """
-    rules_path = os.environ.get(VALIDATION_RULES_ENV_VAR)
-
-    if not rules_path:
-        logger.info(f"[CodeWiki] {VALIDATION_RULES_ENV_VAR} not set - continuing without validation rules injection")
-        return ""
-
-    try:
-        path = Path(rules_path)
-        if not path.exists():
-            logger.warning(f"[CodeWiki] Validation rules file not found: {rules_path}")
-            return ""
-
-        content = path.read_text(encoding='utf-8')
-        logger.info(f"[CodeWiki] Loaded markdown validation rules ({len(content)} chars)")
-        return content
-    except Exception as e:
-        logger.warning(f"[CodeWiki] Failed to load validation rules: {e}")
-        return ""
+    return _load_markdown_file_from_env(
+        VALIDATION_RULES_ENV_VAR,
+        "validation rules injection",
+        "markdown validation rules",
+    )
 
 
 # Load validation rules at module import time
