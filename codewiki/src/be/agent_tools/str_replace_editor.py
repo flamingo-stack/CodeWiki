@@ -188,9 +188,9 @@ def flake8(file_path: str) -> str:
     """Run flake8 on a given file and return the output as a string"""
     if Path(file_path).suffix != ".py":
         return ""
-    cmd = "flake8 --isolated --select=F821,F822,F831,E111,E112,E113,E999,E902 {file_path}"
+    cmd = ["flake8", "--isolated", "--select=F821,F822,F831,E111,E112,E113,E999,E902", file_path]
     # don't use capture_output because it's not compatible with python3.6
-    out = subprocess.run(cmd.format(file_path=file_path), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return out.stdout.decode()
 
 
