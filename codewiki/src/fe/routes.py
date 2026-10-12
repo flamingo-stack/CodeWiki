@@ -3,6 +3,7 @@
 FastAPI route handlers for the CodeWiki web application.
 """
 
+import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,6 +22,8 @@ from .templates import WEB_INTERFACE_TEMPLATE
 from .template_utils import render_template
 from .config import WebAppConfig
 from codewiki.src.utils import file_manager
+
+logger = logging.getLogger(__name__)
 
 
 class WebRoutes:
@@ -230,7 +233,7 @@ class WebRoutes:
             try:
                 module_tree = file_manager.load_json(module_tree_file)
             except Exception:
-                pass
+                logger.exception("Failed to load module_tree.json for job_id=%s at %s", job_id, module_tree_file)
         
         # Load metadata
         metadata = None
@@ -239,7 +242,7 @@ class WebRoutes:
             try:
                 metadata = file_manager.load_json(metadata_file)
             except Exception:
-                pass
+                logger.exception("Failed to load metadata.json for job_id=%s at %s", job_id, metadata_file)
         
         # Serve the requested file
         docs_path_resolved = docs_path.resolve()
@@ -304,3 +307,4 @@ class WebRoutes:
         for job_id in expired_jobs:
             if job_id in self.background_worker.job_status:
                 del self.background_worker.job_status[job_id]
+
