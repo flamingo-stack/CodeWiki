@@ -225,6 +225,15 @@ class TreeSitterCAnalyzer:
 		}
 		return func_name in system_functions
 
-def analyze_c_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
+def analyze_c_file(file_path: str, content: str, repo_path: Optional[str] = None) -> Tuple[List[Node], List[CallRelationship]]:
+	"""Analyze a C source file and return its nodes and call relationships.
+
+	This mirrors the equivalent entry points in the other language analyzers
+	(e.g. `analyze_cpp_file`), each delegating to its own tree-sitter based
+	analyzer class since the languages require distinct grammars and node
+	handling, while keeping a consistent public call signature and return
+	type across the dependency analyzer pipeline.
+	"""
 	analyzer = TreeSitterCAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+

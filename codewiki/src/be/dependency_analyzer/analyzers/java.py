@@ -362,5 +362,13 @@ class TreeSitterJavaAnalyzer:
 		return None
 
 def analyze_java_file(file_path: str, content: str, repo_path: str = None) -> Tuple[List[Node], List[CallRelationship]]:
+	"""Analyze a Java source file and extract nodes and call relationships.
+
+	This entry point mirrors the per-language analyze_*_file functions used
+	across this package (e.g. analyze_c_file); each wraps a language-specific
+	tree-sitter analyzer class that shares this same thin construction and
+	result-extraction pattern.
+	"""
 	analyzer = TreeSitterJavaAnalyzer(file_path, content, repo_path)
 	return analyzer.nodes, analyzer.call_relationships
+
