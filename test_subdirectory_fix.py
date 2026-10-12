@@ -12,6 +12,38 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from codewiki.src.be.documentation_generator import DocumentationGenerator
 from codewiki.src.config import Config
 
+
+class TestResults:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, details=None):
+        self.tests.append({"name": name, "passed": passed, "details": details})
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        all_passed = all(t["passed"] for t in self.tests)
+        for t in self.tests:
+            status = "✅ PASS" if t["passed"] else "❌ FAIL"
+            print(f"{status}: {t['name']}")
+        if all_passed:
+            print("\n✅✅✅ ALL TESTS PASSED ✅✅✅")
+            print("\n🎉 The fix works! Root-level modules now create subdirectories!")
+            print("\nExample structure:")
+            print("   docs/reference/architecture/")
+            print("   ├── gateway_service_core/")
+            print("   │   └── gateway_service_core.md")
+            print("   ├── api_endpoints/")
+            print("   │   └── api_endpoints.md")
+            print("   └── Backend/")
+            print("       └── Authentication/")
+            print("           └── JWT/")
+            print("               └── JWT.md")
+        else:
+            print("\n❌ SOME TESTS FAILED")
+        return all_passed
+
+
 # Create minimal config
 config = Config(
     cluster_api_key=os.getenv("CLUSTER_API_KEY", os.getenv("OPENAI_API_KEY", "")),
@@ -61,7 +93,7 @@ test_cases = [
 print("Testing subdirectory creation logic...")
 print("=" * 80)
 
-all_passed = True
+results = TestResults()
 for test in test_cases:
     result = generator._get_nested_working_dir(base_dir, test["module_path"])
     expected = os.path.abspath(test["expected"])
@@ -73,25 +105,11 @@ for test in test_cases:
     print(f"   Expected:    {expected}")
     print(f"   Got:         {result}")
 
-    if not passed:
-        all_passed = False
+    results.add_test(
+        test["name"],
+        passed,
+        {"module_path": test["module_path"], "expected": expected, "got": result}
+    )
 
-print("\n" + "=" * 80)
-if all_passed:
-    print("✅✅✅ ALL TESTS PASSED ✅✅✅")
-    print("\n🎉 The fix works! Root-level modules now create subdirectories!")
-    print("\nExample structure:")
-    print("   docs/reference/architecture/")
-    print("   ├── gateway_service_core/")
-    print("   │   └── gateway_service_core.md")
-    print("   ├── api_endpoints/")
-    print("   │   └── api_endpoints.md")
-    print("   └── Backend/")
-    print("       └── Authentication/")
-    print("           └── JWT/")
-    print("               └── JWT.md")
-    sys.exit(0)
-else:
-    print("❌ SOME TESTS FAILED")
-    sys.exit(1)
-
+all_passed = results.print_summary()
+sys.exit(0 if all_passed else 1)
