@@ -17,6 +17,42 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+class TestResults:
+    """Minimal TestResults tracker following the CODEWIKI-009 convention."""
+
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+        self.results = []
+
+    def add_test(self, name: str, passed: bool, detail: str = ""):
+        if passed:
+            self.passed += 1
+        else:
+            self.failed += 1
+        self.results.append((name, passed, detail))
+
+    def print_summary(self):
+        print("\n" + "="*80)
+        print("Test Summary")
+        print("="*80)
+        total = self.passed + self.failed
+        for name, passed, detail in self.results:
+            status = "✅ PASSED" if passed else "❌ FAILED"
+            suffix = f": {detail}" if detail else ""
+            print(f"{status} - {name}{suffix}")
+        print(f"\n✅ Passed: {self.passed}/{total}")
+        print(f"❌ Failed: {self.failed}/{total}")
+        if self.failed == 0:
+            print("\n🎉 All tests passed! Module disambiguation is working correctly.")
+        else:
+            print(f"\n⚠️  {self.failed} test(s) failed. Please review the implementation.")
+
+    def exit_code(self) -> int:
+        return 0 if self.failed == 0 else 1
+
+
 def _find_best_path_match_original(llm_id: str, candidates: List[str]) -> Optional[str]:
     """Original implementation WITHOUT module context."""
     llm_segments = llm_id.split('.')
@@ -255,50 +291,37 @@ def main():
     print("\nThis test demonstrates the fix for ambiguous component resolution")
     print("by using module name context to disambiguate candidates.")
 
-    # Run all tests
-    tests_passed = 0
-    tests_failed = 0
+    results = TestResults()
 
     # Test 1: DeviceController for openframe-api-service
     orig_result, enh_result = test_device_controller_disambiguation()
-    if orig_result is None and enh_result is not None:
-        tests_passed += 1
-        print("\n✅ Test 1 PASSED: Original failed (ambiguous), Enhanced succeeded")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 1 FAILED")
+    passed_1 = orig_result is None and enh_result is not None
+    results.add_test(
+        "DeviceController disambiguation (openframe-api-service)",
+        passed_1,
+        "Original failed (ambiguous), Enhanced succeeded" if passed_1 else "unexpected result"
+    )
 
     # Test 2: DeviceController for openframe-external-api-service
     ext_result = test_external_api_disambiguation()
-    if ext_result and "external" in ext_result:
-        tests_passed += 1
-        print("\n✅ Test 2 PASSED: Correctly matched external variant")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 2 FAILED")
+    passed_2 = bool(ext_result and "external" in ext_result)
+    results.add_test(
+        "DeviceController disambiguation (openframe-external-api-service)",
+        passed_2,
+        "Correctly matched external variant" if passed_2 else "unexpected result"
+    )
 
     # Test 3: SecurityConfig for openframe-gateway-service
     sec_result = test_security_config_disambiguation()
-    if sec_result and "gateway" in sec_result:
-        tests_passed += 1
-        print("\n✅ Test 3 PASSED: Correctly matched gateway variant")
-    else:
-        tests_failed += 1
-        print("\n❌ Test 3 FAILED")
+    passed_3 = bool(sec_result and "gateway" in sec_result)
+    results.add_test(
+        "SecurityConfig disambiguation (openframe-gateway-service)",
+        passed_3,
+        "Correctly matched gateway variant" if passed_3 else "unexpected result"
+    )
 
-    # Summary
-    print("\n" + "="*80)
-    print("Test Summary")
-    print("="*80)
-    print(f"✅ Passed: {tests_passed}/3")
-    print(f"❌ Failed: {tests_failed}/3")
-
-    if tests_failed == 0:
-        print("\n🎉 All tests passed! Module disambiguation is working correctly.")
-        return 0
-    else:
-        print(f"\n⚠️  {tests_failed} test(s) failed. Please review the implementation.")
-        return 1
+    results.print_summary()
+    return results.exit_code()
 
 
 if __name__ == "__main__":
