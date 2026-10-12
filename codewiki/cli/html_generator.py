@@ -3,11 +3,14 @@ HTML generator for GitHub Pages documentation viewer.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
 from codewiki.cli.utils.errors import FileSystemError
 from codewiki.cli.utils.fs import safe_write, safe_read
+
+logger = logging.getLogger(__name__)
 
 
 class HTMLGenerator:
@@ -277,8 +280,8 @@ class HTMLGenerator:
                         repo = parts[-1]
                         info['github_pages_url'] = f"https://{owner}.github.io/{repo}/"
         
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to detect repository info for {repo_path}: {e}")
         
         return info
 
