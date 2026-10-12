@@ -170,7 +170,7 @@ class TreeSitterCppAnalyzer:
 			
 			top_level_nodes[top_level_key] = node_obj
 			
-			if node_type in ["class", "struct", "function"]:
+			if node_type in ["class", "struct", "function", "method"]:
 				self.nodes.append(node_obj)
 		
 		# Recursively process children
