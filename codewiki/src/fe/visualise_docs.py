@@ -257,7 +257,7 @@ def main():
     try:
         import uvicorn
         uvicorn.run(
-            "visualise_docs:app",
+            "codewiki.src.fe.visualise_docs:app",
             host=args.host,
             port=args.port,
             reload=args.debug,
