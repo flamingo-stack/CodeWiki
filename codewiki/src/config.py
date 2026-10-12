@@ -135,17 +135,39 @@ class Config:
                 data.pop(secret_field, None)
         return data
 
+    @staticmethod
+    def _default_missing_secret_fields(filtered: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Fill in any missing required secret fields (cluster_api_key,
+        main_api_key, fallback_api_key) with None so that from_dict() can
+        construct a Config instance without raising a raw TypeError from
+        missing required positional arguments.
+
+        Callers that need a fully-functional Config must still supply real
+        secret values in `data`; this helper only prevents construction from
+        failing outright on a round-trip through to_dict(include_secrets=False).
+        """
+        defaulted = dict(filtered)
+        for secret_field in _RUNTIME_ONLY_SECRET_FIELDS:
+            defaulted.setdefault(secret_field, None)
+        return defaulted
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Config':
         """
         Construct a Config from a dict previously produced by to_dict().
 
         If secret fields (cluster_api_key, main_api_key, fallback_api_key) were
-        excluded (the default for to_dict()), they must be supplied separately
-        in `data` or this will raise a TypeError due to missing required fields.
+        excluded (the default for to_dict()), they are defaulted to None here
+        rather than letting dataclass construction raise an uninformative
+        TypeError for missing required arguments. Callers that need a
+        fully-functional Config (e.g. to make LLM calls) must supply real
+        secret values in `data`, either by calling to_dict(include_secrets=True)
+        or by merging them in explicitly before calling from_dict().
         """
         known_fields = {f.name for f in fields(cls)}
         filtered = {k: v for k, v in data.items() if k in known_fields}
+        filtered = cls._default_missing_secret_fields(filtered)
         return cls(**filtered)
 
     @property
@@ -760,3 +782,4 @@ class Config:
             diagrams_dir=None,
             additional_source_paths=additional_paths
         )
+
