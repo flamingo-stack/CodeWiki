@@ -5,9 +5,12 @@ FORCED clustering test - set max_token_per_module=50 to FORCE LLM call.
 
 import os, sys, logging
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s', force=True)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging(level=logging.INFO, format='[%(levelname)s] %(message)s', force=True)
 
 from dotenv import load_dotenv
 load_dotenv('.env.local')
