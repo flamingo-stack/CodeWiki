@@ -178,7 +178,7 @@ class TreeSitterJSAnalyzer:
             if child.type == "method_definition":
                 method_name = self._get_method_name(child)
                 if method_name:
-                    method_key = f"{self._get_module_path()}.{class_name}.{method_name}"
+                    method_key = self._get_component_id(method_name, class_name, is_method=True)
                     method_node = self._create_method_node(child, method_name, class_name)
                     if method_node:
                         self.top_level_nodes[method_key] = method_node
@@ -186,7 +186,7 @@ class TreeSitterJSAnalyzer:
                 # Handle arrow function properties
                 field_name = self._get_field_name(child)
                 if field_name and self._is_arrow_function_field(child):
-                    method_key = f"{self._get_module_path()}.{class_name}.{field_name}"
+                    method_key = self._get_component_id(field_name, class_name, is_method=True)
                     method_node = self._create_method_node(child, field_name, class_name)
                     if method_node:
                         self.top_level_nodes[method_key] = method_node
@@ -519,7 +519,7 @@ class TreeSitterJSAnalyzer:
                         break
                 
                 if current_class:
-                    method_key = f"{self._get_module_path()}.{current_class}.{callee_name}"
+                    method_key = self._get_component_id(callee_name, current_class, is_method=True)
                     if method_key in self.top_level_nodes:
                         return None
             
