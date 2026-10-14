@@ -18,9 +18,10 @@ from codewiki.src.be.cluster_modules import (
     create_component_id_map,
     normalize_component_ids_by_lookup,
 )
+from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
 
 # Configure logging to capture warnings
-logging.basicConfig(level=logging.WARNING, format='%(message)s')
+setup_logging(level=logging.WARNING, format='%(message)s')
 
 
 class TestResults:

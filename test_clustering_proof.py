@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-import os, sys, logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s', force=True)
+import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from codewiki.src.be.dependency_analyzer.utils.logging_config import setup_logging
+setup_logging()
 
 from dotenv import load_dotenv
 load_dotenv('.env.local')
