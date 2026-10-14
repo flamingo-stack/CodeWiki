@@ -91,6 +91,8 @@ class GitHubRepoProcessor:
                 
                 if result.returncode != 0:
                     logger.error(f"Error cloning repository: {result.stderr}")
+                    if os.path.isdir(target_dir):
+                        shutil.rmtree(target_dir, ignore_errors=True)
                     return False
             
             return True
@@ -99,3 +101,4 @@ class GitHubRepoProcessor:
             if os.path.isdir(target_dir):
                 shutil.rmtree(target_dir, ignore_errors=True)
             return False
+
