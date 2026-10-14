@@ -48,14 +48,15 @@ class TestResults:
     def __init__(self):
         self.results = {}
 
-    def add_test(self, name: str, passed: bool):
+    def add_test(self, name: str, passed: bool, details: str = ""):
         """Record the result of a single test.
 
         Args:
             name: Test name
             passed: Whether the test passed
+            details: Additional context about the test outcome
         """
-        self.results[name] = passed
+        self.results[name] = (passed, details)
 
     def print_summary(self) -> int:
         """Print formatted summary of all recorded test results.
@@ -65,10 +66,10 @@ class TestResults:
         """
         print_header("Test Results Summary")
 
-        passed = sum(1 for r in self.results.values() if r)
+        passed = sum(1 for r, _ in self.results.values() if r)
         total = len(self.results)
 
-        for test_name, result in self.results.items():
+        for test_name, (result, details) in self.results.items():
             if result:
                 print_success(f"{test_name}")
             else:
@@ -126,7 +127,7 @@ def create_test_config(
     Returns:
         Config instance
     """
-    return Config(
+    return Config.from_args(
         repo_path=repo_path,
         output_dir=output_dir,
         dependency_graph_dir=os.path.join(output_dir, "graphs"),
@@ -537,10 +538,11 @@ def run_all_tests():
             print_error(f"Test '{test_name}' crashed: {str(e)}")
             import traceback
             traceback.print_exc()
-            test_results.add_test(test_name, False)
+            test_results.add_test(test_name, False, str(e))
 
     return test_results.print_summary()
 
 
 if __name__ == "__main__":
     sys.exit(run_all_tests())
+
