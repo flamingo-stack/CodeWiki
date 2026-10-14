@@ -59,7 +59,7 @@ def test_clustering(results):
     print(f"\n📂 Test repository: {test_repo}")
 
     # Create minimal config via the required factory method
-    config = Config(
+    config = Config.from_args(
         repo_path=test_repo,
         output_dir="/tmp/codewiki_test_output",
         dependency_graph_dir="/tmp/codewiki_test_output/deps",
