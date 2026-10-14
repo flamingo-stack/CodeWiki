@@ -26,6 +26,29 @@ class GenerationOptions:
     no_cache: bool = False
     custom_output: Optional[str] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "create_branch": self.create_branch,
+            "github_pages": self.github_pages,
+            "no_cache": self.no_cache,
+            "custom_output": self.custom_output,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> 'GenerationOptions':
+        """Create from dictionary."""
+        if isinstance(data, cls):
+            return data
+        if not data:
+            return cls()
+        return cls(
+            create_branch=bool(data.get('create_branch', False)),
+            github_pages=bool(data.get('github_pages', False)),
+            no_cache=bool(data.get('no_cache', False)),
+            custom_output=data.get('custom_output'),
+        )
+
 
 @dataclass
 class JobStatistics:
@@ -35,13 +58,101 @@ class JobStatistics:
     max_depth: int = 0
     total_tokens_used: int = 0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "total_files_analyzed": self.total_files_analyzed,
+            "leaf_nodes": self.leaf_nodes,
+            "max_depth": self.max_depth,
+            "total_tokens_used": self.total_tokens_used,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> 'JobStatistics':
+        """Create from dictionary."""
+        if isinstance(data, cls):
+            return data
+        if not data:
+            return cls()
+        return cls(
+            total_files_analyzed=_coerce_int(data.get('total_files_analyzed'), 0),
+            leaf_nodes=_coerce_int(data.get('leaf_nodes'), 0),
+            max_depth=_coerce_int(data.get('max_depth'), 0),
+            total_tokens_used=_coerce_int(data.get('total_tokens_used'), 0),
+        )
+
+
+@dataclass
+class LLMRoleConfig:
+    """Configuration for a single LLM role (cluster, main, or fallback)."""
+    model: str = ""
+    api_key: str = ""
+    base_url: str = ""
+    api_version: str = ""
+    max_tokens: int = 0
+    temperature: float = 0.0
+    temperature_supported: bool = True
+    max_token_field: str = "max_tokens"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "model": self.model,
+            "api_key": self.api_key,
+            "base_url": self.base_url,
+            "api_version": self.api_version,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "temperature_supported": self.temperature_supported,
+            "max_token_field": self.max_token_field,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> 'LLMRoleConfig':
+        """Create from dictionary."""
+        if isinstance(data, cls):
+            return data
+        if not data:
+            return cls()
+        return cls(
+            model=data.get('model', ''),
+            api_key=data.get('api_key', ''),
+            base_url=data.get('base_url', ''),
+            api_version=data.get('api_version', ''),
+            max_tokens=_coerce_int(data.get('max_tokens'), 0),
+            temperature=float(data.get('temperature', 0.0) or 0.0),
+            temperature_supported=bool(data.get('temperature_supported', True)),
+            max_token_field=data.get('max_token_field', 'max_tokens'),
+        )
+
 
 @dataclass
 class LLMConfig:
-    """LLM configuration for a job."""
-    main_model: str
-    cluster_model: str
-    base_url: str
+    """LLM configuration for a job, mirroring the three-role (cluster, main, fallback) pattern."""
+    cluster: LLMRoleConfig = field(default_factory=LLMRoleConfig)
+    main: LLMRoleConfig = field(default_factory=LLMRoleConfig)
+    fallback: LLMRoleConfig = field(default_factory=LLMRoleConfig)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "cluster": self.cluster.to_dict(),
+            "main": self.main.to_dict(),
+            "fallback": self.fallback.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Optional['LLMConfig']:
+        """Create from dictionary, or None if data is empty."""
+        if isinstance(data, cls):
+            return data
+        if not data:
+            return None
+        return cls(
+            cluster=LLMRoleConfig.from_dict(data.get('cluster')),
+            main=LLMRoleConfig.from_dict(data.get('main')),
+            fallback=LLMRoleConfig.from_dict(data.get('fallback')),
+        )
 
 
 def _coerce_job_status(value: Any, default: JobStatus = JobStatus.PENDING) -> JobStatus:
@@ -64,47 +175,6 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
-
-
-def _coerce_generation_options(value: Any) -> GenerationOptions:
-    """Coerce a raw dict into a GenerationOptions instance."""
-    if isinstance(value, GenerationOptions):
-        return value
-    if not value:
-        return GenerationOptions()
-    return GenerationOptions(
-        create_branch=bool(value.get('create_branch', False)),
-        github_pages=bool(value.get('github_pages', False)),
-        no_cache=bool(value.get('no_cache', False)),
-        custom_output=value.get('custom_output'),
-    )
-
-
-def _coerce_llm_config(value: Any) -> Optional[LLMConfig]:
-    """Coerce a raw dict into an LLMConfig instance, or None."""
-    if isinstance(value, LLMConfig):
-        return value
-    if not value:
-        return None
-    return LLMConfig(
-        main_model=value.get('main_model', ''),
-        cluster_model=value.get('cluster_model', ''),
-        base_url=value.get('base_url', ''),
-    )
-
-
-def _coerce_statistics(value: Any) -> JobStatistics:
-    """Coerce a raw dict into a JobStatistics instance."""
-    if isinstance(value, JobStatistics):
-        return value
-    if not value:
-        return JobStatistics()
-    return JobStatistics(
-        total_files_analyzed=_coerce_int(value.get('total_files_analyzed'), 0),
-        leaf_nodes=_coerce_int(value.get('leaf_nodes'), 0),
-        max_depth=_coerce_int(value.get('max_depth'), 0),
-        total_tokens_used=_coerce_int(value.get('total_tokens_used'), 0),
-    )
 
 
 @dataclass
@@ -176,23 +246,9 @@ class DocumentationJob:
             "error_message": self.error_message,
             "files_generated": self.files_generated,
             "module_count": self.module_count,
-            "generation_options": {
-                "create_branch": self.generation_options.create_branch,
-                "github_pages": self.generation_options.github_pages,
-                "no_cache": self.generation_options.no_cache,
-                "custom_output": self.generation_options.custom_output,
-            },
-            "llm_config": {
-                "main_model": self.llm_config.main_model,
-                "cluster_model": self.llm_config.cluster_model,
-                "base_url": self.llm_config.base_url,
-            } if self.llm_config else None,
-            "statistics": {
-                "total_files_analyzed": self.statistics.total_files_analyzed,
-                "leaf_nodes": self.statistics.leaf_nodes,
-                "max_depth": self.statistics.max_depth,
-                "total_tokens_used": self.statistics.total_tokens_used,
-            },
+            "generation_options": self.generation_options.to_dict(),
+            "llm_config": self.llm_config.to_dict() if self.llm_config else None,
+            "statistics": self.statistics.to_dict(),
         }
         return data
     
@@ -220,13 +276,14 @@ class DocumentationJob:
         
         # Parse nested objects
         if 'generation_options' in data:
-            job.generation_options = _coerce_generation_options(data['generation_options'])
+            job.generation_options = GenerationOptions.from_dict(data['generation_options'])
         
         if 'llm_config' in data and data['llm_config']:
-            job.llm_config = _coerce_llm_config(data['llm_config'])
+            job.llm_config = LLMConfig.from_dict(data['llm_config'])
         
         if 'statistics' in data:
-            job.statistics = _coerce_statistics(data['statistics'])
+            job.statistics = JobStatistics.from_dict(data['statistics'])
         
         return job
+
 
