@@ -10,6 +10,32 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
+
+class TestResults:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, message=""):
+        self.tests.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("📊 TEST SUMMARY")
+        print("=" * 80)
+        for name, passed, message in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {name}")
+            if message:
+                print(f"   {message}")
+        total = len(self.tests)
+        passed_count = sum(1 for _, passed, _ in self.tests if passed)
+        print(f"\n{passed_count}/{total} tests passed")
+        print("=" * 80)
+        return all(passed for _, passed, _ in self.tests)
+
+
+results = TestResults()
+
 test_repo = os.getenv("TEST_REPO_PATH", os.path.dirname(os.path.abspath(__file__)))
 
 config = Config(
@@ -78,22 +104,30 @@ print("=" * 80)
 print("\n📊 RESULTS:\n")
 
 if len(module_tree) == 0:
-    print("❌ FAILED: Empty module tree")
-    print("   LLM did NOT follow <GROUPED_COMPONENTS> format")
-    sys.exit(1)
+    results.add_test(
+        "clustering_produces_modules",
+        False,
+        "Empty module tree - LLM did NOT follow <GROUPED_COMPONENTS> format"
+    )
 elif len(module_tree) == 1:
-    print("⚠️  LLM returned 1 module (rejected as too small)")
-    print("   But LLM DID follow the tag format correctly!")
-    print(f"   Module: {list(module_tree.keys())[0]}")
-    sys.exit(0)
+    results.add_test(
+        "clustering_produces_modules",
+        True,
+        f"LLM returned 1 module (rejected as too small) but followed tag format correctly. "
+        f"Module: {list(module_tree.keys())[0]}"
+    )
 else:
-    print(f"✅✅✅ SUCCESS! {len(module_tree)} modules created ✅✅✅")
-    print("\n🎉 THE FIX IS PROVEN TO WORK! 🎉\n")
-    print("Modules generated:")
+    modules_desc = []
     for name, info in module_tree.items():
         comp_count = len(info.get('components', []))
         comp_list = info.get('components', [])[:5]
         more = len(info.get('components', [])) - 5
-        print(f"   - {name}: {comp_count} components {comp_list}{'...' if more > 0 else ''}")
-    sys.exit(0)
+        modules_desc.append(f"{name}: {comp_count} components {comp_list}{'...' if more > 0 else ''}")
+    results.add_test(
+        "clustering_produces_modules",
+        True,
+        f"{len(module_tree)} modules created. Modules generated:\n   - " + "\n   - ".join(modules_desc)
+    )
 
+all_passed = results.print_summary()
+sys.exit(0 if all_passed else 1)

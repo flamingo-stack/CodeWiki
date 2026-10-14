@@ -17,6 +17,33 @@ from codewiki.src.be.cluster_modules import cluster_modules
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
 
+
+class TestResults:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, name, passed, message=""):
+        self.tests.append((name, passed, message))
+
+    def print_summary(self):
+        print("\n" + "=" * 80)
+        print("TEST SUMMARY")
+        print("=" * 80)
+        failed = 0
+        for name, passed, message in self.tests:
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {name}")
+            if message:
+                print(f"   {message}")
+            if not passed:
+                failed += 1
+        print("=" * 80)
+        print(f"Total: {len(self.tests)}, Passed: {len(self.tests) - failed}, Failed: {failed}")
+        return failed == 0
+
+
+results = TestResults()
+
 # Test repo
 test_repo = os.getenv("TEST_REPO_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "openframe-oss-tenant"))
 
@@ -97,13 +124,21 @@ module_tree = cluster_modules(
 print("=" * 80)
 
 if len(module_tree) == 0:
-    print("\n❌ FAILED: Empty module tree")
-    print("   LLM did not follow the <GROUPED_COMPONENTS> tag format")
-    sys.exit(1)
+    results.add_test(
+        "clustering produces module tree",
+        False,
+        "Empty module tree - LLM did not follow the <GROUPED_COMPONENTS> tag format"
+    )
 else:
-    print(f"\n✅ SUCCESS: {len(module_tree)} modules created")
+    detail_lines = [f"{len(module_tree)} modules created"]
     for module_name, module_info in module_tree.items():
         comp_count = len(module_info.get("components", []))
-        print(f"   - {module_name}: {comp_count} components")
-    sys.exit(0)
+        detail_lines.append(f"   - {module_name}: {comp_count} components")
+    results.add_test(
+        "clustering produces module tree",
+        True,
+        "\n".join(detail_lines)
+    )
 
+success = results.print_summary()
+sys.exit(0 if success else 1)
