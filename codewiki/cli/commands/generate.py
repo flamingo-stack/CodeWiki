@@ -11,6 +11,7 @@ import click
 import time
 
 from codewiki.cli.config_manager import ConfigManager
+from codewiki.cli.commands.config import parse_patterns
 from codewiki.cli.utils.errors import (
     ConfigurationError,
     RepositoryError,
@@ -30,13 +31,6 @@ from codewiki.cli.adapters.doc_generator import CLIDocumentationGenerator
 from codewiki.cli.utils.instructions import display_post_generation_instructions
 from codewiki.cli.models.job import GenerationOptions
 from codewiki.cli.models.config import AgentInstructions
-
-
-def parse_patterns(patterns_str: str) -> List[str]:
-    """Parse comma-separated patterns into a list."""
-    if not patterns_str:
-        return []
-    return [p.strip() for p in patterns_str.split(',') if p.strip()]
 
 
 @click.command(name="generate")
