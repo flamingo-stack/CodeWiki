@@ -208,7 +208,7 @@ class BackgroundWorker:
             
             # Create config for documentation generation (using env vars)
             docs_dir = os.path.join(OUTPUT_BASE_DIR, DOCS_DIR, f"{job_id}-docs")
-            config = Config.from_web_job(repo_path=temp_repo_dir, docs_dir=docs_dir)
+            config = Config.from_args(repo_path=temp_repo_dir, docs_dir=docs_dir)
             
             job.progress = "Generating documentation..."
             
@@ -254,3 +254,4 @@ class BackgroundWorker:
                     subprocess.run(['rm', '-rf', temp_repo_dir], check=True)
                 except Exception as e:
                     logger.error(f"Failed to cleanup temp directory: {e}")
+
