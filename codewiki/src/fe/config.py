@@ -49,3 +49,4 @@ class WebAppConfig:
     def get_absolute_path(cls, path: str) -> str:
         """Get absolute path for a given relative path."""
         return os.path.abspath(path)
+# probe: CU-17tkuw60a9u tests and checks job (do not merge)
