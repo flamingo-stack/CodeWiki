@@ -18,7 +18,7 @@ except ImportError:  # older pydantic-ai (< 1.x) still exposes the pre-rename na
 logger = logging.getLogger(__name__)
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.fallback import FallbackModel
-from openai import OpenAI, OpenAIError
+from openai import OpenAI, AsyncOpenAI, OpenAIError
 
 from codewiki.src.config import Config
 
@@ -115,12 +115,6 @@ def create_main_model(config: Config) -> OpenAIModel:
             "Or in config file: main_base_url = '<url>'"
         )
 
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'main_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
     # Get per-provider API key
     api_key = getattr(config, 'main_api_key', None)
     if not api_key:
@@ -131,18 +125,28 @@ def create_main_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.main_model,
-        provider=OpenAIProvider(
+    # Prepare default headers for API version (Anthropic models). pydantic-ai's
+    # OpenAIProvider does not accept a default_headers parameter directly, so
+    # when an api_version is configured we build an AsyncOpenAI client with
+    # the header set and pass it via openai_client= instead.
+    api_version = getattr(config, 'main_api_version', None)
+    if api_version:
+        default_headers = {'anthropic-version': api_version}
+        openai_client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+        provider = OpenAIProvider(openai_client=openai_client)
+    else:
+        provider = OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+        )
+
+    return OpenAIModel(
+        model_name=config.main_model,
+        provider=provider,
         settings=OpenAIModelSettings(**settings_dict)
     )
 
@@ -170,12 +174,6 @@ def create_fallback_model(config: Config) -> OpenAIModel:
             "Or in config file: fallback_base_url = '<url>'"
         )
 
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'fallback_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
     # Get per-provider API key
     api_key = getattr(config, 'fallback_api_key', None)
     if not api_key:
@@ -186,18 +184,28 @@ def create_fallback_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.fallback_model,
-        provider=OpenAIProvider(
+    # Prepare default headers for API version (Anthropic models). pydantic-ai's
+    # OpenAIProvider does not accept a default_headers parameter directly, so
+    # when an api_version is configured we build an AsyncOpenAI client with
+    # the header set and pass it via openai_client= instead.
+    api_version = getattr(config, 'fallback_api_version', None)
+    if api_version:
+        default_headers = {'anthropic-version': api_version}
+        openai_client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+        provider = OpenAIProvider(openai_client=openai_client)
+    else:
+        provider = OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+        )
+
+    return OpenAIModel(
+        model_name=config.fallback_model,
+        provider=provider,
         settings=OpenAIModelSettings(**settings_dict)
     )
 
@@ -240,11 +248,6 @@ def create_cluster_model(config: Config) -> OpenAIModel:
     if temperature_supported:
         settings_dict['temperature'] = temperature
 
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
     # Get per-provider API key
     api_key = getattr(config, 'cluster_api_key', None)
     if not api_key:
@@ -255,18 +258,27 @@ def create_cluster_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.cluster_model,
-        provider=OpenAIProvider(
+    # Prepare default headers for API version (Anthropic models). pydantic-ai's
+    # OpenAIProvider does not accept a default_headers parameter directly, so
+    # when an api_version is configured we build an AsyncOpenAI client with
+    # the header set and pass it via openai_client= instead.
+    if api_version:
+        default_headers = {'anthropic-version': api_version}
+        openai_client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+        provider = OpenAIProvider(openai_client=openai_client)
+    else:
+        provider = OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+        )
+
+    return OpenAIModel(
+        model_name=config.cluster_model,
+        provider=provider,
         settings=OpenAIModelSettings(**settings_dict)
     )
 
