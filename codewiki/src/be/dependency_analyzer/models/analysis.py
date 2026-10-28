@@ -1,3 +1,13 @@
+"""
+Analysis result models for the dependency analyzer.
+
+Defines the Pydantic models used to represent the outcome of analyzing a
+repository (functions, call relationships, file tree, and summary data) as
+well as the NodeSelection model used for partial export of selected nodes.
+These models are the primary data contract passed from the dependency
+analysis stage to downstream documentation-generation and export stages.
+"""
+
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from codewiki.src.be.dependency_analyzer.models.core import Node, CallRelationship, Repository
