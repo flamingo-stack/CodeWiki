@@ -18,7 +18,7 @@ except ImportError:  # older pydantic-ai (< 1.x) still exposes the pre-rename na
 logger = logging.getLogger(__name__)
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.fallback import FallbackModel
-from openai import OpenAI, OpenAIError
+from openai import AsyncOpenAI, OpenAI, OpenAIError
 
 from codewiki.src.config import Config
 
@@ -131,18 +131,25 @@ def create_main_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.main_model,
-        provider=OpenAIProvider(
+    # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+    # openai_client and http_client - there is no default_headers
+    # parameter (verified against pydantic-ai 2.40.0), so passing one
+    # raises TypeError. To send anthropic-version here, build an
+    # AsyncOpenAI client with default_headers and pass it as openai_client=.
+    provider_kwargs = {}
+    if default_headers:
+        provider_kwargs['openai_client'] = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+    else:
+        provider_kwargs['base_url'] = base_url
+        provider_kwargs['api_key'] = api_key
+
+    return OpenAIModel(
+        model_name=config.main_model,
+        provider=OpenAIProvider(**provider_kwargs),
         settings=OpenAIModelSettings(**settings_dict)
     )
 
@@ -186,18 +193,25 @@ def create_fallback_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.fallback_model,
-        provider=OpenAIProvider(
+    # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+    # openai_client and http_client - there is no default_headers
+    # parameter (verified against pydantic-ai 2.40.0), so passing one
+    # raises TypeError. To send anthropic-version here, build an
+    # AsyncOpenAI client with default_headers and pass it as openai_client=.
+    provider_kwargs = {}
+    if default_headers:
+        provider_kwargs['openai_client'] = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+    else:
+        provider_kwargs['base_url'] = base_url
+        provider_kwargs['api_key'] = api_key
+
+    return OpenAIModel(
+        model_name=config.fallback_model,
+        provider=OpenAIProvider(**provider_kwargs),
         settings=OpenAIModelSettings(**settings_dict)
     )
 
@@ -255,18 +269,25 @@ def create_cluster_model(config: Config) -> OpenAIModel:
             "Different AI providers require different API keys."
         )
 
-    return OpenAIModel(
-        model_name=config.cluster_model,
-        provider=OpenAIProvider(
+    # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
+    # openai_client and http_client - there is no default_headers
+    # parameter (verified against pydantic-ai 2.40.0), so passing one
+    # raises TypeError. To send anthropic-version here, build an
+    # AsyncOpenAI client with default_headers and pass it as openai_client=.
+    provider_kwargs = {}
+    if default_headers:
+        provider_kwargs['openai_client'] = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
+            default_headers=default_headers,
+        )
+    else:
+        provider_kwargs['base_url'] = base_url
+        provider_kwargs['api_key'] = api_key
+
+    return OpenAIModel(
+        model_name=config.cluster_model,
+        provider=OpenAIProvider(**provider_kwargs),
         settings=OpenAIModelSettings(**settings_dict)
     )
 
