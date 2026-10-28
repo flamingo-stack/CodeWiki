@@ -149,13 +149,6 @@ class TreeSitterPHPAnalyzer:
 
     def _get_component_id(self, name: str, parent_class: str = None) -> str:
         """Generate component ID for a node using '::' to separate module path from name."""
-        # Use namespace if available
-        if self.namespace_resolver.current_namespace:
-            ns_prefix = self.namespace_resolver.current_namespace.replace("\\", ".")
-            if parent_class:
-                return f"{ns_prefix}::{parent_class}.{name}"
-            return f"{ns_prefix}::{name}"
-
         module_path = self._get_module_path()
         if parent_class:
             return f"{module_path}::{parent_class}.{name}"
@@ -604,3 +597,4 @@ def analyze_php_file(file_path: str, content: str, repo_path: str = None) -> Tup
     """
     analyzer = TreeSitterPHPAnalyzer(file_path, content, repo_path)
     return analyzer.nodes, analyzer.call_relationships
+
