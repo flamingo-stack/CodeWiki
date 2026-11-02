@@ -613,4 +613,3 @@ def analyze_php_file(file_path: str, content: str, repo_path: str = None) -> Tup
     """
     analyzer = TreeSitterPHPAnalyzer(file_path, content, repo_path)
     return analyzer.nodes, analyzer.call_relationships
-
