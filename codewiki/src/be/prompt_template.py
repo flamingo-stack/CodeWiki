@@ -679,7 +679,7 @@ Generate the overview of the {{display_name}} module in markdown format:
 """.strip()
 
 CLUSTER_REPO_PROMPT = """
-Here is list of all potential core components of the repository (It's normal that some components are not essential to the repository):
+Here is the list of every component of the repository:
 
 Each component is identified by an INTEGER ID followed by a human-readable description.
 
@@ -720,7 +720,7 @@ Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
 
 **Why this matters:** If you return quoted IDs like "0", the system will reject your entire response.
 
-Please group the components into modules such that each group contains closely related components that together form a cohesive module. DO NOT include components that are not essential to the repository.
+Please group the components into modules such that each group contains closely related components that together form a cohesive module. Place EVERY component listed above in exactly one module: the documentation covers only the components you place, so a component you leave out is never documented.
 
 **MODULE NAMING CONVENTION (REQUIRED):**
 - Use **kebab-case**: lowercase words separated by hyphens
@@ -793,7 +793,7 @@ Here is the module tree of a repository:
 {module_tree}
 </MODULE_TREE>
 
-Here is list of all potential core components of the module {module_name} (It's normal that some components are not essential to the module):
+Here is the list of every component of the module {module_name}:
 
 Each component is identified by an INTEGER ID followed by a human-readable description.
 
@@ -834,7 +834,7 @@ Python's json.loads() requires bare integers in arrays. DO NOT quote the IDs:
 
 **Why this matters:** If you return quoted IDs like "0", the system will reject your entire response.
 
-Please group the components into smaller sub-modules such that each group contains closely related components. DO NOT include components that are not essential to the module.
+Please group the components into smaller sub-modules such that each group contains closely related components. Place EVERY component listed above in exactly one sub-module: a component you leave out is never documented.
 
 **MODULE NAMING CONVENTION (REQUIRED):**
 - Use **kebab-case**: lowercase words separated by hyphens
