@@ -22,6 +22,7 @@ failed tool result (``ToolFailed``), never raised into the agent run.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -123,6 +124,8 @@ def _make_tool(settings: _HubSettings, spec: Dict[str, Any]) -> Tool:
         content = body.get("content") if isinstance(body, dict) else None
         if not isinstance(content, str):
             raise ToolFailed(f"{name} failed: the hub's answer had no content")
+        # One line per answered call, so a run's log shows what the writers looked up.
+        logger.info(f"Code-graph tool {name} answered ({len(content)} chars) for {json.dumps(args, sort_keys=True)[:200]}")
         return content
 
     return Tool.from_schema(
