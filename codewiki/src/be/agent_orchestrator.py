@@ -9,7 +9,16 @@ module tree, invoking the agent, and persisting generated docs).
 """
 
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import (
+    FallbackExceptionGroup,
+    ModelConnectionError,
+    ModelRateLimitError,
+    ModelRequestTimeout,
+    ModelServerError,
+    ModelUnavailableError,
+)
 from pydantic_ai.usage import UsageLimits
+import asyncio
 from codewiki.src.be.usage_tracker import record_agent_run
 # import logfire
 import logging
@@ -20,6 +29,25 @@ from typing import Dict, List, Any
 # Configure logging and monitoring
 
 logger = logging.getLogger(__name__)
+
+# A module whose agent run fails on a passing provider problem (a dropped connection, a rate limit, an outage) is
+# run again, after the SDK's own retries are spent: these waits outlast a short outage or a laptop's network coming
+# back. Any other error fails the module at once.
+MODULE_RUN_RETRY_DELAYS_S = (60, 300)
+_TRANSIENT_MODEL_ERRORS = (
+    ModelConnectionError,
+    ModelRateLimitError,
+    ModelRequestTimeout,
+    ModelServerError,
+    ModelUnavailableError,
+)
+
+
+def is_transient_model_error(error: BaseException) -> bool:
+    """Whether a failed agent run may succeed when run again: every model it tried failed on a passing problem."""
+    if isinstance(error, FallbackExceptionGroup):
+        return all(is_transient_model_error(child) for child in error.exceptions)
+    return isinstance(error, _TRANSIENT_MODEL_ERRORS)
 
 # try:
 #     # Configure logfire with environment variables for Docker compatibility
@@ -188,11 +216,22 @@ class AgentOrchestrator:
         logger.info("")
 
         try:
-            result = await agent.run(
-                user_prompt,
-                deps=deps,
-                usage_limits=UsageLimits(request_limit=1000),
-            )
+            for attempt, delay in enumerate((*MODULE_RUN_RETRY_DELAYS_S, None), start=1):
+                try:
+                    result = await agent.run(
+                        user_prompt,
+                        deps=deps,
+                        usage_limits=UsageLimits(request_limit=1000),
+                    )
+                    break
+                except Exception as run_error:
+                    if delay is None or not is_transient_model_error(run_error):
+                        raise
+                    logger.warning(
+                        f"⏳ {module_name}: attempt {attempt} failed on a passing provider error "
+                        f"({type(run_error).__name__}: {run_error}); running it again in {delay}s"
+                    )
+                    await asyncio.sleep(delay)
             record_agent_run(module_name, result)
 
             # Save updated module tree

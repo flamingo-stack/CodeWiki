@@ -15,8 +15,16 @@ except ImportError:  # older pydantic-ai (< 1.x) still exposes the pre-rename na
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.models.openai import OpenAIModelSettings
 
-logger = logging.getLogger(__name__)
+import re
+from urllib.parse import urlparse
+
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
+from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
+
+logger = logging.getLogger(__name__)
 from pydantic_ai.models.fallback import FallbackModel
 from openai import OpenAI, OpenAIError
 
@@ -86,122 +94,83 @@ def get_model_max_token_field(stage: str = 'generation') -> str:
     return os.environ.get(env_var, 'max_tokens')
 
 
-def create_main_model(config: Config) -> OpenAIModel:
+# Every SDK call retries a dropped connection, a rate limit and a 5xx on its own (backoff by the SDK), before
+# the agent run sees an error at all. A run that still fails is retried whole by the orchestrator.
+AGENT_MODEL_MAX_RETRIES = 6
+
+
+def _agent_api(base_url: str) -> str:
+    """Which wire API an agent model is called through, from its provider's host.
+
+    - Anthropic (`api.anthropic.com`): the native Messages API, so the agent's repeated prefix (instructions, tool
+      definitions, the conversation so far) is read from the prompt cache at a tenth of the input price. Through the
+      OpenAI-compatible endpoint nothing was cached: 6.8M input tokens and 0 cache reads on one repository.
+    - OpenAI (`api.openai.com`): the Responses API. Reasoning models refuse function tools on chat completions
+      ("Function tools with reasoning_effort are not supported ... use /v1/responses"), so every agent request
+      failed there and fell through to the fallback model.
+    - Any other host: OpenAI-compatible chat completions, as before.
     """
-    Create the main LLM model from configuration.
+    host = (urlparse(base_url).hostname or '').lower()
+    if host == 'anthropic.com' or host.endswith('.anthropic.com'):
+        return 'anthropic'
+    if host == 'api.openai.com':
+        return 'responses'
+    return 'chat'
 
-    NOTE: Pydantic AI currently hardcodes the 'max_tokens' parameter name in OpenAIModelSettings.
-    For reasoning models (o3, o3-mini) that require 'max_completion_tokens', the direct API call
-    in call_llm() uses the correct parameter name. If Pydantic AI models fail with "Unrecognized
-    request argument supplied: max_tokens", the system will fall back to the direct API call.
-    """
-    # Use per-provider max_tokens
-    max_tokens = getattr(config, 'main_max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature (use per-provider field)
-    temperature = getattr(config, 'main_temperature', 0.0)
-    temperature_supported = getattr(config, 'main_temperature_supported', True)
 
-    # Build settings dict - only include temperature if model supports it
-    settings_dict = {'max_tokens': max_tokens}
-    if temperature_supported:
-        settings_dict['temperature'] = temperature
-
-    # Build provider with per-provider base_url and optional api_version header
-    base_url = getattr(config, 'main_base_url', None)
+def _create_agent_model(stage: str, model_name: str, config: Config) -> Model:
+    """One agent model (`main` or `fallback`), on the API its provider's host calls for."""
+    max_tokens = getattr(config, f'{stage}_max_tokens', None) or get_max_output_tokens()
+    temperature = getattr(config, f'{stage}_temperature', 0.0)
+    temperature_supported = getattr(config, f'{stage}_temperature_supported', True)
+    base_url = getattr(config, f'{stage}_base_url', None)
+    api_key = getattr(config, f'{stage}_api_key', None)
     if not base_url:
         raise ValueError(
-            "main_base_url is required in configuration for main/generation model.\n"
-            f"Model: {config.main_model}\n"
-            "Please set via CLI: --main-base-url <url>\n"
-            "Or in config file: main_base_url = '<url>'"
+            f"{stage}_base_url is required in configuration for the {stage} model.\n"
+            f"Model: {model_name}\n"
+            f"Please set via CLI: --{stage}-base-url <url>"
         )
-
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'main_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
-
-    # Get per-provider API key
-    api_key = getattr(config, 'main_api_key', None)
     if not api_key:
         raise ValueError(
-            "main_api_key is required in configuration for main/generation model.\n"
-            f"Model: {config.main_model}\n"
-            "Please set via CLI: --main-api-key <key>\n"
-            "Different AI providers require different API keys."
+            f"{stage}_api_key is required in configuration for the {stage} model.\n"
+            f"Model: {model_name}\n"
+            f"Please set via CLI: --{stage}-api-key <key>"
         )
 
-    return OpenAIModel(
-        model_name=config.main_model,
-        provider=OpenAIProvider(
-            base_url=base_url,
-            api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
-        settings=OpenAIModelSettings(**settings_dict)
-    )
-
-
-def create_fallback_model(config: Config) -> OpenAIModel:
-    """Create the fallback LLM model from configuration."""
-    # Use per-provider max_tokens
-    max_tokens = getattr(config, 'fallback_max_tokens', None) or get_max_output_tokens()
-    # Check if model supports custom temperature (use per-provider field)
-    temperature = getattr(config, 'fallback_temperature', 0.0)
-    temperature_supported = getattr(config, 'fallback_temperature_supported', True)
-
-    # Build settings dict - only include temperature if model supports it
-    settings_dict = {'max_tokens': max_tokens}
+    settings: dict = {'max_tokens': max_tokens, 'max_retries': AGENT_MODEL_MAX_RETRIES}
     if temperature_supported:
-        settings_dict['temperature'] = temperature
+        settings['temperature'] = temperature
 
-    # Build provider with per-provider base_url and optional api_version header
-    base_url = getattr(config, 'fallback_base_url', None)
-    if not base_url:
-        raise ValueError(
-            "fallback_base_url is required in configuration for fallback model.\n"
-            f"Model: {config.fallback_model}\n"
-            "Please set via CLI: --fallback-base-url <url>\n"
-            "Or in config file: fallback_base_url = '<url>'"
+    api = _agent_api(base_url)
+    logger.info(f"🔌 {stage} model {model_name}: {api} API at {base_url}")
+    if api == 'anthropic':
+        # The SDK appends /v1/messages itself, so the configured `.../v1` is the host.
+        anthropic_base = re.sub(r'/v1/?$', '', base_url.rstrip('/'))
+        return AnthropicModel(
+            model_name,
+            provider=AnthropicProvider(api_key=api_key, base_url=anthropic_base),
+            settings=AnthropicModelSettings(
+                **settings,
+                anthropic_cache_instructions=True,
+                anthropic_cache_tool_definitions=True,
+                anthropic_cache=True,
+            ),
         )
+    provider = OpenAIProvider(base_url=base_url, api_key=api_key)
+    if api == 'responses':
+        return OpenAIResponsesModel(model_name, provider=provider, settings=OpenAIResponsesModelSettings(**settings))
+    return OpenAIModel(model_name=model_name, provider=provider, settings=OpenAIModelSettings(**settings))
 
-    # Prepare default headers for API version (Anthropic models)
-    default_headers = {}
-    api_version = getattr(config, 'fallback_api_version', None)
-    if api_version:
-        default_headers['anthropic-version'] = api_version
 
-    # Get per-provider API key
-    api_key = getattr(config, 'fallback_api_key', None)
-    if not api_key:
-        raise ValueError(
-            "fallback_api_key is required in configuration for fallback model.\n"
-            f"Model: {config.fallback_model}\n"
-            "Please set via CLI: --fallback-api-key <key>\n"
-            "Different AI providers require different API keys."
-        )
+def create_main_model(config: Config) -> Model:
+    """The main agent model (module documentation)."""
+    return _create_agent_model('main', config.main_model, config)
 
-    return OpenAIModel(
-        model_name=config.fallback_model,
-        provider=OpenAIProvider(
-            base_url=base_url,
-            api_key=api_key,
-            # NOTE: pydantic-ai's OpenAIProvider takes only base_url, api_key,
-            # openai_client and http_client - there is no default_headers
-            # parameter (verified against pydantic-ai 2.40.0), so passing one
-            # raises TypeError. To send anthropic-version here, build an
-            # AsyncOpenAI client with default_headers and pass it as
-            # openai_client=.
-        ),
-        settings=OpenAIModelSettings(**settings_dict)
-    )
 
+def create_fallback_model(config: Config) -> Model:
+    """The model an agent request falls back to when the main model fails."""
+    return _create_agent_model('fallback', config.fallback_model, config)
 
 
 def create_cluster_model(config: Config) -> OpenAIModel:
