@@ -124,16 +124,24 @@ def _write() -> None:
                 current = json.load(handle)
         except (OSError, ValueError):
             current = {}
-        merged = {model: dict(values) for model, values in (current.get("usage", {}).get("by_model") or {}).items()}
-        for model, values in _by_model.items():
-            entry = merged.setdefault(model, {"input": 0, "output": 0, "cacheRead": 0})
-            before = _written.get(model, {})
-            for key in ("input", "output", "cacheRead"):
-                entry[key] = max(0, entry.get(key, 0) - before.get(key, 0)) + values[key]
-        funnel = dict(current.get("funnel") or {})
-        funnel["stage2"] = {"engine": "codewiki", **_runs}
-        tmp = f"{path}.{os.getpid()}.tmp"
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump({**current, "usage": {**(current.get("usage") or {}), "by_model": merged}, "funnel": funnel}, handle)
-        os.replace(tmp, path)
+        # Usage is a report, never a reason to stop documenting: any failure to merge or write it (a read-only
+        # path, a full disk, a file that is not the expected object) is logged and the run carries on.
+        try:
+            if not isinstance(current, dict):
+                current = {}
+            merged = {model: dict(values) for model, values in ((current.get("usage") or {}).get("by_model") or {}).items()}
+            for model, values in _by_model.items():
+                entry = merged.setdefault(model, {"input": 0, "output": 0, "cacheRead": 0})
+                before = _written.get(model, {})
+                for key in ("input", "output", "cacheRead"):
+                    entry[key] = max(0, entry.get(key, 0) - before.get(key, 0)) + values[key]
+            funnel = dict(current.get("funnel") or {})
+            funnel["stage2"] = {"engine": "codewiki", **_runs}
+            tmp = f"{path}.{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as handle:
+                json.dump({**current, "usage": {**(current.get("usage") or {}), "by_model": merged}, "funnel": funnel}, handle)
+            os.replace(tmp, path)
+        except Exception as error:  # noqa: BLE001 - see above
+            logger.warning(f"⚠️ Usage not written to {path}: {type(error).__name__}: {error}")
+            return
         _written = {model: dict(values) for model, values in _by_model.items()}
