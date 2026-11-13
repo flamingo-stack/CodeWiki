@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 _lock = threading.Lock()
 _by_model: Dict[str, Dict[str, int]] = {}
-_runs = {"agent_runs": 0, "requests": 0, "tool_calls": 0}
+_runs = {"agent_runs": 0, "failed_attempts": 0, "requests": 0, "tool_calls": 0}
 
 
 def _add(model: str, input_tokens: int, output_tokens: int, cache_read: int) -> None:
@@ -35,13 +35,36 @@ def _add(model: str, input_tokens: int, output_tokens: int, cache_read: int) -> 
 
 def record_agent_run(label: str, result: Any) -> None:
     """One finished agent run: each of its model responses, attributed to the model that answered it."""
+    record_messages(label, result.all_messages())
+
+
+async def run_and_record(agent: Any, label: str, *args: Any, **kwargs: Any) -> Any:
+    """Run an agent and record what it spent, a run that fails included.
+
+    A failed run's model responses (answered before the error) were billed too, so they are recorded before the
+    error is raised: a run that is retried then counts every attempt.
+    """
+    from pydantic_ai import capture_run_messages
+
+    with capture_run_messages() as messages:
+        try:
+            result = await agent.run(*args, **kwargs)
+        except BaseException:
+            record_messages(f"{label} (failed attempt)", messages, finished=False)
+            raise
+    record_agent_run(label, result)
+    return result
+
+
+def record_messages(label: str, messages: Any, finished: bool = True) -> None:
+    """Each model response of one agent run, attributed to the model that answered it."""
     try:
         from pydantic_ai.messages import ModelResponse, ToolCallPart
     except ImportError:  # pragma: no cover - pydantic_ai is a dependency
         return
     run_tokens = {"input": 0, "output": 0, "cacheRead": 0, "requests": 0, "tool_calls": 0}
     with _lock:
-        for message in result.all_messages():
+        for message in messages:
             if not isinstance(message, ModelResponse):
                 continue
             usage = message.usage
@@ -54,7 +77,7 @@ def record_agent_run(label: str, result: Any) -> None:
             run_tokens["cacheRead"] += cache_read
             run_tokens["requests"] += 1
             run_tokens["tool_calls"] += sum(1 for part in message.parts if isinstance(part, ToolCallPart))
-        _runs["agent_runs"] += 1
+        _runs["agent_runs" if finished else "failed_attempts"] += 1
         _runs["requests"] += run_tokens["requests"]
         _runs["tool_calls"] += run_tokens["tool_calls"]
     logger.info(

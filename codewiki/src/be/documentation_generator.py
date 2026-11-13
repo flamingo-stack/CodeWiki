@@ -17,6 +17,7 @@ import traceback
 logger = logging.getLogger(__name__)
 
 # Local imports
+from codewiki.src.be.agent_tools.code_graph import load_code_graph_tools
 from codewiki.src.be.dependency_analyzer import DependencyGraphBuilder
 from codewiki.src.be.llm_services import call_llm
 from codewiki.src.be.prompt_template import (
@@ -175,6 +176,9 @@ class DocumentationGenerator:
     async def generate_module_documentation(self, components: Dict[str, Any], leaf_nodes: List[str]) -> str:
         """Generate documentation for all modules using dynamic programming approach."""
         logger.info("📝 Stage 3.1: Module Documentation Generation")
+
+        # The code-graph tool list, read once off the event loop before any agent is built.
+        await load_code_graph_tools()
 
         # Prepare output directory
         working_dir = os.path.abspath(self.config.docs_dir)

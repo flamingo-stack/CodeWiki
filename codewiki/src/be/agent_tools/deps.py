@@ -5,7 +5,7 @@ Defines CodeWikiDeps, a dataclass holding the shared context and state
 that is passed to agent tools during the CodeWiki documentation generation
 pipeline.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from codewiki.src.be.dependency_analyzer.models.core import Node
 from codewiki.src.config import Config
@@ -23,3 +23,6 @@ class CodeWikiDeps:
     current_depth: int
     config: Config  # LLM configuration
     custom_instructions: str = None
+    # Sub-modules whose documentation run finished, by their path: a module run retried after a passing provider
+    # error does not write (and pay for) them again.
+    finished_sub_modules: set = field(default_factory=set)

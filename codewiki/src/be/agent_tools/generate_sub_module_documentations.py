@@ -18,7 +18,7 @@ It is exposed to the top-level documentation agent as
 
 from pydantic_ai import RunContext, Tool, Agent
 from pydantic_ai.usage import UsageLimits
-from codewiki.src.be.usage_tracker import record_agent_run
+from codewiki.src.be.usage_tracker import run_and_record
 
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
@@ -100,6 +100,10 @@ async def generate_sub_module_documentation(
         value[sub_module_name] = {"components": core_component_ids, "children": {}}
     
     for sub_module_name, core_component_ids in sub_module_specs.items():
+        finished_key = (*deps.path_to_current_module, sub_module_name)
+        if finished_key in deps.finished_sub_modules:
+            logger.info(f"   ✓ Sub-module {sub_module_name} was documented by an earlier attempt; not run again")
+            continue
 
         # Create visual indentation for nested modules
         indent = "  " * deps.current_depth
@@ -140,7 +144,9 @@ async def generate_sub_module_documentation(
 
         try:
             # FLAMINGO_PATCH: Added usage_limits to prevent "request_limit of 50" exceeded errors
-            result = await sub_agent.run(
+            await run_and_record(
+                sub_agent,
+                sub_module_name,
                 format_user_prompt(
                     module_name=deps.current_module_name,
                     core_component_ids=core_component_ids,
@@ -150,7 +156,7 @@ async def generate_sub_module_documentation(
                 deps=ctx.deps,
                 usage_limits=UsageLimits(request_limit=1000),
             )
-            record_agent_run(sub_module_name, result)
+            deps.finished_sub_modules.add(finished_key)
         finally:
             # remove the sub-module name from the path to current module and the module tree
             deps.path_to_current_module.pop()

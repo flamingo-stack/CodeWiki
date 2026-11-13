@@ -415,18 +415,20 @@ def _ask_placement(
             continue
         if not isinstance(answer, dict):
             continue
+        batch_ids = dict(enumerate(batch))
         taken = set()
         for name, ids in answer.items():
-            if name not in module_tree or not isinstance(ids, list):
+            if name not in module_tree:
+                logger.warning(f"   \u274c Placement named module '{name}', which clustering did not create; its IDs are placed by path")
                 continue
-            for raw in ids:
-                try:
-                    idx = int(raw)
-                except (TypeError, ValueError):
-                    continue
-                if 0 <= idx < len(batch) and idx not in taken:
-                    taken.add(idx)
-                    placed[name].append(batch[idx])
+            if not isinstance(ids, list):
+                logger.warning(f"   \u274c Placement for module '{name}' is not a list of IDs; placed by path")
+                continue
+            resolved, _, _ = normalize_component_id_list(ids, batch_ids, context=f"placement into '{name}'")
+            for fqdn in resolved:
+                if fqdn not in taken:
+                    taken.add(fqdn)
+                    placed[name].append(fqdn)
     return dict(placed)
 
 

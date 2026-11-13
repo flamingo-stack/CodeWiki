@@ -22,6 +22,7 @@ failed tool result (``ToolFailed``), never raised into the agent run.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -188,6 +189,14 @@ def code_graph_tools() -> List[Tool]:
         settings = _read_settings()
         _cached_tools = _fetch_tools(settings) if settings else []
     return list(_cached_tools)
+
+
+async def load_code_graph_tools() -> List[Tool]:
+    """Read the tool list once, in a worker thread, so the async pipeline never waits on the hub inside its loop.
+
+    The pipeline calls this before it builds any agent; every later `code_graph_tools()` is a cache read.
+    """
+    return await asyncio.to_thread(code_graph_tools)
 
 
 def reset_code_graph_tools_cache() -> None:

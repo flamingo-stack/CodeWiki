@@ -19,7 +19,8 @@ from pydantic_ai.exceptions import (
 )
 from pydantic_ai.usage import UsageLimits
 import asyncio
-from codewiki.src.be.usage_tracker import record_agent_run
+import copy
+from codewiki.src.be.usage_tracker import run_and_record
 # import logfire
 import logging
 import os
@@ -216,9 +217,18 @@ class AgentOrchestrator:
         logger.info("")
 
         try:
+            # A retry starts from the state the first attempt started with. Sub-modules a failed attempt finished stay
+            # finished (deps.finished_sub_modules), so they are neither written nor paid for twice.
+            start_state = (copy.deepcopy(deps.module_tree), list(deps.path_to_current_module), deps.current_module_name, deps.current_depth)
             for attempt, delay in enumerate((*MODULE_RUN_RETRY_DELAYS_S, None), start=1):
+                if attempt > 1:
+                    deps.module_tree = copy.deepcopy(start_state[0])
+                    deps.path_to_current_module[:] = start_state[1]
+                    deps.current_module_name, deps.current_depth = start_state[2], start_state[3]
                 try:
-                    result = await agent.run(
+                    result = await run_and_record(
+                        agent,
+                        module_name,
                         user_prompt,
                         deps=deps,
                         usage_limits=UsageLimits(request_limit=1000),
@@ -232,7 +242,6 @@ class AgentOrchestrator:
                         f"({type(run_error).__name__}: {run_error}); running it again in {delay}s"
                     )
                     await asyncio.sleep(delay)
-            record_agent_run(module_name, result)
 
             # Save updated module tree
             file_manager.save_json(deps.module_tree, module_tree_path)
