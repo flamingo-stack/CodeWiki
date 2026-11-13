@@ -10,6 +10,7 @@ module tree, invoking the agent, and persisting generated docs).
 
 from pydantic_ai import Agent
 from pydantic_ai.usage import UsageLimits
+from codewiki.src.be.usage_tracker import record_agent_run
 # import logfire
 import logging
 import os
@@ -192,6 +193,7 @@ class AgentOrchestrator:
                 deps=deps,
                 usage_limits=UsageLimits(request_limit=1000),
             )
+            record_agent_run(module_name, result)
 
             # Save updated module tree
             file_manager.save_json(deps.module_tree, module_tree_path)

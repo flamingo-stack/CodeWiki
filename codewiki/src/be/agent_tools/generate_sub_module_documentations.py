@@ -18,6 +18,7 @@ It is exposed to the top-level documentation agent as
 
 from pydantic_ai import RunContext, Tool, Agent
 from pydantic_ai.usage import UsageLimits
+from codewiki.src.be.usage_tracker import record_agent_run
 
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
@@ -149,6 +150,7 @@ async def generate_sub_module_documentation(
                 deps=ctx.deps,
                 usage_limits=UsageLimits(request_limit=1000),
             )
+            record_agent_run(sub_module_name, result)
         finally:
             # remove the sub-module name from the path to current module and the module tree
             deps.path_to_current_module.pop()

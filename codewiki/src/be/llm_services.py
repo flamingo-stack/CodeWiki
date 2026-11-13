@@ -21,6 +21,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from openai import OpenAI, OpenAIError
 
 from codewiki.src.config import Config
+from codewiki.src.be.usage_tracker import record_completion
 
 
 # Global request counter for logging progress
@@ -446,6 +447,7 @@ def call_llm(
         logger.info(f"   └─ 🚀 Sending request to LLM API...")
 
         response = client.chat.completions.create(**kwargs)
+        record_completion(kwargs.get("model") or model or "unknown", response)
 
         response_content = response.choices[0].message.content
         response_tokens = len(response_content) // 4  # Approximate token count
