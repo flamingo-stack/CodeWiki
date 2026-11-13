@@ -58,8 +58,7 @@ def test_short_id_normalization():
             namespace="deps/lib-auth",
             component_type="class",
             file_path="/path/to/handlers.py",
-            relative_path="auth/handlers.py",
-            is_from_deps=True
+            relative_path="auth/handlers.py"
         ),
     }
 

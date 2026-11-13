@@ -10,7 +10,7 @@ It also provides constructors for building a `Config` instance from CLI
 arguments (`from_args`), for a web-app job (`from_web_job`), from explicit
 CLI parameters (`from_cli`), and from a `ConfigManager`
 (`from_config_manager`), along with helpers for
-multi-path source validation and prompt-addition generation used by the
+repository-path validation and prompt-addition generation used by the
 downstream documentation generation stages.
 """
 
@@ -113,10 +113,6 @@ class Config:
     # Optional separate directory for Mermaid diagrams (from fork)
     # When set, diagrams are extracted from markdown and saved as separate files
     diagrams_dir: str = None
-    # Multi-path support: additional source directories to analyze alongside repo_path
-    # When None, operates in single-path mode (backward compatible)
-    # When set, all paths are analyzed and merged into unified documentation
-    additional_source_paths: Optional[List[str]] = None
 
     def to_dict(self, include_secrets: bool = False) -> Dict[str, Any]:
         """
@@ -190,84 +186,23 @@ class Config:
             return instructions_dict.get('custom_instructions')
         return None
 
-    @property
-    def all_source_paths(self) -> List[str]:
+    def validate_repo_path(self) -> None:
         """
-        Get all source paths to analyze (primary + additional).
-
-        Returns:
-            List of absolute paths. Always includes repo_path as first element.
-            If additional_source_paths is None, returns single-element list.
-        """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        paths = [os.path.abspath(self.repo_path)]
-        if self.additional_source_paths:
-            paths.extend([os.path.abspath(p) for p in self.additional_source_paths])
-            logger.debug(f"🔍 all_source_paths property accessed:")
-            logger.debug(f"   ├─ Primary: {paths[0]}")
-            for i, path in enumerate(paths[1:], 1):
-                logger.debug(f"   └─ Additional #{i}: {path}")
-        else:
-            logger.debug(f"🔍 all_source_paths property accessed (single-path mode): {paths[0]}")
-        return paths
-
-    def validate_source_paths(self) -> None:
-        """
-        Validate that all source paths exist and are accessible directories.
+        Validate that the repository path exists and is a directory.
 
         Raises:
-            ValueError: If any path does not exist or is not a directory
-            OSError: If any path cannot be accessed
+            ValueError: If the path does not exist or is not a directory
         """
         import logging
         logger = logging.getLogger(__name__)
 
-        logger.info("🔍 Validating source paths...")
+        logger.info("🔍 Validating repository path...")
 
-        # Validate primary repo_path
-        logger.debug(f"   ├─ Checking primary path: {self.repo_path}")
         if not os.path.exists(self.repo_path):
-            raise ValueError(f"Primary repository path does not exist: {self.repo_path}")
+            raise ValueError(f"Repository path does not exist: {self.repo_path}")
         if not os.path.isdir(self.repo_path):
-            raise ValueError(f"Primary repository path is not a directory: {self.repo_path}")
-        logger.info(f"   ├─ ✓ Primary path valid: {self.repo_path}")
-
-        # Validate additional paths if configured
-        if self.additional_source_paths:
-            logger.info(f"   ├─ Validating {len(self.additional_source_paths)} additional path(s)...")
-            for i, path in enumerate(self.additional_source_paths, start=1):
-                logger.debug(f"   │  └─ Checking additional path #{i}: {path}")
-                if not os.path.exists(path):
-                    raise ValueError(f"Additional source path #{i} does not exist: {path}")
-                if not os.path.isdir(path):
-                    raise ValueError(f"Additional source path #{i} is not a directory: {path}")
-
-                # Check for read access
-                if not os.access(path, os.R_OK):
-                    raise OSError(f"Additional source path #{i} is not readable: {path}")
-                logger.info(f"   │  ├─ ✓ Additional path #{i} valid: {path}")
-            logger.info(f"   └─ ✓ All {len(self.additional_source_paths)} additional path(s) validated")
-        else:
-            logger.debug(f"   └─ No additional paths to validate (single-path mode)")
-
-    def is_multi_path_mode(self) -> bool:
-        """
-        Check if configuration is in multi-path mode.
-
-        Returns:
-            True if additional_source_paths is set and non-empty, False otherwise
-        """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        result = bool(self.additional_source_paths)
-        if result:
-            logger.debug(f"🔍 Multi-path mode: ENABLED ({len(self.additional_source_paths)} additional paths)")
-        else:
-            logger.debug("🔍 Multi-path mode: DISABLED (single-path)")
-        return result
+            raise ValueError(f"Repository path is not a directory: {self.repo_path}")
+        logger.info(f"   └─ ✓ Repository path valid: {self.repo_path}")
 
     def get_prompt_addition(self) -> str:
         """Generate prompt additions based on agent instructions."""
@@ -416,8 +351,7 @@ class Config:
         main_max_token_field: str = "max_tokens",
         fallback_max_token_field: str = "max_tokens",
         agent_instructions: Optional[Dict[str, Any]] = None,
-        diagrams_dir: str = None,
-        additional_source_paths: Optional[List[str]] = None
+        diagrams_dir: str = None
     ) -> 'Config':
         """
         Create configuration for CLI context.
@@ -454,7 +388,6 @@ class Config:
             fallback_max_token_field: Parameter name for fallback model max tokens
             agent_instructions: Custom agent instructions dict
             diagrams_dir: Optional separate directory for Mermaid diagrams
-            additional_source_paths: Additional directories to analyze (multi-path mode)
 
         Returns:
             Config instance
@@ -660,12 +593,11 @@ class Config:
             main_max_token_field=main_max_token_field,
             fallback_max_token_field=fallback_max_token_field,
             agent_instructions=agent_instructions,
-            diagrams_dir=diagrams_dir,
-            additional_source_paths=additional_source_paths
+            diagrams_dir=diagrams_dir
         )
 
-        # Validate all source paths exist and are accessible
-        config.validate_source_paths()
+        # Validate the repository path exists and is a directory
+        config.validate_repo_path()
 
         return config
 
@@ -718,13 +650,6 @@ class Config:
         if not config_obj.fallback_model:
             raise ValueError("fallback_model is not configured")
 
-        # Extract additional_source_paths from agent_instructions if present
-        additional_paths = None
-        if config_obj.agent_instructions:
-            agent_dict = config_obj.agent_instructions.to_dict() if hasattr(config_obj.agent_instructions, 'to_dict') else config_obj.agent_instructions
-            if isinstance(agent_dict, dict):
-                additional_paths = agent_dict.get('additional_source_paths')
-
         # Use from_cli with all configuration from ConfigManager
         return cls.from_cli(
             repo_path=repo_path,
@@ -757,6 +682,5 @@ class Config:
             main_max_token_field=config_obj.main_max_token_field,
             fallback_max_token_field=config_obj.fallback_max_token_field,
             agent_instructions=config_obj.agent_instructions.to_dict() if config_obj.agent_instructions else None,
-            diagrams_dir=None,
-            additional_source_paths=additional_paths
+            diagrams_dir=None
         )

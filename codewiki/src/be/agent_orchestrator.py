@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
 from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_tool
+from codewiki.src.be.agent_tools.code_graph import code_graph_tools
 from codewiki.src.be.agent_tools.generate_sub_module_documentations import generate_sub_module_documentation_tool
 from codewiki.src.be.llm_services import create_fallback_models, reset_request_counter
 from codewiki.src.be.prompt_template import (
@@ -95,7 +96,8 @@ class AgentOrchestrator:
                 tools=[
                     read_code_components_tool,
                     str_replace_editor_tool,
-                    generate_sub_module_documentation_tool
+                    generate_sub_module_documentation_tool,
+                    *code_graph_tools(),
                 ],
                 system_prompt=format_system_prompt(module_name, self.custom_instructions),
                 retries=3,  # From fork
@@ -105,7 +107,7 @@ class AgentOrchestrator:
                 self.fallback_models,
                 name=module_name,
                 deps_type=CodeWikiDeps,
-                tools=[read_code_components_tool, str_replace_editor_tool],
+                tools=[read_code_components_tool, str_replace_editor_tool, *code_graph_tools()],
                 system_prompt=format_leaf_system_prompt(module_name, self.custom_instructions),
                 retries=3,  # From fork
             )

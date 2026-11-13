@@ -70,7 +70,6 @@ CodeWiki/
 │       ├── be/              Backend analysis, orchestration, and documentation engine
 │       ├── fe/              FastAPI web application and background job processing
 │       └── config.py        Shared runtime configuration
-├── test-multi-path/         Multi-source-path dependency analysis fixtures and tests
 └── test_clustering/         Module clustering diagnostic and validation tests
 ```
 
@@ -82,7 +81,6 @@ CodeWiki/
 | Backend Core | `codewiki/src/be` | Implements repository analysis, dependency graph construction, module clustering, agent orchestration, and Markdown generation. | [Backend Core](backend-core.md) |
 | Frontend Core | `codewiki/src/fe` | Provides the web-facing application for repository submission, asynchronous processing, status tracking, caching, and documentation delivery. | [Frontend Core](frontend-core.md) |
 | Config Core | `codewiki/src/config.py` | Defines the shared `Config` runtime object for paths, LLM providers, generation limits, source roots, and agent instructions. | [Config Core](config-core.md) |
-| Test Multi Path Core | `test-multi-path` | Validates analysis across a primary repository and additional source directories. | [Test Multi Path Core](test-multi-path-core.md) |
 | Test Clustering Core | `test_clustering` | Validates live and offline module-clustering behavior, ID normalization, and response validation. | [Test Clustering Core](test-clustering-core.md) |
 
 ## Module Relationships
@@ -96,9 +94,6 @@ flowchart LR
     Backend --> Analysis["Dependency Analysis"]
     Backend --> Agents["Agent Orchestration"]
     Backend --> Docs["Documentation Generation"]
-
-    MultiPathTests["Test Multi Path Core"] --> Config
-    MultiPathTests --> Analysis
 
     ClusteringTests["Test Clustering Core"] --> Config
     ClusteringTests --> Backend

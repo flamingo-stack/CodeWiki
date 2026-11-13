@@ -138,12 +138,6 @@ def parse_patterns(patterns_str: str) -> List[str]:
     default=None,
     help="Maximum depth for hierarchical decomposition (overrides config)",
 )
-@click.option(
-    "--additional-paths",
-    type=str,
-    default=None,
-    help="Comma-separated additional paths to include in dependency analysis (e.g., 'vendor/deps,external/libs')",
-)
 @click.pass_context
 def generate_command(
     ctx,
@@ -162,8 +156,7 @@ def generate_command(
     max_tokens: Optional[int],
     max_token_per_module: Optional[int],
     max_token_per_leaf_module: Optional[int],
-    max_depth: Optional[int],
-    additional_paths: Optional[str]
+    max_depth: Optional[int]
 ):
     """
     Generate comprehensive documentation for a code repository.
@@ -208,10 +201,6 @@ def generate_command(
     \b
     # Override max depth for hierarchical decomposition
     $ codewiki generate --max-depth 3
-
-    \b
-    # Include additional dependency paths (e.g., vendor, external libs)
-    $ codewiki generate --additional-paths "vendor/packages,external/deps"
     """
     logger = create_logger(verbose=verbose)
     start_time = time.time()
@@ -377,43 +366,6 @@ def generate_command(
                 if instructions:
                     logger.debug(f"Custom instructions: {instructions}")
 
-        # Validate and parse additional paths
-        additional_paths_list = None
-        if additional_paths:
-            if verbose:
-                logger.debug("🔍 Stage 1.3: Additional Paths Validation")
-
-            additional_paths_list = parse_patterns(additional_paths)
-
-            if verbose:
-                logger.debug(f"├─ Parsed {len(additional_paths_list)} additional path(s)")
-                for i, path in enumerate(additional_paths_list, 1):
-                    logger.debug(f"│  ├─ Path #{i}: {path}")
-
-            # Validate that paths exist
-            invalid_paths = []
-            for path in additional_paths_list:
-                full_path = repo_path / path
-                if not full_path.exists():
-                    invalid_paths.append(path)
-                elif verbose:
-                    logger.debug(f"│  └─ ✓ {path} (exists)")
-
-            if invalid_paths:
-                if verbose:
-                    for path in invalid_paths:
-                        logger.debug(f"│  └─ ✗ {path} (not found)")
-                raise RepositoryError(
-                    f"Additional paths not found:\n"
-                    f"  {', '.join(invalid_paths)}\n\n"
-                    f"Please ensure all paths exist relative to repository root:\n"
-                    f"  Repository: {repo_path}\n"
-                    f"  Invalid paths: {invalid_paths}"
-                )
-
-            if verbose:
-                logger.debug(f"└─ All additional paths validated")
-
         # Log max token settings if verbose (from upstream)
         if verbose:
             effective_max_tokens = max_tokens if max_tokens is not None else config.main_max_tokens
@@ -424,8 +376,6 @@ def generate_command(
             logger.debug(f"Max token/module: {effective_max_token_per_module}")
             logger.debug(f"Max token/leaf module: {effective_max_token_per_leaf}")
             logger.debug(f"Max depth: {effective_max_depth}")
-            if additional_paths_list:
-                logger.debug(f"Additional paths: {additional_paths_list}")
 
         # Get agent instructions (merge runtime with persistent) (from upstream)
         agent_instructions_dict = None
@@ -485,8 +435,6 @@ def generate_command(
                 'max_depth': max_depth if max_depth is not None else config.max_depth,
                 # Agent instructions
                 'agent_instructions': agent_instructions_dict,
-                # Additional paths for dependency analysis
-                'additional_paths': additional_paths_list,
             },
             verbose=verbose,
             generate_html=github_pages,

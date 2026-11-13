@@ -130,24 +130,6 @@ class CLIDocumentationGenerator:
             # Set CLI context for backend
             set_cli_context(True)
             
-            # Process additional paths from config
-            additional_paths_raw = self.config.get('additional_paths', [])
-            additional_paths_normalized = None
-
-            if additional_paths_raw:
-                logger = logging.getLogger(__name__)
-                logger.info(f"🔍 CLI received {len(additional_paths_raw)} additional path(s):")
-
-                additional_paths_normalized = []
-                for i, path in enumerate(additional_paths_raw, 1):
-                    # Convert to absolute path (relative to repo_path)
-                    normalized = str((Path(self.repo_path) / path).resolve())
-                    logger.info(f"   ├─ Path #{i}: {path}")
-                    logger.info(f"   │  └─ Normalized: {normalized}")
-                    additional_paths_normalized.append(normalized)
-
-                logger.info(f"   └─ Normalized {len(additional_paths_normalized)} additional path(s)")
-
             # Create backend config with CLI settings
             backend_config = BackendConfig.from_cli(
                 repo_path=str(self.repo_path),
@@ -190,9 +172,7 @@ class CLIDocumentationGenerator:
                 # Agent instructions
                 agent_instructions=self.config.get('agent_instructions'),
                 # Optional diagrams directory
-                diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None,
-                # Additional paths for dependency analysis (normalized)
-                additional_source_paths=additional_paths_normalized
+                diagrams_dir=str(self.diagrams_dir) if self.diagrams_dir else None
             )
 
             # Log configuration details in verbose mode
@@ -212,10 +192,6 @@ class CLIDocumentationGenerator:
                 print(f"   │  ├─ Max tokens/module: {backend_config.max_token_per_module}")
                 print(f"   │  ├─ Max tokens/leaf: {backend_config.max_token_per_leaf_module}")
                 print(f"   │  └─ Max depth: {backend_config.max_depth}")
-                if backend_config.additional_source_paths:
-                    print(f"   ├─ Additional Paths ({len(backend_config.additional_source_paths)}):")
-                    for path in backend_config.additional_source_paths:
-                        print(f"   │  └─ {path}")
                 if backend_config.agent_instructions:
                     print(f"   └─ Agent Instructions: Configured")
                     if backend_config.agent_instructions.get('custom_instructions'):
@@ -262,11 +238,6 @@ class CLIDocumentationGenerator:
             self.progress_tracker.update_stage(0.1, "Initializing dependency analyzer...")
             print(f"   ├─ Repository: {backend_config.repo_path}")
             print(f"   └─ Output: {backend_config.output_dir}")
-
-            if backend_config.additional_source_paths:
-                print(f"   ├─ Additional paths: {len(backend_config.additional_source_paths)}")
-                for i, path in enumerate(backend_config.additional_source_paths, 1):
-                    print(f"   │  └─ Path #{i}: {path}")
 
         # Create documentation generator
         if self.verbose:

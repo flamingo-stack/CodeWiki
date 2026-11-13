@@ -64,11 +64,6 @@ Technical reference documentation generated directly from source code analysis:
 **Config Core** (`codewiki/src/config.py`) — Shared runtime configuration
 - [Config Core Overview](./reference/architecture/config-core/config-core.md)
 
-**Test Multi Path Core** (`test-multi-path`) — Multi-source-path analysis validation
-- [Test Multi Path Core Overview](./reference/architecture/test-multi-path-core/test-multi-path-core.md)
-- [Test Fixtures](./reference/architecture/test-multi-path-core/test_fixtures.md)
-- [Test Runners](./reference/architecture/test-multi-path-core/test_runners.md)
-
 **Test Clustering Core** (`test_clustering`) — Module clustering validation
 - [Test Clustering Core Overview](./reference/architecture/test-clustering-core/test-clustering-core.md)
 - [Live Clustering Tests](./reference/architecture/test-clustering-core/live_clustering_tests.md)

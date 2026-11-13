@@ -46,8 +46,7 @@ class Node(BaseModel):
 
     # FQDN metadata fields (all have defaults for backward compatibility)
     short_id: str = ""  # Original ID without namespace (for display)
-    namespace: str = ""  # Namespace (e.g., "main", "deps", "ui-kit")
-    is_from_deps: bool = False  # True if from dependencies, False if from main repo
+    namespace: str = ""  # Namespace: the repository's directory name
 
     def get_display_name(self) -> str:
         return self.display_name or self.name

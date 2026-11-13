@@ -22,6 +22,7 @@ from pydantic_ai.usage import UsageLimits
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
 from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_tool
+from codewiki.src.be.agent_tools.code_graph import code_graph_tools
 from codewiki.src.be.llm_services import create_fallback_models
 from codewiki.src.be.prompt_template import SYSTEM_PROMPT, LEAF_SYSTEM_PROMPT, format_user_prompt, format_system_prompt, format_leaf_system_prompt
 from codewiki.src.be.utils import is_complex_module, count_tokens
@@ -117,7 +118,7 @@ async def generate_sub_module_documentation(
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
                 system_prompt=format_system_prompt(sub_module_name, ctx.deps.custom_instructions),
-                tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool],
+                tools=[read_code_components_tool, str_replace_editor_tool, generate_sub_module_documentation_tool, *code_graph_tools()],
                 retries=3,
             )
         else:
@@ -126,7 +127,7 @@ async def generate_sub_module_documentation(
                 name=sub_module_name,
                 deps_type=CodeWikiDeps,
                 system_prompt=format_leaf_system_prompt(sub_module_name, ctx.deps.custom_instructions),
-                tools=[read_code_components_tool, str_replace_editor_tool],
+                tools=[read_code_components_tool, str_replace_editor_tool, *code_graph_tools()],
                 retries=3,
             )
 

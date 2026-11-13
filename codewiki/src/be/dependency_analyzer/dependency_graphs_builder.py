@@ -49,20 +49,9 @@ class DependencyGraphBuilder:
         include_patterns = self.config.include_patterns if self.config.include_patterns else None
         exclude_patterns = self.config.exclude_patterns if self.config.exclude_patterns else None
 
-        # Build list of paths to analyze
-        repo_paths = self.config.all_source_paths
-
-        # Log multi-path mode if enabled
-        if self.config.is_multi_path_mode():
-            logger.info(f"🔍 Multi-path mode enabled: analyzing {len(repo_paths)} source paths")
-            logger.info(f"   ├─ Primary: {repo_paths[0]}")
-            for i, path in enumerate(repo_paths[1:], 1):
-                logger.info(f"   └─ Additional #{i}: {path}")
-        else:
-            logger.info(f"📁 Single-path mode: analyzing {repo_paths[0]}")
-
+        logger.info(f"📁 Analyzing repository: {self.config.repo_path}")
         parser = DependencyParser(
-            repo_paths if len(repo_paths) > 1 else repo_paths[0],
+            self.config.repo_path,
             include_patterns=include_patterns,
             exclude_patterns=exclude_patterns
         )
