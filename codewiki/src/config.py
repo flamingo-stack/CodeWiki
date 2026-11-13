@@ -17,10 +17,13 @@ downstream documentation generation stages.
 from dataclasses import dataclass, field, fields, asdict
 from typing import Optional, List, Dict, Any
 import argparse
+import logging
 import os
 import sys
 from dotenv import load_dotenv
 from codewiki.src.be.flamingo_guidelines import escape_format_braces
+
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Constants
@@ -193,9 +196,6 @@ class Config:
         Raises:
             ValueError: If the path does not exist or is not a directory
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         logger.info("🔍 Validating repository path...")
 
         if not os.path.exists(self.repo_path):
@@ -206,9 +206,6 @@ class Config:
 
     def get_prompt_addition(self) -> str:
         """Generate prompt additions based on agent instructions."""
-        import logging
-        logger = logging.getLogger(__name__)
-
         if not self.agent_instructions:
             logger.debug("📋 get_prompt_addition: No agent_instructions configured")
             return ""

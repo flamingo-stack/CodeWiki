@@ -84,30 +84,33 @@ def totals() -> Dict[str, Any]:
         return {"by_model": json.loads(json.dumps(_by_model)), **_runs}
 
 
-_prior: Dict[str, Any] | None = None
+# What this process has already added to the file, per model: each write re-reads the file and replaces THIS
+# share only, so an update another writer made in between is kept, never overwritten by a stale copy.
+_written: Dict[str, Dict[str, int]] = {}
 
 
 def _write() -> None:
-    """Merge this run's totals into `CODEWIKI_USAGE_FILE` (the workflow's usage artifact): what earlier stages wrote, read once, plus this run's."""
-    global _prior
+    """Merge this run's totals into `CODEWIKI_USAGE_FILE` (the workflow's usage artifact), re-read on every write."""
+    global _written
     path = os.environ.get("CODEWIKI_USAGE_FILE")
     if not path:
         return
     with _lock:
-        if _prior is None:
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    _prior = json.load(handle)
-            except (OSError, ValueError):
-                _prior = {}
-        merged = {model: dict(values) for model, values in (_prior.get("usage", {}).get("by_model") or {}).items()}
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                current = json.load(handle)
+        except (OSError, ValueError):
+            current = {}
+        merged = {model: dict(values) for model, values in (current.get("usage", {}).get("by_model") or {}).items()}
         for model, values in _by_model.items():
             entry = merged.setdefault(model, {"input": 0, "output": 0, "cacheRead": 0})
+            before = _written.get(model, {})
             for key in ("input", "output", "cacheRead"):
-                entry[key] = entry.get(key, 0) + values[key]
-        funnel = dict(_prior.get("funnel") or {})
+                entry[key] = max(0, entry.get(key, 0) - before.get(key, 0)) + values[key]
+        funnel = dict(current.get("funnel") or {})
         funnel["stage2"] = {"engine": "codewiki", **_runs}
-        tmp = f"{path}.tmp"
+        tmp = f"{path}.{os.getpid()}.tmp"
         with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump({"usage": {"by_model": merged}, "funnel": funnel}, handle)
+            json.dump({**current, "usage": {**(current.get("usage") or {}), "by_model": merged}, "funnel": funnel}, handle)
         os.replace(tmp, path)
+        _written = {model: dict(values) for model, values in _by_model.items()}
