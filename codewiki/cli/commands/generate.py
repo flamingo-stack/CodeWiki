@@ -39,6 +39,15 @@ def parse_patterns(patterns_str: str) -> List[str]:
     return [p.strip() for p in patterns_str.split(',') if p.strip()]
 
 
+def _removed_additional_paths(value):
+    """`--additional-paths` was removed: say so and why, rather than click's bare "no such option"."""
+    if value:
+        raise click.UsageError(
+            "--additional-paths was removed: CodeWiki documents only the repository it runs in, and reads other "
+            "repositories through the hub's code-graph tools (HUB_BASE_URL, WEBHOOK_SECRET). Drop the option."
+        )
+
+
 @click.command(name="generate")
 @click.option(
     "--output",
@@ -137,6 +146,14 @@ def parse_patterns(patterns_str: str) -> List[str]:
     type=int,
     default=None,
     help="Maximum depth for hierarchical decomposition (overrides config)",
+)
+@click.option(
+    "--additional-paths",
+    hidden=True,
+    expose_value=False,
+    is_eager=True,
+    callback=lambda ctx, param, value: _removed_additional_paths(value),
+    help="Removed: other repositories are read through the hub's code-graph tools.",
 )
 @click.pass_context
 def generate_command(
