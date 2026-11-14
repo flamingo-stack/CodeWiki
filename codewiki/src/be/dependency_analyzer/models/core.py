@@ -48,6 +48,14 @@ class Node(BaseModel):
     short_id: str = ""  # Original ID without namespace (for display)
     namespace: str = ""  # Namespace: the repository's directory name
 
+    # A component of ANOTHER repository this one builds on (read from the hub's code graph): where its file is
+    # published, at the commit the graph indexed, and that repository's `owner/name`. None for the repository's own.
+    source_url: Optional[str] = None
+    source_repository: Optional[str] = None
+    # Its artifact, and this repository's modules that depend on that artifact (which service runs it).
+    source_artifact: Optional[str] = None
+    used_by: Optional[List[str]] = None
+
     def get_display_name(self) -> str:
         return self.display_name or self.name
 

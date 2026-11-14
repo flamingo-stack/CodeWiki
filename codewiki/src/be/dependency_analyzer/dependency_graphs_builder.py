@@ -11,6 +11,7 @@ from codewiki.src.config import Config
 from codewiki.src.be.dependency_analyzer.ast_parser import DependencyParser
 from codewiki.src.be.dependency_analyzer.topo_sort import build_graph_from_components, get_leaf_nodes
 from codewiki.src.be.dependency_analyzer.validation import validate_graph_completeness
+from codewiki.src.be.dependency_analyzer.upstream_components import load_upstream_components
 from codewiki.src.utils import file_manager
 
 import logging
@@ -70,6 +71,13 @@ class DependencyGraphBuilder:
         logger.info("🔍 Parsing repository files...")
         components = parser.parse_repository(filtered_folders)
         logger.info(f"   └─ Parsed {len(components)} components total")
+
+        # The code this repository builds on (the artifacts it consumes from other repositories), from the hub's
+        # code graph: documented with the repository, as it is assembled at run time.
+        upstream = load_upstream_components(components)
+        components.update(upstream)
+        if upstream:
+            logger.info(f"   └─ With the code it builds on: {len(components)} components")
 
         # Log component type breakdown
         type_counts = {}
