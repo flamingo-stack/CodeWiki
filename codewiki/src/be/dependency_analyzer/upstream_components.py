@@ -10,7 +10,9 @@ from other repositories and which definitions each holds, and serves their files
   files, each with the upstream components it imports) and ``consumed_by`` (per artifact, this repository's modules
   that depend on it).
 - ``GET  ...?github=<repo>&upstream=<owner/lib>&page=&pageSize=`` answers one page of that producer's components:
-  symbol key, name, type, file, lines, and the components its file imports.
+  symbol key, name, the kind the graph's tagger wrote, file, lines, and the components its file imports. The graph
+  decides what a component is (a definition with a body that no other definition of its file encloses), so every
+  one is a unit worth a page, whatever its kind.
 - ``POST ...`` with ``{github, upstream, paths}`` answers the texts of up to 80 of its files.
 
 Every component becomes a ``Node`` namespaced by the producer's repository name, its file written under a
@@ -130,13 +132,13 @@ def _load(client: httpx.Client, settings: HubSettings, own_components: Dict[str,
             nodes[node_id] = Node(
                 id=node_id,
                 name=row["name"],
-                component_type=row["component_type"],
+                component_type=row["kind"],
                 file_path=os.path.join(root, repo_name, row["file"]),
                 relative_path=f"{repo_name}/{row['file']}",
                 source_code=_slice(text, row.get("start_line"), row.get("end_line")),
                 start_line=row.get("start_line") or 0,
                 end_line=row.get("end_line") or 0,
-                node_type=row["component_type"],
+                node_type=row["kind"],
                 display_name=row["name"],
                 component_id=node_id,
                 short_id=f"{_module_path(row['file'])}::{row['name']}",

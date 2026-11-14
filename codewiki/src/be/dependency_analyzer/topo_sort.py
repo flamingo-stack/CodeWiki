@@ -322,7 +322,8 @@ def get_leaf_nodes(graph: Dict[str, Set[str]], components: Dict[str, Node]) -> L
                 continue
                 
             if leaf_node in components:
-                if components[leaf_node].component_type in valid_types:
+                # A component read from the code graph is a unit by the graph's own rule, whatever its kind.
+                if components[leaf_node].source_repository or components[leaf_node].component_type in valid_types:
                     keep_leaf_nodes.append(leaf_node)
                 else:
                     # logger.debug(f"Leaf node {leaf_node} is a {components[leaf_node].component_type}, removing it")

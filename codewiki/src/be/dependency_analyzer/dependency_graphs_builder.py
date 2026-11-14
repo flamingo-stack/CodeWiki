@@ -136,7 +136,9 @@ class DependencyGraphBuilder:
                 continue
 
             if leaf_node in components:
-                if components[leaf_node].component_type in valid_types:
+                # A component read from the code graph is a unit by the graph's own rule (upstream_components.py),
+                # whatever kind its language calls it; the type filter is for this repository's own parse.
+                if components[leaf_node].source_repository or components[leaf_node].component_type in valid_types:
                     keep_leaf_nodes.append(leaf_node)
                 else:
                     skipped_type += 1
