@@ -9,7 +9,18 @@ module tree, invoking the agent, and persisting generated docs).
 """
 
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import (
+    FallbackExceptionGroup,
+    ModelConnectionError,
+    ModelRateLimitError,
+    ModelRequestTimeout,
+    ModelServerError,
+    ModelUnavailableError,
+)
 from pydantic_ai.usage import UsageLimits
+import asyncio
+import copy
+from codewiki.src.be.usage_tracker import run_and_record
 # import logfire
 import logging
 import os
@@ -19,6 +30,25 @@ from typing import Dict, List, Any
 # Configure logging and monitoring
 
 logger = logging.getLogger(__name__)
+
+# A module whose agent run fails on a passing provider problem (a dropped connection, a rate limit, an outage) is
+# run again, after the SDK's own retries are spent: these waits outlast a short outage or a laptop's network coming
+# back. Any other error fails the module at once.
+MODULE_RUN_RETRY_DELAYS_S = (60, 300)
+_TRANSIENT_MODEL_ERRORS = (
+    ModelConnectionError,
+    ModelRateLimitError,
+    ModelRequestTimeout,
+    ModelServerError,
+    ModelUnavailableError,
+)
+
+
+def is_transient_model_error(error: BaseException) -> bool:
+    """Whether a failed agent run may succeed when run again: every model it tried failed on a passing problem."""
+    if isinstance(error, FallbackExceptionGroup):
+        return all(is_transient_model_error(child) for child in error.exceptions)
+    return isinstance(error, _TRANSIENT_MODEL_ERRORS)
 
 # try:
 #     # Configure logfire with environment variables for Docker compatibility
@@ -50,6 +80,7 @@ logger = logging.getLogger(__name__)
 from codewiki.src.be.agent_tools.deps import CodeWikiDeps
 from codewiki.src.be.agent_tools.read_code_components import read_code_components_tool
 from codewiki.src.be.agent_tools.str_replace_editor import str_replace_editor_tool
+from codewiki.src.be.agent_tools.code_graph import code_graph_tools
 from codewiki.src.be.agent_tools.generate_sub_module_documentations import generate_sub_module_documentation_tool
 from codewiki.src.be.llm_services import create_fallback_models, reset_request_counter
 from codewiki.src.be.prompt_template import (
@@ -95,7 +126,8 @@ class AgentOrchestrator:
                 tools=[
                     read_code_components_tool,
                     str_replace_editor_tool,
-                    generate_sub_module_documentation_tool
+                    generate_sub_module_documentation_tool,
+                    *code_graph_tools(),
                 ],
                 system_prompt=format_system_prompt(module_name, self.custom_instructions),
                 retries=3,  # From fork
@@ -105,7 +137,7 @@ class AgentOrchestrator:
                 self.fallback_models,
                 name=module_name,
                 deps_type=CodeWikiDeps,
-                tools=[read_code_components_tool, str_replace_editor_tool],
+                tools=[read_code_components_tool, str_replace_editor_tool, *code_graph_tools()],
                 system_prompt=format_leaf_system_prompt(module_name, self.custom_instructions),
                 retries=3,  # From fork
             )
@@ -185,11 +217,31 @@ class AgentOrchestrator:
         logger.info("")
 
         try:
-            result = await agent.run(
-                user_prompt,
-                deps=deps,
-                usage_limits=UsageLimits(request_limit=1000),
-            )
+            # A retry starts from the state the first attempt started with. Sub-modules a failed attempt finished stay
+            # finished (deps.finished_sub_modules), so they are neither written nor paid for twice.
+            start_state = (copy.deepcopy(deps.module_tree), list(deps.path_to_current_module), deps.current_module_name, deps.current_depth)
+            for attempt, delay in enumerate((*MODULE_RUN_RETRY_DELAYS_S, None), start=1):
+                if attempt > 1:
+                    deps.module_tree = copy.deepcopy(start_state[0])
+                    deps.path_to_current_module[:] = start_state[1]
+                    deps.current_module_name, deps.current_depth = start_state[2], start_state[3]
+                try:
+                    result = await run_and_record(
+                        agent,
+                        module_name,
+                        user_prompt,
+                        deps=deps,
+                        usage_limits=UsageLimits(request_limit=1000),
+                    )
+                    break
+                except Exception as run_error:
+                    if delay is None or not is_transient_model_error(run_error):
+                        raise
+                    logger.warning(
+                        f"⏳ {module_name}: attempt {attempt} failed on a passing provider error "
+                        f"({type(run_error).__name__}: {run_error}); running it again in {delay}s"
+                    )
+                    await asyncio.sleep(delay)
 
             # Save updated module tree
             file_manager.save_json(deps.module_tree, module_tree_path)

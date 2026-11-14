@@ -12,7 +12,7 @@ def check_node_model():
     with open('codewiki/src/be/dependency_analyzer/models/core.py', 'r') as f:
         content = f.read()
     
-    required_fields = ['short_id:', 'namespace:', 'is_from_deps:']
+    required_fields = ['short_id:', 'namespace:']
     checks = {field: field in content for field in required_fields}
     
     print("✅ Node Model FQDN Fields Check:")
@@ -28,14 +28,12 @@ def check_ast_parser():
         content = f.read()
     
     checks = {
-        'FQDN comment in multi-path': '# FQDN metadata fields' in content,
+        'FQDN metadata comment': '# FQDN metadata fields' in content,
         'fqdn = f"{namespace}.{original_id}"': 'fqdn = f"{namespace}.{original_id}"' in content,
         'components[fqdn] = node': 'components[fqdn] = node' in content,
         'id=fqdn': 'id=fqdn' in content,
         'short_id=original_id': 'short_id=original_id' in content,
         'namespace=namespace': 'namespace=namespace' in content,
-        'is_from_deps=(repo_index > 0)': 'is_from_deps=(repo_index > 0)' in content,
-        'is_from_deps=False': 'is_from_deps=False' in content,
     }
     
     print("\n✅ AST Parser FQDN Implementation Check:")

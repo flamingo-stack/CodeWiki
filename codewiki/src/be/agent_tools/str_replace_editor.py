@@ -11,7 +11,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Tuple, Literal
-import io
 
 import logging
 
@@ -26,9 +25,11 @@ from ..utils import validate_mermaid_diagrams
 
 
 # There are some super strange "ascii can't decode x" errors,
-# that can be solved with setting the default encoding for stdout
-# (note that python3.6 doesn't have the reconfigure method)
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# that can be solved with setting the default encoding for stdout.
+# Reconfigure the stream in place: wrapping its buffer in a new TextIOWrapper
+# closed the original stream when the wrapper was collected.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 TRUNCATED_MESSAGE: str = "<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with `grep -n` in order to find the line numbers of what you are looking for.</NOTE>"
 MAX_RESPONSE_LEN: int = 16000

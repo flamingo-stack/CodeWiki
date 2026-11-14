@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 from codewiki.src.be.dependency_analyzer.utils.patterns import DEFAULT_IGNORE_PATTERNS, DEFAULT_INCLUDE_PATTERNS
+from codewiki.src.be.dependency_analyzer.utils.third_party import third_party_reason
 
 
 class RepoAnalyzer:
@@ -31,6 +32,8 @@ class RepoAnalyzer:
         )
         # Track namespaces when analyzing multiple paths
         self._namespace_roots: Dict[str, str] = {}  # namespace -> repo_path
+        # Files left out as someone else's code (copied libraries, minified builds): path -> why.
+        self.third_party_files: Dict[str, str] = {}
 
     def analyze_repository_structure(self, repo_dir: Union[str, List[str]]) -> Dict:
         """
@@ -138,7 +141,7 @@ class RepoAnalyzer:
             repo_path: Path to repository
 
         Returns:
-            Namespace string (e.g., 'openframe-frontend', 'ui-kit')
+            Namespace string: the repository directory's name
         """
         return os.path.basename(os.path.abspath(repo_path).rstrip(os.sep))
 
@@ -164,6 +167,10 @@ class RepoAnalyzer:
 
             if path.is_file():
                 if not self._should_include_file(relative_path_str, path.name):
+                    return None
+                reason = third_party_reason(path)
+                if reason:
+                    self.third_party_files[relative_path_str] = reason
                     return None
 
                 size = path.stat().st_size

@@ -119,9 +119,16 @@ DEFAULT_IGNORE_PATTERNS = {
     # Documentation
     ".docusaurus",
     # Other common patterns
-    ## Minified files
+    ## Minified files (any other minified file is found by its form: utils/third_party.py)
     "*.min.js",
     "*.min.css",
+    ## Folders that hold other projects' code (utils/third_party.py's THIRD_PARTY_DIRECTORIES)
+    "vendor",
+    "vendors",
+    "third_party",
+    "third-party",
+    "thirdparty",
+    "bower_components",
     ## Source maps
     "*.map",
     ## Terraform

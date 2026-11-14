@@ -183,7 +183,7 @@ python -m pytest test_fqdn_normalization.py -v
 ### Step 3: Integration Test
 
 ```bash
-# Run full workflow with multi-path
+# Run full workflow
 cd /private/tmp/test-codewiki-fqdn
 /tmp/test-codewiki-fqdn.sh
 

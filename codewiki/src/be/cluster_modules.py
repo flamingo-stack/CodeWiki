@@ -67,7 +67,7 @@ def extract_package_hint(fqdn: str) -> str:
     Extract package/category from FQDN for human readability.
 
     Examples:
-        "...src.main.java.com.openframe.api.controller.Class" → "controller"
+        "...src.main.java.com.example.api.controller.Class" → "controller"
         "main-repo.src/models/device.py::DeviceModel" → "models"
     """
     if '::' not in fqdn:
@@ -331,6 +331,135 @@ def normalize_component_ids_by_lookup(
     return module_tree
 
 
+# How many left-out components one placement call names, so its prompt stays small whatever the repository's size.
+PLACEMENT_BATCH_SIZE = 400
+
+
+def _component_dir(fqdn: str, components: Dict[str, Node]) -> List[str]:
+    """The directory a component's file is in, as path segments."""
+    node = components.get(fqdn)
+    path = getattr(node, 'relative_path', None) or fqdn.split('::')[0]
+    return [part for part in path.replace('\\', '/').split('/')[:-1] if part]
+
+
+def _shared_prefix(a: List[str], b: List[str]) -> int:
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+def place_by_path(module_tree: Dict[str, Any], left_out: List[str], components: Dict[str, Node]) -> Dict[str, List[str]]:
+    """Each component goes to the module holding the component whose directory shares the longest path with its own.
+
+    A tie goes to the larger module, then to the module named first. Deterministic and free: the net under the model's
+    placement, so no component is ever left without a module.
+    """
+    module_dirs = {
+        name: [_component_dir(fqdn, components) for fqdn in info.get('components', [])]
+        for name, info in module_tree.items()
+    }
+    placed: Dict[str, List[str]] = defaultdict(list)
+    for fqdn in left_out:
+        own = _component_dir(fqdn, components)
+        best = max(
+            module_dirs,
+            key=lambda name: (
+                max((_shared_prefix(own, d) for d in module_dirs[name]), default=0),
+                len(module_dirs[name]),
+                -list(module_dirs).index(name),
+            ),
+        )
+        placed[best].append(fqdn)
+    return dict(placed)
+
+
+def _ask_placement(
+    module_tree: Dict[str, Any],
+    left_out: List[str],
+    components: Dict[str, Node],
+    config: Config,
+) -> Dict[str, List[str]]:
+    """Ask the clustering model which existing module each left-out component belongs in."""
+    import json
+
+    modules = []
+    for name, info in module_tree.items():
+        members = info.get('components', [])
+        sample = ', '.join(fqdn.split('::')[-1] for fqdn in members[:12])
+        modules.append(f"- {name} (path: {info.get('path') or '-'}; {len(members)} components, e.g. {sample})")
+    placed: Dict[str, List[str]] = defaultdict(list)
+    for start in range(0, len(left_out), PLACEMENT_BATCH_SIZE):
+        batch = left_out[start:start + PLACEMENT_BATCH_SIZE]
+        lines = []
+        for idx, fqdn in enumerate(batch):
+            node = components.get(fqdn)
+            lines.append(f"{idx}: {fqdn.split('::')[-1]} ({getattr(node, 'relative_path', None) or fqdn.split('::')[0]})")
+        prompt = (
+            "The components of a repository were grouped into these modules:\n"
+            + "\n".join(modules)
+            + "\n\nThese components were not placed in any module yet. Each one is an integer ID, its name and its file:\n"
+            + "\n".join(lines)
+            + "\n\nPlace EVERY component above in the one existing module it belongs to. Use only the module names listed."
+            " Answer with a JSON object from module name to the list of bare integer IDs placed in it, wrapped in"
+            " <PLACEMENTS> and </PLACEMENTS>, with nothing else."
+        )
+        try:
+            response = call_llm(prompt, config, model=config.cluster_model)
+            body = response.split('<PLACEMENTS>')[1].split('</PLACEMENTS>')[0]
+            answer = json.loads(body)
+        except Exception as e:  # a failed batch is placed by path below
+            logger.warning(f"   ⚠️  Placement call failed for {len(batch)} components: {type(e).__name__}: {e}")
+            continue
+        if not isinstance(answer, dict):
+            continue
+        batch_ids = dict(enumerate(batch))
+        taken = set()
+        for name, ids in answer.items():
+            if name not in module_tree:
+                logger.warning(f"   \u274c Placement named module '{name}', which clustering did not create; its IDs are placed by path")
+                continue
+            if not isinstance(ids, list):
+                logger.warning(f"   \u274c Placement for module '{name}' is not a list of IDs; placed by path")
+                continue
+            resolved, _, _ = normalize_component_id_list(ids, batch_ids, context=f"placement into '{name}'")
+            for fqdn in resolved:
+                if fqdn not in taken:
+                    taken.add(fqdn)
+                    placed[name].append(fqdn)
+    return dict(placed)
+
+
+def place_left_out_components(
+    module_tree: Dict[str, Any],
+    leaf_nodes: List[str],
+    components: Dict[str, Node],
+    config: Config,
+) -> int:
+    """Put every leaf node the clustering left out into a module: the model's choice first, then by path.
+
+    The documentation covers only the components a module holds, so a component no module holds is never documented
+    (one repository's clustering placed 376 of its 1,077 components). Returns how many were placed.
+    """
+    held = {fqdn for info in module_tree.values() for fqdn in info.get('components', [])}
+    left_out = [fqdn for fqdn in dict.fromkeys(leaf_nodes) if fqdn in components and fqdn not in held]
+    if not left_out or not module_tree:
+        return 0
+    logger.info(f"🧩 {len(left_out)} of {len(left_out) + len(held)} components left out by clustering; placing them")
+    by_model = _ask_placement(module_tree, left_out, components, config)
+    for name, fqdns in by_model.items():
+        module_tree[name].setdefault('components', []).extend(fqdns)
+    model_placed = {fqdn for fqdns in by_model.values() for fqdn in fqdns}
+    rest = [fqdn for fqdn in left_out if fqdn not in model_placed]
+    by_path = place_by_path(module_tree, rest, components) if rest else {}
+    for name, fqdns in by_path.items():
+        module_tree[name].setdefault('components', []).extend(fqdns)
+    logger.info(f"   └─ placed {len(model_placed)} by the model and {len(rest)} by file path")
+    return len(left_out)
+
+
 def cluster_modules(
     leaf_nodes: List[str],
     components: Dict[str, Node],
@@ -448,6 +577,8 @@ def cluster_modules(
     if len(module_tree) <= 1:
         logger.debug(f"Skipping clustering for {current_module_name} because the module tree is too small: {len(module_tree)} modules")
         return {}
+
+    place_left_out_components(module_tree, leaf_nodes, components, config)
 
     if current_module_tree == {}:
         current_module_tree = module_tree

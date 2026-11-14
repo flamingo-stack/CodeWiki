@@ -245,6 +245,18 @@ class AnalysisService:
         logger.debug("└─ Initializing RepoAnalyzer...")
         repo_analyzer = RepoAnalyzer(include_patterns, exclude_patterns)
         result = repo_analyzer.analyze_repository_structure(repo_dir)
+        skipped = repo_analyzer.third_party_files
+        if skipped:
+            by_reason: Dict[str, int] = {}
+            for reason in skipped.values():
+                by_reason[reason] = by_reason.get(reason, 0) + 1
+            logger.info(
+                f"🧾 Left out {len(skipped)} file(s) as someone else's code ("
+                + ", ".join(f"{n} {reason}" for reason, n in sorted(by_reason.items()))
+                + "): "
+                + ", ".join(sorted(skipped)[:20])
+                + (f" and {len(skipped) - 20} more" if len(skipped) > 20 else "")
+            )
 
         logger.debug(f"   ├─ Files found: {result.get('summary', {}).get('total_files', 0)}")
         logger.debug(f"   └─ Languages detected: {', '.join(result.get('summary', {}).get('languages', []))}")
