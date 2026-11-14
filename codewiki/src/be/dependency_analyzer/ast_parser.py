@@ -101,7 +101,7 @@ class DependencyParser:
             repo_path: Absolute path to repository
 
         Returns:
-            Namespace string (e.g., 'openframe-frontend')
+            Namespace string: the repository directory's name
         """
         # Use the last directory name as namespace
         return os.path.basename(repo_path.rstrip(os.sep))

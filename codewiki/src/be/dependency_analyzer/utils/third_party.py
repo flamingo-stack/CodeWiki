@@ -9,8 +9,8 @@ LOCATION, never a list of library names:
 - minified: a `.js` / `.css` file whose average line is longer than 110 characters, GitHub Linguist's rule for
   minified files (a person's code averages well under that; one repository's own files averaged 21 to 78), unless
   it also holds at least 200 ordinary lines (non-empty, at most 110 characters): a hand-written file with one long
-  embedded data line (meshcentral's agents/meshcmd.js: 2,673 ordinary lines) is code, while minified libraries
-  have a few dozen at most (OpenLayers 33, each Bootstrap theme 11);
+  embedded data line has thousands of them and is code, while minified libraries have a few dozen at most
+  (OpenLayers 33, each Bootstrap theme 11);
 - a library banner: the file opens with a `/*!` comment, the form minifiers and library builds keep for the
   library's license (`/*! jQuery v3.7.1`, `/*! Bootstrap v5.3.3`); a project's own files open with `/**` or `//`;
 - a vendored folder (`vendor`, `third_party`, `bower_components`, …): matched by the walk's own path patterns.

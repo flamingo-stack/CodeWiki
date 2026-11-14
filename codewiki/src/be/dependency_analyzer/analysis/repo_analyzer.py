@@ -141,7 +141,7 @@ class RepoAnalyzer:
             repo_path: Path to repository
 
         Returns:
-            Namespace string (e.g., 'openframe-frontend', 'ui-kit')
+            Namespace string: the repository directory's name
         """
         return os.path.basename(os.path.abspath(repo_path).rstrip(os.sep))
 

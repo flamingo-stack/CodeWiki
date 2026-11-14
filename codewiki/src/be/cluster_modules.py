@@ -67,7 +67,7 @@ def extract_package_hint(fqdn: str) -> str:
     Extract package/category from FQDN for human readability.
 
     Examples:
-        "...src.main.java.com.openframe.api.controller.Class" → "controller"
+        "...src.main.java.com.example.api.controller.Class" → "controller"
         "main-repo.src/models/device.py::DeviceModel" → "models"
     """
     if '::' not in fqdn:
