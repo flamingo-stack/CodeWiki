@@ -46,7 +46,7 @@ LOCAL_TOOL_NAMES = {"read_code_components", "str_replace_editor", "generate_sub_
 _cached_tools: Optional[List[Tool]] = None
 
 
-class _HubSettings:
+class HubSettings:
     """What the hub calls need, read from the environment once."""
 
     def __init__(self, base_url: str, secret: str, repository: str):
@@ -63,7 +63,8 @@ class _HubSettings:
         return {"Authorization": f"Bearer {self.secret}", "Accept": "application/json"}
 
 
-def _read_settings() -> Optional[_HubSettings]:
+def read_hub_settings() -> Optional["HubSettings"]:
+    """The hub settings from the environment, or None (logged) when any is missing or the URL is not secure."""
     base_url = (os.environ.get("HUB_BASE_URL") or "").strip()
     secret = (os.environ.get("WEBHOOK_SECRET") or "").strip()
     repository = (os.environ.get("GITHUB_REPOSITORY") or "").strip()
@@ -87,10 +88,10 @@ def _read_settings() -> Optional[_HubSettings]:
             "(http only for localhost or 127.0.0.1)"
         )
         return None
-    return _HubSettings(base_url, secret, repository)
+    return HubSettings(base_url, secret, repository)
 
 
-def _error_message(response: httpx.Response) -> str:
+def hub_error_message(response: httpx.Response) -> str:
     """The hub's `error` and `code`, else the HTTP status."""
     try:
         body = response.json()
@@ -102,7 +103,7 @@ def _error_message(response: httpx.Response) -> str:
     return f"HTTP_{response.status_code}: the hub refused the request"
 
 
-def _make_tool(settings: _HubSettings, spec: Dict[str, Any]) -> Tool:
+def _make_tool(settings: HubSettings, spec: Dict[str, Any]) -> Tool:
     name = spec["name"]
 
     async def call_hub_tool(**args: Any) -> str:
@@ -115,7 +116,7 @@ def _make_tool(settings: _HubSettings, spec: Dict[str, Any]) -> Tool:
         except httpx.HTTPError as error:
             raise ToolFailed(f"The code graph could not be reached for {name} ({type(error).__name__}). Continue without it.")
         if response.status_code >= 400:
-            message = _error_message(response)
+            message = hub_error_message(response)
             logger.warning(f"Code-graph tool {name} failed: {message}")
             raise ToolFailed(f"{name} failed: {message}")
         try:
@@ -137,7 +138,7 @@ def _make_tool(settings: _HubSettings, spec: Dict[str, Any]) -> Tool:
     )
 
 
-def _fetch_tools(settings: _HubSettings) -> List[Tool]:
+def _fetch_tools(settings: HubSettings) -> List[Tool]:
     try:
         response = httpx.get(
             settings.endpoint,
@@ -149,7 +150,7 @@ def _fetch_tools(settings: _HubSettings) -> List[Tool]:
         logger.warning(f"Code-graph tools are off: the hub could not be reached ({type(error).__name__})")
         return []
     if response.status_code >= 400:
-        logger.warning(f"Code-graph tools are off: listing them failed ({_error_message(response)})")
+        logger.warning(f"Code-graph tools are off: listing them failed ({hub_error_message(response)})")
         return []
     try:
         body = response.json()
@@ -186,7 +187,7 @@ def code_graph_tools() -> List[Tool]:
     """The hub's code-graph tools for this repository, read once per process."""
     global _cached_tools
     if _cached_tools is None:
-        settings = _read_settings()
+        settings = read_hub_settings()
         _cached_tools = _fetch_tools(settings) if settings else []
     return list(_cached_tools)
 
