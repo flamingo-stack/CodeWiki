@@ -237,6 +237,27 @@ def format_potential_core_components(
     return potential_core_components, potential_core_components_with_code, id_to_fqdn, id_descriptions
 
 
+def component_name_forms(components: Dict[str, Any]) -> Dict[str, List[str]]:
+    """Each exact spelling a model uses to name a component, mapped to the component ids it names.
+
+    A component id is ``<module path>::<Name>`` (``lib.api.controller.CustomerController::CustomerController``).
+    Measured on openframe-oss-tenant's documentation run (2026-11-14): asked for numbers, the writing agent returned
+    30 components of one sub-module as ``<module path>`` alone, and each was dropped. So three forms resolve: the id,
+    the id with ``::`` as ``.``, and the module path (it names the file, so every component of the file).
+    """
+    forms: Dict[str, List[str]] = defaultdict(list)
+    for fqdn in sorted(components):
+        spellings = {fqdn}
+        if "::" in fqdn:
+            module_path, _, _ = fqdn.partition("::")
+            spellings.add(fqdn.replace("::", "."))
+            spellings.add(module_path)
+        for spelling in spellings:
+            if fqdn not in forms[spelling]:
+                forms[spelling].append(fqdn)
+    return dict(forms)
+
+
 def normalize_component_id_list(
     component_ids: List[Any],
     id_to_fqdn: Dict[int, str],
@@ -245,9 +266,10 @@ def normalize_component_id_list(
 ) -> tuple[List[str], int, int]:
     """Resolve one list of LLM-returned component ids to FQDNs.
 
-    The LLM is asked for integer ids, but may return an FQDN it copied verbatim
-    out of the prompt. When ``components`` is supplied, such an id is accepted
-    as-is; otherwise only integer ids in ``id_to_fqdn`` resolve.
+    The LLM is asked for integer ids, but may return a component's name instead. When ``components`` is supplied,
+    a name resolves when it is one of a component id's exact spellings (``component_name_forms``): the id itself,
+    the id with ``::`` written as ``.``, or its file's module path (every component of that file). Nothing is
+    guessed: any other string is unresolved. Without ``components`` only integer ids in ``id_to_fqdn`` resolve.
 
     Args:
         component_ids: Raw ids from the LLM response.
@@ -263,10 +285,12 @@ def normalize_component_id_list(
     normalized = 0
     failed = 0
 
+    by_form = component_name_forms(components) if components is not None else {}
     for comp_id in component_ids:
-        # The LLM sometimes echoes a full FQDN straight out of the prompt.
-        if components is not None and comp_id in components:
-            resolved.append(comp_id)
+        # The LLM sometimes names a component instead of giving its number.
+        if isinstance(comp_id, str) and comp_id in by_form:
+            resolved.extend(by_form[comp_id])
+            normalized += 1
             continue
         try:
             idx = int(comp_id)
@@ -291,6 +315,8 @@ def normalize_component_id_list(
             )
             failed += 1
 
+    # A component named twice (by its number and by a name form) is listed once, in first-named order.
+    resolved = list(dict.fromkeys(resolved))
     return resolved, normalized, failed
 
 
